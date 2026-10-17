@@ -9,7 +9,9 @@ from __future__ import annotations
 import io
 import json
 import random
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -36,7 +38,8 @@ def _font(size: int):
 
 
 def placeholder(label: str, palette: tuple[tuple[int, int, int], tuple[int, int, int]], seed: int,
-                size=(640, 800), sd_params: str | None = None) -> bytes:
+                size=(640, 800), sd_params: str | None = None, text_chunks: dict[str, str] | None = None,
+                badge: str | None = None) -> bytes:
     rnd = random.Random(seed)
     w, h = size
     img = Image.new("RGB", size)
@@ -52,10 +55,15 @@ def placeholder(label: str, palette: tuple[tuple[int, int, int], tuple[int, int,
     d.rectangle([0, h - 120, w, h], fill=(20, 20, 32))
     d.text((28, h - 104), label, font=_font(40), fill=(255, 255, 255))
     d.text((28, h - 50), "示例占位图 · Front sample", font=_font(22), fill=(200, 200, 220))
+    if badge:  # 差分标记：同一张占位图上换一个角标，模拟 CG 差分
+        d.rounded_rectangle([w - 190, 24, w - 24, 92], radius=14, fill=(244, 114, 182))
+        d.text((w - 172, 34), badge, font=_font(34), fill=(255, 255, 255))
     buf = io.BytesIO()
     info = PngImagePlugin.PngInfo()
     if sd_params:
         info.add_text("parameters", sd_params)
+    for k, v in (text_chunks or {}).items():
+        info.add_text(k, v)
     img.save(buf, "PNG", pnginfo=info)
     return buf.getvalue()
 
@@ -134,13 +142,51 @@ def seed(client: TestClient) -> dict[str, int]:
     ]):
         upload(f"misc_{i}.png", placeholder(title.replace("【示例】", ""), pal[(i + 2) % 6], 50 + i),
                title=title, kind=kind, work_date=date, tag_ids=",".join(str(T[t]) for t in tags))
-    for i in range(3):
-        upload(f"cg_{i}.png", placeholder(f"樱色回廊 CG {i + 1:02d}", pal[(i + 4) % 6], 80 + i, size=(800, 450)),
-               title=f"【示例】樱色回廊 CG {i + 1:02d}", kind="cg", work_date="2026-07-20",
-               work_id=str(work_gal), tag_ids=f"{T['CG']},{T['示例·樱色回廊']}")
+    # galgame CG：先在临时文件夹生成一套带差分命名的占位图，再走“批量导入 · CG 模式”
+    cg_dir = Path(tempfile.mkdtemp(prefix="front-sample-cg-")) / "樱色回廊_CG（示例）"
+    cg_dir.mkdir()
+    cg_specs = [
+        ("ev01a", "ev01", "差分 a", 4), ("ev01b", "ev01", "差分 b", 4), ("ev01c", "ev01", "差分 c", 4),
+        ("ev02", "ev02", None, 5),
+        ("ev03_01", "ev03", "差分 01", 0), ("ev03_02", "ev03", "差分 02", 0),
+        ("ev0401", "ev04", "差分 01", 2), ("ev0402", "ev04", "差分 02", 2), ("ev0403", "ev04", "差分 03", 2),
+        ("ev05", "ev05", None, 3),
+    ]
+    for stem, base, badge, p in cg_specs:
+        (cg_dir / f"{stem}.png").write_bytes(
+            placeholder(f"樱色回廊 {base.upper()}", pal[p], 80 + p, size=(1280, 720), badge=badge))
+    r = client.post("/api/import/run", json={"path": str(cg_dir), "cg_mode": True, "work_id": work_gal,
+                                             "tag_ids": [T["CG"], T["示例·樱色回廊"]], "use_mtime": False})
+    r.raise_for_status()
+    cg_ids = r.json()["created_ids"]
+    shutil.rmtree(cg_dir.parent, ignore_errors=True)
+
+    novel = """这是一篇用来演示章节拆分与阅读模式的示例小说，人物与地点均为原创虚构。
+
+第一章 雾季
+雾从海面升起的时候，林汐正爬上灯塔的第一百零八级台阶。
+每年的这个时节，雾港都会被一层乳白色的海雾吞没，街灯在雾里只剩下一圈模糊的光晕。
+她把提灯挂在栏杆上，望向港口的方向。那里有一艘晚归的渔船，正循着灯塔的光慢慢靠岸。
+
+第二章 旧书店
+沈既白的旧书店开在坡道的尽头，门口的风铃在雾里响得格外清脆。
+“又是雾季了。”他把一摞旧地图搬到柜台上，“那位旅人应该快来了。”
+沈小满趴在柜台另一侧写作业，头也不抬地问：“哥，她到底要那么多旧地图做什么？”
+沈既白没有回答，只是把最上面那张地图的折角轻轻抚平。
+
+第三章 灯塔节
+灯塔节的筹备会议上，学生会长陆鸣把一份厚厚的计划书放在桌上。
+“今年的灯会路线，我建议改走新港区。”
+林汐皱起眉：“灯塔节的灯，从来都是沿着旧港走的。”
+两个人的视线在桌面上方撞在一起，会议室里一时安静得能听见窗外的海浪。
+
+尾声
+雾散的那天清晨，艾琳在书店门口留下了一张没有署名的明信片。
+上面画着雾港的灯塔，灯塔下站着两个小小的人影。
+"""
     client.post("/api/assets", json={
         "title": "【示例】雾港短篇 · 灯塔节前夜", "kind": "novel", "work_date": "2026-10-10", "world_id": world,
-        "content": "雾从海面升起的时候，林汐正爬上灯塔的第一百零八级台阶。\n（示例小说正文，可自由编辑。）",
+        "content": novel, "source": "Front 示例数据（原创）",
         "tag_ids": [T["小说"], T["示例·雾港物语"]],
     }).raise_for_status()
 
@@ -182,8 +228,34 @@ def seed(client: TestClient) -> dict[str, int]:
         "creator": "Front 示例",
         "character_version": "0.1",
     }).raise_for_status()
-    post("/api/collections", name="【示例】雾港物语 · 设定集", description="把世界观相关素材归档在一起",
-         work_id=work_orig, asset_ids=[])
+    # ComfyUI 出图示例：PNG 内嵌自制的 API 格式 prompt 与界面格式 workflow
+    comfy_prompt = {
+        "3": {"class_type": "KSampler", "inputs": {"seed": 777, "steps": 30, "cfg": 6.0, "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 1.0,
+                                                    "model": ["10", 0], "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["5", 0]}},
+        "4": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "paintflow15_example.safetensors"}},
+        "5": {"class_type": "EmptyLatentImage", "inputs": {"width": 640, "height": 800, "batch_size": 1}},
+        "6": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt_text, "clip": ["10", 1]}},
+        "7": {"class_type": "CLIPTextEncode", "inputs": {"text": neg, "clip": ["10", 1]}},
+        "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+        "9": {"class_type": "SaveImage", "inputs": {"images": ["8", 0], "filename_prefix": "front_sample"}},
+        "10": {"class_type": "LoraLoader", "inputs": {"lora_name": "watercolor_lora_example.safetensors", "strength_model": 0.7, "strength_clip": 0.7, "model": ["4", 0], "clip": ["4", 1]}},
+    }
+    comfy_workflow = {"nodes": [{"id": int(k), "type": v["class_type"], "widgets_values": []} for k, v in comfy_prompt.items()], "links": [], "version": 0.4}
+    comfy_id = upload("ComfyUI_00042_.png", placeholder("ComfyUI · PaintFlow + 水彩 LoRA", pal[5], 120,
+                      text_chunks={"prompt": json.dumps(comfy_prompt), "workflow": json.dumps(comfy_workflow)}),
+                      title="【示例】雾夜灯塔少女 · ComfyUI 工作流", work_date="2026-10-17")
+    client.post(f"/api/prompts/from-asset/{comfy_id}").raise_for_status()
+
+    assets = client.get("/api/assets", params={"limit": 200}).json()["items"]
+    by_title = {a["title"]: a["id"] for a in assets}
+    order = ["【示例】雾港夜景 · 场景练习", "【示例】林汐 立绘", "【示例】沈既白 立绘", "【示例】沈小满 立绘",
+             "【示例】陆鸣 立绘", "【示例】艾琳 立绘", "【示例】灯塔速写", "【示例】雾港短篇 · 灯塔节前夜"]
+    post("/api/collections", name="【示例】雾港物语 · 设定集", description="世界观相关素材，按设定集的页序排列",
+         work_id=work_orig, asset_ids=[by_title[t] for t in order], cover_asset_id=by_title["【示例】灯塔速写"], position=0)
+    post("/api/collections", name="【示例】樱色回廊 · 精选 CG", description="从 CG 档案里挑出的几张",
+         work_id=work_gal, asset_ids=[cg_ids[3], cg_ids[0], cg_ids[9]], position=1)
+    post("/api/collections", name="【示例】AI 出图 · 风格对比", description="同一提示词在不同模型下的出图",
+         asset_ids=[a["id"] for a in assets if a["kind"] == "ai_image"], position=2)
     return {"world_id": world, "card_id": card_id, "prompt_id": p1}
 
 

@@ -1,12 +1,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api, Assets, fileUrl, LABELS, thumb, Works, Worlds } from '../api'
 import Modal from '../components/Modal.vue'
 import TagPicker from '../components/TagPicker.vue'
-import { guard } from '../toast'
+import { guard, toast } from '../toast'
 
 const route = useRoute()
+const router = useRouter()
 const f = reactive({ q: '', kind: '', tag: [], year: '', month: '', work_id: route.query.work_id ?? '', world_id: '' })
 if (route.query.month) { const [y, m] = String(route.query.month).split('-'); f.year = y; f.month = String(Number(m)) }
 const items = ref([])
@@ -59,6 +60,12 @@ async function remove() {
   await guard(() => Assets.remove(editing.value.id), '已删除')
   editing.value = null
   load()
+}
+const SOURCES = { a1111: 'SD WebUI', comfyui: 'ComfyUI', 'comfyui-workflow': 'ComfyUI（界面工作流）' }
+async function toPrompt() {
+  const r = await guard(() => api.post(`/api/prompts/from-asset/${editing.value.id}`))
+  toast(r.reused_prompt ? '已加入现有提示词的模型对比' : '已存入提示词库')
+  router.push({ path: '/prompts', query: { id: r.prompt_id } })
 }
 const years = computed(() => { const y = new Date().getFullYear(); return Array.from({ length: 12 }, (_, i) => y - i) })
 </script>
@@ -124,14 +131,17 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
       <label class="field">备注<textarea v-model="editing.description" /></label>
       <label v-if="editing.kind === 'novel' || editing.content" class="field">正文<textarea v-model="editing.content" style="min-height:220px" /></label>
       <div v-if="editing.meta?.sd" class="card" style="background:var(--panel2)">
-        <b>SD 出图参数</b>
+        <div class="row"><b>出图参数</b><span class="badge ai">{{ SOURCES[editing.meta.sd.source] ?? 'SD' }}</span><span v-if="editing.meta.sd.node_count" class="badge">{{ editing.meta.sd.node_count }} 个节点</span><span class="spacer" />
+          <a v-if="editing.meta.sd.has_workflow || editing.meta.sd.source?.startsWith('comfyui')" class="btn" :href="`/api/assets/${editing.id}/workflow`">⇩ 下载工作流</a>
+          <button @click="toPrompt">✎ 存入提示词库</button></div>
         <pre class="prompt">{{ editing.meta.sd.prompt }}</pre>
         <pre v-if="editing.meta.sd.negative_prompt" class="prompt">Negative: {{ editing.meta.sd.negative_prompt }}</pre>
         <div class="row small"><span v-for="(v, k) in editing.meta.sd.params" :key="k" class="badge">{{ k }}: {{ v }}</span></div>
+        <div v-if="editing.meta.sd.loras?.length" class="row small" style="margin-top:6px">LoRA：<span v-for="l in editing.meta.sd.loras" :key="l.name" class="chip">{{ l.name }}{{ l.strength != null ? ` × ${l.strength}` : '' }}</span></div>
       </div>
       <p v-if="editing.id" class="small muted">{{ editing.original_name }} · {{ editing.width ? `${editing.width}×${editing.height} · ` : '' }}{{ editing.size ? (editing.size / 1024).toFixed(1) + ' KB' : '' }} <span class="mono">{{ editing.sha256?.slice(0, 16) }}</span></p>
       <TagPicker v-model="editing.tag_ids" />
-      <div class="row"><button v-if="editing.id" class="danger" @click="remove">删除</button><span class="spacer" /><button class="primary" @click="save">保存</button></div>
+      <div class="row"><button v-if="editing.id" class="danger" @click="remove">删除</button><RouterLink v-if="editing.id && editing.content" class="btn" :to="`/read/${editing.id}`">📖 阅读模式</RouterLink><span class="spacer" /><button class="primary" @click="save">保存</button></div>
     </div>
   </Modal>
 </template>

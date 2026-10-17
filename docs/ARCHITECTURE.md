@@ -59,7 +59,14 @@ DELETE /api/<资源>/{id}
 
 | 接口 | 说明 |
 | --- | --- |
-| `POST /api/assets/upload` | multipart 上传，自动识别类型 / 尺寸 / SD 参数 / 小说编码 |
+| `POST /api/assets/upload` | multipart 上传，自动识别类型 / 尺寸 / SD WebUI 与 ComfyUI 出图信息 / 小说编码 |
+| `POST /api/import/scan` | 扫描本机文件夹（只读预览）；`cg_mode` 时返回差分分组 |
+| `POST /api/import/run` | 导入文件夹：复制进数据目录、去重、可新建作品，CG 模式下自动分组 |
+| `GET /api/works/{id}/cg`、`POST .../cg/regroup` | CG 档案（按差分分组）、重新识别差分 |
+| `GET /api/assets/{id}/chapters`、`/chapters/{n}` | 小说目录与字数、单章正文（含上一章 / 下一章） |
+| `GET /api/assets/{id}/workflow` | 下载 PNG 内嵌的 ComfyUI 工作流 |
+| `POST /api/prompts/from-asset/{id}` | AI 图的出图参数存入提示词库并记录一次出图 |
+| `POST /api/collections/{id}/items`、`DELETE .../items/{asset}`、`PUT .../order`、`PUT /api/collections/order` | 收藏集追加 / 移出 / 排序、收藏集之间排序 |
 | `GET /api/assets/{id}/file`、`/thumb` | 原文件、WebP 缩略图 |
 | `GET /api/assets/stats/timeline` | 按 年-月 × 类型 统计 |
 | `GET /api/graph?world_id=` | 关系网节点与边 |
@@ -73,6 +80,22 @@ DELETE /api/<资源>/{id}
 | `POST /api/ai/worlds/{id}/suggest-relations` | AI 识别世界观中的角色关系 |
 | `GET /api/search?q=&entity=` | 全局全文检索 |
 | `POST /api/search/rebuild` | 重建索引 |
+
+## 素材入库流程（`ingest.py`）
+
+上传接口与文件夹导入共用 `ingest()`：计算 SHA256 去重 → 判断类型（文本 / 图片）→ 读取尺寸 → 识别出图信息（`parameters` → SD WebUI；`prompt` / `workflow` → ComfyUI，见 `comfy.py`）→ 写入 `media/YYYY/MM/<sha>.<ext>` → 生成缩略图。
+
+## galgame CG 分组（`cg.py`）
+
+按顺序尝试：显式差分标记（`ev01_diff2`、`ev01差分2`）→ 数字后接字母（`ev01a`）→ 带数字前缀 + 分隔符 + 数字（`ev01_02`）→ 末尾 4 位以上数字且有兄弟文件（`ev0101`/`ev0102`）。同组还要求分辨率相同，同名不同分辨率的组以 `@1920x1080` 区分。分组结果写入 `asset.meta["cg"]`（group / variant / 顺序），档案与鉴赏模式按它展示。
+
+## 小说章节（`chapters.py`）
+
+按行识别“第X章/节/回/卷”、`Chapter N`、Markdown `#` 标题、序章 / 楔子 / 尾声 / 番外等；第一个标题前的内容归为“前言”。字数：中日文按字、英文按词。
+
+## 数据库迁移（`migrate.py`）
+
+`create_all` 只会建新表。`migrate.py` 在启动时检查已有表，缺少的新列用 `ALTER TABLE ... ADD COLUMN` 补齐，老版本的数据库可以直接升级。
 
 ## 全文检索
 
@@ -106,9 +129,14 @@ backend/
     crud.py        通用 CRUD 工厂
     search.py      FTS5 索引
     pngmeta.py     SD 参数 / 角色卡 PNG
+    ingest.py      素材入库（上传与批量导入共用）
+    comfy.py       ComfyUI prompt / workflow 解析
+    cg.py          CG 差分分组
+    chapters.py    小说章节与字数
+    migrate.py     启动时补齐新列
     seed.py        【示例】数据
     ai/            Provider 与提示词构建
-    routers/       library assets characters sd cards ai system
+    routers/       library assets importer collections characters sd cards ai system
   tests/
 frontend/
   src/views/       每个页面一个组件

@@ -7,7 +7,7 @@ const router = useRouter()
 const q = ref('')
 const go = () => q.value.trim() && router.push({ path: '/search', query: { q: q.value.trim() } })
 const nav = [
-  ['资料库', [['/', '◎', '总览'], ['/assets', '▦', '素材库'], ['/works', '❖', '作品 / CG'], ['/tags', '#', '标签']]],
+  ['资料库', [['/', '◎', '总览'], ['/assets', '▦', '素材库'], ['/import', '⇪', '批量导入'], ['/works', '❖', '作品 / CG'], ['/collections', '❒', '收藏集'], ['/tags', '#', '标签']]],
   ['百科', [['/characters', '☺', '角色百科'], ['/worlds', '◍', '世界观'], ['/graph', '⟡', '关系网']]],
   ['AI 绘画', [['/prompts', '✎', '提示词库'], ['/models', '⬡', 'SD 模型库']]],
   ['AI 角色', [['/cards', '▤', '角色卡'], ['/chat', '✉', 'AI 对话']]],
@@ -15,7 +15,8 @@ const nav = [
 </script>
 
 <template>
-  <div class="layout">
+  <RouterView v-if="$route.meta.bare" :key="$route.fullPath" />
+  <div v-else class="layout">
     <aside class="sidebar">
       <div class="brand"><img src="/favicon.svg" alt="" /><div>Front<small>创作素材库 · 百科数据库</small></div></div>
       <template v-for="[group, items] in nav" :key="group">
@@ -32,6 +33,6 @@ const nav = [
       </div>
       <RouterView :key="$route.path" />
     </main>
-    <div v-if="toastState.msg" class="toast" :class="{ err: toastState.err }">{{ toastState.msg }}</div>
   </div>
+  <div v-if="toastState.msg" class="toast" :class="{ err: toastState.err }">{{ toastState.msg }}</div>
 </template>

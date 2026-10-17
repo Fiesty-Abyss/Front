@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import io
-import mimetypes
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
-from PIL import Image
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
 
@@ -20,10 +18,9 @@ from .. import schemas as s
 from ..config import get_settings
 from ..crud import get_or_404, make_crud_router, qp, resolve_tags
 from ..db import get_session
-from ..pngmeta import parse_sd_parameters, read_png_text
-
-TEXT_EXT = {".txt", ".md", ".markdown"}
-THUMB_SIZE = (480, 480)
+from ..chapters import chapter_text, split_chapters
+from ..ingest import find_duplicate, ingest, make_thumb, thumb_path
+from ..pngmeta import read_png_text
 
 
 def _filters(stmt, request):
@@ -56,29 +53,11 @@ files = APIRouter(prefix="/api/assets", tags=["素材库"])
 
 
 def _thumb_path(asset_id: int) -> Path:
-    return get_settings().thumb_dir / f"{asset_id}.webp"
+    return thumb_path(asset_id)
 
 
 def _make_thumb(asset_id: int, data: bytes) -> None:
-    try:
-        with Image.open(io.BytesIO(data)) as img:
-            img.thumbnail(THUMB_SIZE)
-            if img.mode not in ("RGB", "RGBA"):
-                img = img.convert("RGBA")
-            path = _thumb_path(asset_id)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            img.save(path, "WEBP", quality=82)
-    except Exception:
-        pass
-
-
-def _decode_text(data: bytes) -> str:
-    for enc in ("utf-8-sig", "gb18030", "shift_jis", "utf-16"):
-        try:
-            return data.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    return data.decode("utf-8", errors="replace")
+    make_thumb(asset_id, data)
 
 
 @files.get("/stats/timeline")
@@ -108,60 +87,18 @@ async def upload(
     data = await file.read()
     if len(data) > settings.max_upload_mb * 1024 * 1024:
         raise HTTPException(413, f"文件超过 {settings.max_upload_mb} MB")
-    sha = hashlib.sha256(data).hexdigest()
-    dup = session.scalar(select(m.Asset).where(m.Asset.sha256 == sha))
+    dup = find_duplicate(session, hashlib.sha256(data).hexdigest())
     if dup:
         raise HTTPException(409, {"message": "相同文件已存在", "asset_id": dup.id})
-
-    name = file.filename or "upload"
-    ext = Path(name).suffix.lower()
-    mime = file.content_type or mimetypes.guess_type(name)[0] or "application/octet-stream"
-    asset = m.Asset(
-        title=title or Path(name).stem,
-        description=description,
-        source=source,
-        work_date=work_date or date.today(),
-        work_id=work_id,
-        world_id=world_id,
-        original_name=name,
-        mime=mime,
-        size=len(data),
-        sha256=sha,
-        meta={},
+    tags = resolve_tags(session, [int(x) for x in tag_ids.split(",") if x.strip()]) if tag_ids else None
+    asset, _ = ingest(
+        session, data, file.filename or "upload", mime=file.content_type, kind=kind or None, title=title,
+        description=description, source=source, work_date=work_date, work_id=work_id, world_id=world_id, tags=tags,
     )
-    if tag_ids:
-        asset.tags = resolve_tags(session, [int(x) for x in tag_ids.split(",") if x.strip()])
-
-    if ext in TEXT_EXT or mime.startswith("text/"):
-        asset.kind = kind or "novel"
-        asset.content = _decode_text(data)
-    else:
-        asset.kind = kind or "other"
-        try:
-            with Image.open(io.BytesIO(data)) as img:
-                asset.width, asset.height = img.size
-            if not kind:
-                asset.kind = "drawing"
-        except Exception:
-            pass
-        params_text = read_png_text(data).get("parameters")
-        if params_text:
-            parsed = parse_sd_parameters(params_text)
-            asset.meta = {"sd": parsed, "prompt": parsed.get("prompt")}
-            if not kind:
-                asset.kind = "ai_image"
-
-    rel = Path("media") / date.today().strftime("%Y/%m") / f"{sha[:20]}{ext}"
-    dest = settings.data_dir / rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
-    asset.file_path = rel.as_posix()
-
-    session.add(asset)
     session.commit()
     session.refresh(asset)
     if asset.width:
-        _make_thumb(asset.id, data)
+        make_thumb(asset.id, data)
     return asset
 
 
@@ -223,3 +160,57 @@ def install_delete_hook() -> None:
             # after_delete 内不再查询；同哈希文件不会重复入库，因此路径唯一
             path.unlink(missing_ok=True)
         _thumb_path(target.id).unlink(missing_ok=True)
+
+
+# ---------------- 小说：章节与阅读 ----------------
+def _novel_text(session: Session, asset_id: int) -> tuple[m.Asset, str]:
+    asset = get_or_404(session, m.Asset, asset_id)
+    if not asset.content:
+        raise HTTPException(422, "该素材没有正文")
+    return asset, asset.content
+
+
+@files.get("/{asset_id}/chapters")
+def chapters(asset_id: int, session: Session = Depends(get_session)) -> dict[str, Any]:
+    """目录：自动识别“第X章 / Chapter N / Markdown 标题 / 序章 尾声”等。"""
+    asset, text = _novel_text(session, asset_id)
+    toc = split_chapters(text)
+    return {
+        "asset_id": asset.id,
+        "title": asset.title,
+        "words": sum(c["words"] for c in toc),
+        "chapters": [{k: c[k] for k in ("index", "title", "words")} for c in toc],
+    }
+
+
+@files.get("/{asset_id}/chapters/{index}")
+def chapter(asset_id: int, index: int, session: Session = Depends(get_session)) -> dict[str, Any]:
+    asset, text = _novel_text(session, asset_id)
+    toc = split_chapters(text)
+    if not 0 <= index < len(toc):
+        raise HTTPException(404, "章节不存在")
+    ch = toc[index]
+    return {
+        "asset_id": asset.id,
+        "book_title": asset.title,
+        "index": index,
+        "total": len(toc),
+        "title": ch["title"],
+        "words": ch["words"],
+        "content": chapter_text(text, ch),
+        "prev": index - 1 if index > 0 else None,
+        "next": index + 1 if index + 1 < len(toc) else None,
+    }
+
+
+# ---------------- AI 图：原始工作流 ----------------
+@files.get("/{asset_id}/workflow")
+def workflow(asset_id: int, session: Session = Depends(get_session)) -> Response:
+    """下载 PNG 里内嵌的 ComfyUI 工作流（可直接拖回 ComfyUI）。"""
+    asset = get_or_404(session, m.Asset, asset_id)
+    chunks = read_png_text(_file_of(asset).read_bytes())
+    raw = chunks.get("workflow") or chunks.get("prompt")
+    if not raw:
+        raise HTTPException(404, "这张图里没有 ComfyUI 工作流")
+    name = Path(asset.original_name or f"asset-{asset.id}").stem + ".workflow.json"
+    return Response(raw, media_type="application/json", headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"})

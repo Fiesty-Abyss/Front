@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 AssetKind = Literal["drawing", "ai_image", "material", "novel", "cg", "reference", "other"]
 WorkKind = Literal["anime", "game", "galgame", "novel", "manga", "original", "other"]
@@ -141,6 +141,8 @@ class CollectionBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str | None = None
     work_id: int | None = None
+    cover_asset_id: int | None = None
+    position: int = 0
 
 
 class CollectionCreate(CollectionBase):
@@ -151,12 +153,22 @@ class CollectionUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     work_id: int | None = None
+    cover_asset_id: int | None = None
+    position: int | None = None
     asset_ids: list[int] | None = None
 
 
 class CollectionRead(CollectionBase, Timestamps):
     id: int
     assets: list[AssetRead] = []
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_cover_id(self) -> int | None:
+        """封面：手动指定的优先，否则用第一项。"""
+        if self.cover_asset_id:
+            return self.cover_asset_id
+        return self.assets[0].id if self.assets else None
 
 
 # ---------- Character ----------

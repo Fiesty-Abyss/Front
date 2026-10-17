@@ -55,6 +55,7 @@ collection_assets = Table(
     Base.metadata,
     Column("collection_id", ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True),
     Column("asset_id", ForeignKey("assets.id", ondelete="CASCADE"), primary_key=True),
+    Column("position", Integer, nullable=False, default=0, server_default="0"),
 )
 
 
@@ -132,7 +133,15 @@ class Collection(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
     work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
-    assets: Mapped[list[Asset]] = relationship(secondary=collection_assets, lazy="selectin")
+    cover_asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"))
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # 只读关系：按 collection_assets.position 排序。写入请用 collections.set_items()
+    assets: Mapped[list[Asset]] = relationship(
+        secondary=collection_assets,
+        order_by=collection_assets.c.position,
+        lazy="selectin",
+        viewonly=True,
+    )
 
 
 class Character(TimestampMixin, Base):

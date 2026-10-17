@@ -49,7 +49,3 @@ worlds = make_crud_router(
     prefix="/api/worlds", model=m.World, create_schema=s.WorldCreate, update_schema=s.WorldUpdate,
     read_schema=s.WorldRead, tag_name="世界观",
 )
-collections = make_crud_router(
-    prefix="/api/collections", model=m.Collection, create_schema=s.CollectionCreate,
-    update_schema=s.CollectionUpdate, read_schema=s.CollectionRead, tag_name="收藏集",
-)

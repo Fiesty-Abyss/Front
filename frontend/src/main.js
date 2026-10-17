@@ -1,0 +1,24 @@
+import { createApp } from 'vue'
+import { createRouter, createWebHistory } from 'vue-router'
+import App from './App.vue'
+import './style.css'
+
+const routes = [
+  { path: '/', component: () => import('./views/Dashboard.vue'), meta: { title: '总览' } },
+  { path: '/assets', component: () => import('./views/Assets.vue'), meta: { title: '素材库' } },
+  { path: '/characters', component: () => import('./views/Characters.vue'), meta: { title: '角色百科' } },
+  { path: '/worlds', component: () => import('./views/Worlds.vue'), meta: { title: '世界观' } },
+  { path: '/graph', component: () => import('./views/Graph.vue'), meta: { title: '关系网' } },
+  { path: '/works', component: () => import('./views/Works.vue'), meta: { title: '作品 / CG' } },
+  { path: '/prompts', component: () => import('./views/Prompts.vue'), meta: { title: '提示词库' } },
+  { path: '/models', component: () => import('./views/Models.vue'), meta: { title: 'SD 模型库' } },
+  { path: '/cards', component: () => import('./views/Cards.vue'), meta: { title: '角色卡' } },
+  { path: '/chat', component: () => import('./views/Chat.vue'), meta: { title: 'AI 对话' } },
+  { path: '/tags', component: () => import('./views/Tags.vue'), meta: { title: '标签' } },
+  { path: '/search', component: () => import('./views/Search.vue'), meta: { title: '搜索' } },
+]
+
+const router = createRouter({ history: createWebHistory(), routes })
+router.afterEach((to) => { document.title = `${to.meta.title ?? ''} · Front` })
+
+createApp(App).use(router).mount('#app')

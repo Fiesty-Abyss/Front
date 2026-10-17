@@ -114,7 +114,7 @@ const parentOptions = computed(() => {
 <template>
   <div class="grid" style="grid-template-columns: 240px 1fr; align-items:start">
     <aside class="card grid" style="align-content:start;gap:6px">
-      <button class="primary" @click="select(null)">＋ 新建世界观</button>
+      <button class="primary" @click="select(null)"><Ico g="＋" />新建世界观</button>
       <div v-for="w in items" :key="w.id" class="card" style="cursor:pointer;padding:10px" :style="cur?.id === w.id ? { borderColor: 'var(--accent)' } : {}" @click="select(w)">
         <b>{{ w.name }}</b><div class="small muted">{{ w.summary?.slice(0, 40) }}</div>
       </div>
@@ -144,13 +144,13 @@ const parentOptions = computed(() => {
       </div>
 
       <div v-else-if="tab === 'location'" class="card">
-        <div class="row" style="margin-bottom:8px"><h2 style="margin:0">地点</h2><span class="small muted">层级：城市 › 街区 › 建筑……</span><span class="spacer" /><button class="primary" @click="newEntry('location')">＋ 新地点</button></div>
+        <div class="row" style="margin-bottom:8px"><h2 style="margin:0">地点</h2><span class="small muted">层级：城市 › 街区 › 建筑……</span><span class="spacer" /><button class="primary" @click="newEntry('location')"><Ico g="＋" />新地点</button></div>
         <EntryTree :nodes="locationTree" @open="openEntry" />
         <div v-if="!locationTree.length" class="empty">还没有地点</div>
       </div>
 
       <div v-else-if="tab === 'organization'" class="grid">
-        <div class="row"><span class="spacer" /><button class="primary" @click="newEntry('organization')">＋ 新组织</button></div>
+        <div class="row"><span class="spacer" /><button class="primary" @click="newEntry('organization')"><Ico g="＋" />新组织</button></div>
         <div class="grid cols-2">
           <div v-for="o in ofKind('organization')" :key="o.id" class="card" style="cursor:pointer" @click="openEntry(o)">
             <div class="row"><b style="font-size:15px">{{ o.name }}</b><span v-if="o.parent_id" class="small muted">@ {{ entryName(o.parent_id) }}</span></div>
@@ -166,7 +166,7 @@ const parentOptions = computed(() => {
       </div>
 
       <div v-else-if="tab === 'event'" class="card">
-        <div class="row" style="margin-bottom:12px"><h2 style="margin:0">时间线</h2><span class="small muted">按“排序值”从早到晚，未填写的排在最后</span><span class="spacer" /><button class="primary" @click="newEntry('event')">＋ 新事件</button></div>
+        <div class="row" style="margin-bottom:12px"><h2 style="margin:0">时间线</h2><span class="small muted">按“排序值”从早到晚，未填写的排在最后</span><span class="spacer" /><button class="primary" @click="newEntry('event')"><Ico g="＋" />新事件</button></div>
         <div class="timeline">
           <div v-for="e in timeline" :key="e.id" class="tl-item" @click="openEntry(entries.find((x) => x.id === e.id))">
             <div class="tl-date">{{ e.date_label || '时间未定' }}</div>
@@ -186,7 +186,7 @@ const parentOptions = computed(() => {
       </div>
 
       <div v-else class="grid">
-        <div class="row"><span class="spacer" /><button @click="newEntry('concept')">＋ 新概念</button><button class="primary" @click="newEntry('item')">＋ 新物品</button></div>
+        <div class="row"><span class="spacer" /><button @click="newEntry('concept')"><Ico g="＋" />新概念</button><button class="primary" @click="newEntry('item')"><Ico g="＋" />新物品</button></div>
         <div class="grid cols-3">
           <div v-for="o in ofKind('other')" :key="o.id" class="card" style="cursor:pointer" @click="openEntry(o)">
             <div class="row"><b>{{ o.name }}</b><span class="badge">{{ LABELS.entryKind[o.kind] }}</span></div>
@@ -217,9 +217,9 @@ const parentOptions = computed(() => {
       <div class="field">相关角色
         <div v-for="(l, i) in editingEntry.characters" :key="i" class="row" style="flex-wrap:nowrap;margin-bottom:6px">
           <select v-model="l.character_id"><option v-for="c in chars" :key="c.id" :value="c.id">{{ c.name }}</option></select>
-          <input v-model="l.role" placeholder="身份 / 角色：会长、成员、目击者…" /><button class="ghost danger" @click="editingEntry.characters.splice(i, 1)">✕</button>
+          <input v-model="l.role" placeholder="身份 / 角色：会长、成员、目击者…" /><button class="ghost danger" @click="editingEntry.characters.splice(i, 1)"><Ico g="✕" /></button>
         </div>
-        <button style="width:max-content" @click="editingEntry.characters.push({ character_id: chars[0]?.id, role: '' })">＋ 添加角色</button>
+        <button style="width:max-content" @click="editingEntry.characters.push({ character_id: chars[0]?.id, role: '' })"><Ico g="＋" />添加角色</button>
       </div>
       <TagPicker v-model="editingEntry.tag_ids" />
       <div class="row"><button v-if="editingEntry.id" class="danger" @click="removeEntry">删除</button><span class="spacer" /><button class="primary" @click="saveEntry">保存</button></div>
@@ -231,7 +231,7 @@ const parentOptions = computed(() => {
 .timeline::before { content: ''; position: absolute; left: 150px; top: 6px; bottom: 6px; width: 2px; background: linear-gradient(var(--accent), var(--accent2)); opacity: .6; }
 .tl-item { display: grid; grid-template-columns: 138px 26px 1fr; align-items: start; margin-bottom: 14px; cursor: pointer; }
 .tl-date { text-align: right; padding-top: 12px; font-size: 13px; color: var(--muted); }
-.tl-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent2); margin: 14px 0 0 6px; box-shadow: 0 0 0 4px #f472b633; z-index: 1; }
+.tl-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent2); margin: 14px 0 0 6px; box-shadow: 0 0 0 4px var(--accent-soft); z-index: 1; }
 .tl-body { padding: 12px 14px; }
 .tl-item:hover .tl-body { border-color: var(--accent); }
 </style>

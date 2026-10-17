@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, Appearances, Assets, fileUrl, LABELS, thumb, Works } from '../api'
 import Markdown from '../components/Markdown.vue'
 import Modal from '../components/Modal.vue'
+import QuickSearch from '../components/QuickSearch.vue'
 import { guard } from '../toast'
 
 const route = useRoute()
@@ -74,9 +75,10 @@ async function makeCard() {
           <div v-for="(list, cat) in tagsByCat" :key="cat" class="row small" style="gap:6px"><span class="muted" style="width:62px">{{ LABELS.tagCategory[cat] ?? cat }}</span><span v-for="t in list" :key="t.id" class="chip" :title="t.aliases?.length ? '别名：' + t.aliases.join('、') : ''">{{ t.name }}</span></div>
         </div>
         <div class="row" style="margin-top:6px">
-          <RouterLink class="btn primary" :to="{ path: '/characters', query: { edit: c.id } }">✎ 编辑</RouterLink>
-          <RouterLink v-if="d.world" class="btn" :to="{ path: '/graph', query: { world_id: d.world.id, focus: c.id } }">◈ 关系网</RouterLink>
-          <button @click="makeCard">▤ {{ d.cards.length ? '查看角色卡' : '生成角色卡' }}</button>
+          <RouterLink class="btn primary" :to="{ path: '/characters', query: { edit: c.id } }"><Ico g="✎" />编辑</RouterLink>
+          <RouterLink v-if="d.world" class="btn" :to="{ path: '/graph', query: { world_id: d.world.id, focus: c.id } }"><Ico g="◈" />关系网</RouterLink>
+          <button @click="makeCard"><Ico g="▤" />{{ d.cards.length ? '查看角色卡' : '生成角色卡' }}</button>
+          <QuickSearch :q="c.name" kind="character" :alts="(c.alias || '').split(/[,，、/]/)" />
         </div>
       </div>
     </div>
@@ -89,12 +91,12 @@ async function makeCard() {
           <div v-else class="empty">还没有详细设定</div>
         </div>
         <div class="card">
-          <div class="row"><h2 style="margin:0">图集 · {{ d.gallery.length }}</h2><span class="spacer" /><button @click="openPicker">＋ 从素材库添加</button></div>
+          <div class="row"><h2 style="margin:0">图集 · {{ d.gallery.length }}</h2><span class="spacer" /><button @click="openPicker"><Ico g="＋" />从素材库添加</button></div>
           <div v-if="!d.gallery.length" class="empty">还没有图片</div>
-          <div class="thumbgrid" style="margin-top:12px;grid-template-columns: repeat(auto-fill, minmax(150px, 1fr))">
+          <div v-reveal class="thumbgrid" style="margin-top:12px;grid-template-columns: repeat(auto-fill, minmax(150px, 1fr))">
             <div v-for="g in d.gallery" :key="g.id" class="tile">
               <div class="img" :style="{ backgroundImage: `url(${thumb(g.id)})` }" @click="viewing = g" />
-              <div class="meta small row" style="gap:6px;flex-wrap:nowrap"><span class="title" style="flex:1">{{ g.title }}</span><a title="设为头像" @click="setAvatar(g)">☺</a><a title="移出图集" @click="removeGallery(g)">✕</a></div>
+              <div class="meta small row" style="gap:6px;flex-wrap:nowrap"><span class="title" style="flex:1">{{ g.title }}</span><a title="设为头像" @click="setAvatar(g)">☺</a><a title="移出图集" @click="removeGallery(g)"><Ico g="✕" /></a></div>
             </div>
           </div>
         </div>

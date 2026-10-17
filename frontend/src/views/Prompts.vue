@@ -92,7 +92,7 @@ async function addGen() {
   <div class="grid" style="grid-template-columns: 300px 1fr">
     <aside class="card grid" style="align-content:start;gap:8px">
       <input v-model="f.q" placeholder="搜索提示词内容" />
-      <button class="primary" @click="select(null)">＋ 新建提示词</button>
+      <button class="primary" @click="select(null)"><Ico g="＋" />新建提示词</button>
       <div v-for="p in items" :key="p.id" class="card" style="cursor:pointer;padding:10px" :style="cur?.id === p.id ? { borderColor: 'var(--accent)' } : {}" @click="select(p)">
         <b>{{ p.title }}</b><div class="small muted mono" style="max-height:34px;overflow:hidden">{{ p.positive }}</div>
       </div>
@@ -116,8 +116,8 @@ async function addGen() {
           <span class="chip click" :class="{ on: view === 'table' }" style="padding:4px 12px" @click="view = 'table'">参数差异表</span>
           <span class="chip click" :class="{ on: view === 'xy' }" style="padding:4px 12px" @click="view = 'xy'; loadXY()">XY 网格</span>
           <span class="spacer" />
-          <RouterLink class="btn" :to="{ path: '/generate', query: { prompt_id: cur.id } }">✦ 用它出图</RouterLink>
-          <button @click="openAdd">＋ 加入一张出图</button>
+          <RouterLink class="btn" :to="{ path: '/generate', query: { prompt_id: cur.id } }"><Ico g="✦" />用它出图</RouterLink>
+          <button @click="openAdd"><Ico g="＋" />加入一张出图</button>
         </div>
         <div v-if="!cmp.groups.length" class="empty">还没有出图记录。把 AI 图上传到素材库后在这里关联模型，或者直接「用它出图」。</div>
         <template v-else-if="view === 'model'">
@@ -197,7 +197,7 @@ async function addGen() {
 .chip.hl { background: #fbbf2422; border-color: #fbbf2466; color: #fde68a; white-space: nowrap; }
 .meta .chip { font-size: 10.5px; padding: 0 6px; }
 .ptable td, .ptable th { padding: 6px 8px; white-space: nowrap; }
-.pthumb { width: 46px; height: 58px; border-radius: 6px; background: #0b0c18 center/cover; cursor: zoom-in; }
+.pthumb { width: 46px; height: 58px; border-radius: 6px; background: var(--sunken) center/cover; cursor: zoom-in; }
 .tok { display: inline-block; margin: 2px 4px 0 0; padding: 0 6px; border-radius: 5px; font-size: 11px; }
 .tok.add { background: #34d39922; color: #6ee7b7; }
 .tok.del { background: #f8717122; color: #fca5a5; text-decoration: line-through; }
@@ -205,7 +205,7 @@ async function addGen() {
 .xy .head { text-align: center; font-weight: 600; font-size: 13px; color: #fde68a; }
 .xy .side { text-align: right; padding-right: 6px; }
 .xy .corner { text-align: right; padding-right: 6px; }
-.xy .img { aspect-ratio: 4/5; border-radius: 8px; background: #0b0c18 center/cover; cursor: zoom-in; position: relative; border: 1px solid var(--line); }
+.xy .img { aspect-ratio: 4/5; border-radius: 8px; background: var(--sunken) center/cover; cursor: zoom-in; position: relative; border: 1px solid var(--line); }
 .xy .img.none { display: grid; place-items: center; cursor: default; }
 .xy .more { position: absolute; right: 6px; top: 6px; background: #000a; color: #fff; }
 </style>

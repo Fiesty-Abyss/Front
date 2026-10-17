@@ -9,18 +9,19 @@
 画作、AI 出图、绘画素材、小说、galgame CG、世界观与角色关系网、SD 模型与提示词、AI 角色卡与对话，全部放进一个属于自己的数据库。
 
 [![CI](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.5.0-8b7cf6)
+![version](https://img.shields.io/badge/version-0.6.0-9a6ad0)
 ![license](https://img.shields.io/badge/license-MIT-f472b6)
 ![stack](https://img.shields.io/badge/FastAPI%20%2B%20SQLite%20%2B%20Vue%203-1f2340)
 
 </div>
 
-> Front 是一个长期持续开发的项目，当前为 **v0.5.0**（第五轮）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+> Front 是一个长期持续开发的项目，当前为 **v0.6.0**（第六轮第一部分：界面焕新）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ## 能做什么
 
 | 模块 | 说明 |
 | --- | --- |
+| 🎨 **全新界面（v0.6）** | 深靛夜色 + 单一雾紫强调色的统一设计系统，悬浮侧栏（可收起）、玻璃顶栏、画廊式素材网格、创作热力图总览；深色 / 浅色两套主题；GSAP 驱动的克制动效（页面对焦进入、列表依次显现、侧栏高亮块滑动），自动遵循系统“减少动态效果”。设计说明见 [docs/DESIGN.md](docs/DESIGN.md) |
 | 🗂 **素材库** | 自己的画、AI 生成图、绘画素材、参考图、小说正文。按**日期（年/月）**、**类型**、**标签**、**作品**、**世界观**筛选；上传自动读取尺寸、生成缩略图、按 SHA256 去重 |
 | ⇪ **批量导入** | 输入本机文件夹路径（或在浏览器里选择文件夹），扫描预览后一键导入；可递归子文件夹、用文件修改时间作为日期、统一打标签；同内容文件自动跳过 |
 | ✦ **AI 出图参数识别** | 自动识别 **SD WebUI / Forge** 的 `parameters` 与 **ComfyUI** 的 `prompt` / `workflow`：沿节点连线找出正/反向提示词，提取采样器、步数、CFG、种子、尺寸、Checkpoint、LoRA；可下载原始工作流拖回 ComfyUI，一键存入提示词库 |
@@ -44,16 +45,23 @@
 | ≈ **语义检索** | 关键词 / 语义 / 混合（RRF 融合）三种检索方式，还能“找相似”；默认用离线的本地 n-gram 向量（无需任何服务，但只是近似），在设置里换成嵌入模型（如 Ollama `bge-m3`）才是真正的语义检索；后台增量建索引 |
 | 🏷 **自动打标签（可选）** | 接 SD WebUI 的 WD14 Tagger 扩展或任意视觉模型识别图片，结果**按标签名和别名对到你已有的标签**（给标签加上 danbooru 风格的别名即可），单张点选加入，或后台批量给没有标签的图片打上高置信度标签 |
 | ⚙ **设置页** | 在网页里管理多个 AI 服务（Ollama / LM Studio / OpenAI / DeepSeek / OpenRouter 预设，或任意 OpenAI 兼容接口），读取模型列表、测试连接；分别指定对话、嵌入、视觉用哪个服务。API Key 只存在本机数据库里，接口只返回打码后的提示 |
+| 🌐 **浏览器查询** | 在角色、作品、SD 模型页面一键用 Bangumi、VNDB、月幕 Galgame、2DFan、萌娘百科、Civitai 等站点在新标签页里搜索；站点列表在设置里随意增删（名称 + 带 `{q}` 的搜索网址模板，也可以只放主页链接）。**只打开链接**：Front 不抓取这些网站，也不下载任何文件 |
 | 🔍 **全文检索** | SQLite FTS5（trigram），中文/日文子串可搜：角色设定、世界观正文、小说、提示词、世界书条目全部即时可搜 |
 | ⚙ **完整增删改查** | 所有数据都有 REST API（`/docs` 自带交互式文档），前端实时增删改查 |
 
 ## 界面截图
 
-> 以下截图均为真实运行的 Front v0.5.0（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。AI 相关截图（对话、抽取角色、语义检索、自动打标签）连接的是仓库自带的**模拟 AI 服务**（`front_api.mock_ai`），回复以“【模拟回复】”开头、由模板拼出，**不是真实大模型的输出**，只用来演示界面和完整流程。
+> 以下截图均为真实运行的 Front v0.6.0（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。AI 相关截图（对话、抽取角色、语义检索、自动打标签）连接的是仓库自带的**模拟 AI 服务**（`front_api.mock_ai`），回复以“【模拟回复】”开头、由模板拼出，**不是真实大模型的输出**，只用来演示界面和完整流程。
 
-| 总览 | 素材库 |
+| 总览：问候、创作热力图、统计 | 素材库：画廊式网格 |
 | --- | --- |
 | ![总览](docs/screenshots/dashboard.png) | ![素材库](docs/screenshots/assets.png) |
+| **浅色主题 · 总览** | **浅色主题 · 素材库** |
+| ![浅色总览](docs/screenshots/dashboard-light.png) | ![浅色素材库](docs/screenshots/assets-light.png) |
+| **浏览器查询（只打开链接）** | **设置：浏览器查询站点列表** |
+| ![浏览器查询](docs/screenshots/quick-search.png) | ![站点设置](docs/screenshots/settings-quick-search.png) |
+| **侧栏收起为图标栏** | |
+| ![侧栏收起](docs/screenshots/sidebar-collapsed.png) | |
 | **角色百科（分面标签筛选）** | **角色详情页：Markdown 设定 / 关系 / 出场作品** |
 | ![角色百科](docs/screenshots/characters.png) | ![角色详情](docs/screenshots/character-detail.png) |
 | **角色详情页：图集 / 参与事件 / 所属组织** | **编辑角色：Markdown 实时预览** |
@@ -193,19 +201,27 @@ python -m front_api.mock_ai --port 7862
 - 数据库、图片、小说、CG 都在 `FRONT_DATA_DIR` 里，不在仓库目录中。
 - SD 模型只登记路径、哈希与元数据，模型文件本身不会被复制或上传；扫描时不能选 Front 自己的数据目录。
 - AI 服务的 API Key 只保存在本机数据目录的数据库里（明文，与其余数据同等对待），接口永远只返回 `sk-…abcd` 这样的打码提示；对话、抽取角色、打标签只会把内容发给**你自己配置的** AI 服务。
+- 浏览器查询只是在新标签页打开你配置的网址（关键词经过 URL 编码），Front 不会访问、抓取这些站点，也不会下载其中的任何文件；站点列表只允许 `http(s)://` 网址。
 - Civitai 只在你手动点“匹配 Civitai”时访问 `civitai.com`，只发送模型哈希；预览图只从 Civitai 官方图床下载。`FRONT_CIVITAI=off` 可彻底关闭。
 - `.gitignore` 屏蔽了 `*.safetensors`、`*.ckpt`、`*.db`、压缩包、绘画工程文件等；测试 [`test_repo_guard.py`](backend/tests/test_repo_guard.py) 会在 CI 中检查，任何模型、数据库或 `docs/screenshots/` 以外的图片被提交都会直接失败。
 - Front 是**个人自托管**工具。你收藏的他人作品（游戏 CG、插画等）版权归原作者所有，请只用于个人收藏与学习，不要通过 Front 再分发。本仓库不包含任何第三方受版权保护的素材。
 
 ## 文档
 
+- [设计与动效](docs/DESIGN.md)：设计令牌、克制原则、动效清单
 - [架构说明](docs/ARCHITECTURE.md)：技术栈、数据模型、API 一览、AI 接口层、世界书匹配规则
 - [路线图](docs/ROADMAP.md)：后续每一轮的开发计划
 - [更新日志](CHANGELOG.md)
 
+## 致谢与参考
+
+- 界面观感参考了 [Nephele Workshop](https://nephele.arisfusion.com/) 官网展示的设计风格（只参考风格与布局思路，未使用其代码、图片或品牌素材）。
+- 设计与动效原则参考：[apple-design-skills](https://github.com/s1gmamale1/apple-design-skills)（MIT）、[gsap-skills](https://github.com/greensock/gsap-skills)（MIT）、[design-motion-principles](https://github.com/kylezantos/design-motion-principles)（MIT）、[awesome-ai-motion](https://github.com/guanmo-ai/awesome-ai-motion)（MIT，仅学习案例思路）。具体取舍见 [docs/DESIGN.md](docs/DESIGN.md)。
+- 动效库 [GSAP](https://gsap.com)（GreenSock 标准免费许可 “Standard no-charge license”），图标 [Lucide](https://lucide.dev)（ISC）。
+
 ## 技术栈
 
-FastAPI · SQLAlchemy 2 · SQLite（FTS5 trigram）· Pillow · httpx ｜ Vue 3 · Vite · Vue Router · Cytoscape.js · markdown-it
+FastAPI · SQLAlchemy 2 · SQLite（FTS5 trigram）· Pillow · httpx ｜ Vue 3 · Vite · Vue Router · GSAP · Lucide · Cytoscape.js · markdown-it
 
 ## 许可证
 

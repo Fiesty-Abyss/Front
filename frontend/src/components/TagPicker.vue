@@ -45,7 +45,7 @@ async function create() {
     <form v-if="allowCreate" class="row" style="gap:6px" @submit.prevent="create">
       <select v-model="newCat" style="width:100px"><option v-for="(l, k) in LABELS.tagCategory" :key="k" :value="k">{{ l }}</option></select>
       <input v-model="newName" placeholder="新标签" style="width:120px" />
-      <button type="submit">＋</button>
+      <button type="submit"><Ico g="＋" /></button>
     </form>
   </div>
 </template>

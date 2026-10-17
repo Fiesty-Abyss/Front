@@ -115,6 +115,8 @@ DELETE /api/<资源>/{id}
 | `GET /api/search/semantic/status`、`POST /api/search/semantic/index` | 向量索引状态、后台增量索引 |
 | `GET /api/ai/tagger/status`、`/assets/{id}`、`POST /api/ai/tagger/run` | 自动打标签状态、单张建议、批量打标签（后台任务） |
 | `POST /api/ai/worlds/{id}/suggest-relations` | AI 识别世界观中的角色关系 |
+| `GET /api/stats/activity?weeks=` | 创作热力图：按本机时区逐日统计（素材按创作日期，其余按创建时间）、连续天数 |
+| `GET /api/quick-search?q=&kind=`、`GET/PUT /api/quick-search/sites`、`POST .../sites/reset` | 浏览器查询：生成各站点的搜索链接（不访问这些站点）；站点列表的读取 / 保存 / 恢复默认 |
 | `GET /api/search?q=&entity=` | 全局全文检索 |
 | `POST /api/search/rebuild` | 重建索引 |
 
@@ -203,11 +205,13 @@ backend/
     mock_ai.py     模拟 OpenAI 兼容 AI 服务（测试 / 演示）
     seed.py        【示例】数据
     ai/            provider registry prompts lore extract embed tagger
-    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools system
+    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools quicksearch system
   tests/
 frontend/
   src/views/       每个页面一个组件
-  src/components/  Modal、TagPicker、TagChips、TagTree、JobProgress
+  src/style.css    设计令牌与全局样式（深色 / 浅色），说明见 DESIGN.md
+  src/motion.js    GSAP 动效与 v-reveal 指令
+  src/components/  Modal、TagPicker、TagChips、TagTree、JobProgress、QuickSearch、QuickSites、Ico
 docs/
   screenshots/     README 截图（仓库中唯一允许放图片的目录之一）
 ```

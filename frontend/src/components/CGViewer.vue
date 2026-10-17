@@ -51,7 +51,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); clearInter
         <span class="badge">{{ group.size }}</span>
         <span class="spacer" />
         <button @click="toggle">{{ playing ? '❚❚ 暂停' : '▶ 自动播放' }}</button>
-        <button @click="$emit('close')">✕ 退出</button>
+        <button @click="$emit('close')"><Ico g="✕" />退出</button>
       </div>
       <button class="viewer-nav left" @click="goGroup(-1)">‹</button>
       <button class="viewer-nav right" @click="goGroup(1)">›</button>

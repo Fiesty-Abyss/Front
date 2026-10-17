@@ -84,9 +84,9 @@ const genders = computed(() => Object.entries(LABELS.gender))
       <TagPicker v-model="f.tag" :categories="['medium', 'source', 'style', 'type', 'custom']" :allow-create="false" />
     </aside>
     <section>
-      <div class="row" style="margin-bottom:12px"><span class="muted">共 {{ items.length }} 位角色</span><span class="spacer" /><button class="primary" @click="open(null)">＋ 新建角色</button></div>
+      <div class="row" style="margin-bottom:12px"><span class="muted">共 {{ items.length }} 位角色</span><span class="spacer" /><button class="primary" @click="open(null)"><Ico g="＋" />新建角色</button></div>
       <div v-if="!items.length" class="empty card">没有符合条件的角色</div>
-      <div class="grid cols-2">
+      <div v-reveal class="grid cols-2">
         <div v-for="c in items" :key="c.id" class="card row" style="cursor:pointer;flex-wrap:nowrap;align-items:flex-start" @click="router.push(`/characters/${c.id}`)">
           <div class="avatar" :style="c.avatar_asset_id ? { backgroundImage: `url(${thumb(c.avatar_asset_id)})` } : {}" />
           <div style="min-width:0">

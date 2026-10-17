@@ -96,12 +96,12 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
     <section>
       <div class="row" style="margin-bottom:12px">
         <span class="muted">共 {{ total }} 项</span><span class="spacer" />
-        <button @click="newText">＋ 文本 / 小说</button>
-        <button class="primary" @click="uploading = true">⇪ 上传文件</button>
+        <button @click="newText"><Ico g="＋" />文本 / 小说</button>
+        <button class="primary" @click="uploading = true"><Ico g="⇪" />上传文件</button>
       </div>
       <div v-if="!items.length" class="empty card">没有符合条件的素材</div>
-      <div class="thumbgrid">
-        <div v-for="a in items" :key="a.id" class="tile" @click="open(a)">
+      <div v-reveal class="thumbgrid gallery">
+        <div v-for="a in items" :key="a.id" class="tile" :class="{ textual: !a.width }" @click="open(a)">
           <div class="img" :style="a.width ? { backgroundImage: `url(${thumb(a.id)})` } : {}">{{ a.width ? '' : (a.kind === 'novel' ? '📖' : '▢') }}</div>
           <div class="meta">
             <div class="title">{{ a.title }}</div>
@@ -128,7 +128,7 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
 
   <Modal v-if="editing" :title="editing.id ? '编辑素材' : '新建文本'" @close="editing = null">
     <div class="grid">
-      <img v-if="editing.width" :src="fileUrl(editing.id)" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#0b0c18" />
+      <img v-if="editing.width" :src="fileUrl(editing.id)" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:var(--sunken)" />
       <div class="grid cols-3">
         <label class="field" style="grid-column: span 2">标题<input v-model="editing.title" /></label>
         <label class="field">类型<select v-model="editing.kind"><option v-for="(l, k) in LABELS.assetKind" :key="k" :value="k">{{ l }}</option></select></label>
@@ -141,8 +141,8 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
       <label v-if="editing.kind === 'novel' || editing.content" class="field">正文<textarea v-model="editing.content" style="min-height:220px" /></label>
       <div v-if="editing.meta?.sd" class="card" style="background:var(--panel2)">
         <div class="row"><b>出图参数</b><span class="badge ai">{{ SOURCES[editing.meta.sd.source] ?? 'SD' }}</span><span v-if="editing.meta.sd.node_count" class="badge">{{ editing.meta.sd.node_count }} 个节点</span><span class="spacer" />
-          <a v-if="editing.meta.sd.has_workflow || editing.meta.sd.source?.startsWith('comfyui')" class="btn" :href="`/api/assets/${editing.id}/workflow`">⇩ 下载工作流</a>
-          <button @click="toPrompt">✎ 存入提示词库</button></div>
+          <a v-if="editing.meta.sd.has_workflow || editing.meta.sd.source?.startsWith('comfyui')" class="btn" :href="`/api/assets/${editing.id}/workflow`"><Ico g="⇩" />下载工作流</a>
+          <button @click="toPrompt"><Ico g="✎" />存入提示词库</button></div>
         <pre class="prompt">{{ editing.meta.sd.prompt }}</pre>
         <pre v-if="editing.meta.sd.negative_prompt" class="prompt">Negative: {{ editing.meta.sd.negative_prompt }}</pre>
         <div class="row small"><span v-for="(v, k) in editing.meta.sd.params" :key="k" class="badge">{{ k }}: {{ v }}</span></div>
@@ -162,7 +162,7 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
         </div>
       </div>
       <div class="row"><button v-if="editing.id" class="danger" @click="remove">删除</button><RouterLink v-if="editing.id && editing.content" class="btn" :to="`/read/${editing.id}`">📖 阅读模式</RouterLink>
-        <RouterLink v-if="editing.id && editing.kind === 'novel'" class="btn" :to="`/extract?asset=${editing.id}`">⌕ 抽取角色</RouterLink><span class="spacer" /><button class="primary" @click="save">保存</button></div>
+        <RouterLink v-if="editing.id && editing.kind === 'novel'" class="btn" :to="`/extract?asset=${editing.id}`"><Ico g="⌕" />抽取角色</RouterLink><span class="spacer" /><button class="primary" @click="save">保存</button></div>
     </div>
   </Modal>
 </template>

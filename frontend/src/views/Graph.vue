@@ -1,4 +1,5 @@
 <script setup>
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
 import cytoscape from 'cytoscape'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -43,9 +44,9 @@ function draw() {
       ...graph.value.edges.map((e) => ({ data: { id: `r${e.id}`, rid: e.id, kind: e.kind, source: `c${e.source}`, target: `c${e.target}`, label: e.kind + (e.confirmed ? '' : '（AI 待确认）'), pending: !e.confirmed, both: e.bidirectional, ecolor: colorOf(e.kind) } })),
     ],
     style: [
-      { selector: 'node', style: { label: 'data(label)', color: '#e7e8f5', 'font-size': 15, 'text-valign': 'bottom', 'text-margin-y': 8, width: 64, height: 64, 'background-color': '#1f2340', 'background-image': 'data(img)', 'background-fit': 'cover', 'border-width': 3, 'border-color': 'data(color)', 'font-family': 'Noto Sans SC, Microsoft YaHei, sans-serif' } },
+      { selector: 'node', style: { label: 'data(label)', color: css('--text'), 'font-size': 15, 'text-valign': 'bottom', 'text-margin-y': 8, width: 64, height: 64, 'background-color': css('--panel2'), 'background-image': 'data(img)', 'background-fit': 'cover', 'border-width': 3, 'border-color': 'data(color)', 'font-family': 'Noto Sans SC, Microsoft YaHei, sans-serif' } },
       { selector: 'node:selected', style: { 'border-color': '#fbbf24', 'border-width': 5 } },
-      { selector: 'edge', style: { label: 'data(label)', 'font-size': 13, color: '#e7e8f5', 'text-background-color': '#0f1020', 'text-background-opacity': 0.85, 'text-background-padding': 3, width: 2.5, 'line-color': 'data(ecolor)', 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'target-arrow-color': 'data(ecolor)', 'font-family': 'Noto Sans SC, Microsoft YaHei, sans-serif' } },
+      { selector: 'edge', style: { label: 'data(label)', 'font-size': 13, color: css('--text'), 'text-background-color': css('--bg'), 'text-background-opacity': 0.85, 'text-background-padding': 3, width: 2.5, 'line-color': 'data(ecolor)', 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'target-arrow-color': 'data(ecolor)', 'font-family': 'Noto Sans SC, Microsoft YaHei, sans-serif' } },
       { selector: 'edge[?both]', style: { 'source-arrow-shape': 'triangle', 'source-arrow-color': 'data(ecolor)' } },
       { selector: 'edge[?pending]', style: { 'line-style': 'dashed' } },
       { selector: 'edge:selected', style: { width: 5 } },
@@ -109,7 +110,7 @@ async function resetLayout() {
   load()
 }
 function exportPng() {
-  const png = cy.png({ full: true, scale: 2, bg: '#0f1020', output: 'base64uri' })
+  const png = cy.png({ full: true, scale: 2, bg: css('--bg'), output: 'base64uri' })
   const a = document.createElement('a')
   a.href = png
   a.download = `关系网-${worlds.value.find((w) => w.id === worldId.value)?.name ?? '全部'}.png`
@@ -129,8 +130,8 @@ onBeforeUnmount(() => cy?.destroy())
       <span class="spacer" />
       <button @click="saveLayout">📌 保存布局</button>
       <button @click="resetLayout">↺ 自动布局</button>
-      <button @click="exportPng">⇩ 导出 PNG</button>
-      <a class="btn" :href="exportJsonUrl">⇩ 导出 JSON</a>
+      <button @click="exportPng"><Ico g="⇩" />导出 PNG</button>
+      <a class="btn" :href="exportJsonUrl"><Ico g="⇩" />导出 JSON</a>
     </div>
     <div class="row card" style="padding:10px 14px;gap:8px">
       <span class="small muted">关系类型（点击显示 / 隐藏，色块可改颜色）</span>

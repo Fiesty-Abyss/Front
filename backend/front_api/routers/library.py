@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import Table, func, or_, select, text
+from sqlalchemy import Table, or_, select, text
 from sqlalchemy.orm import Session
 
 from .. import models as m
@@ -83,12 +83,36 @@ def _tag_link_tables() -> list[Table]:
 
 
 @tag_extra.get("/usage")
-def tag_usage(session: Session = Depends(get_session)) -> dict[int, int]:
-    """每个标签被多少条目使用（所有类型合计）。"""
-    usage: dict[int, int] = {}
+def tag_usage(session: Session = Depends(get_session)) -> dict[int, dict[str, int]]:
+    """每个标签的使用次数（所有类型合计）。direct 是直接打了这个标签的条目数；
+    total 还包括打了它任意子标签的条目（同一条目只算一次），和按上级标签筛选时的结果一致。"""
+    owners: dict[int, set[tuple[str, int]]] = {}
     for t in _tag_link_tables():
-        for tag_id, n in session.execute(select(t.c.tag_id, func.count()).group_by(t.c.tag_id)).all():
-            usage[tag_id] = usage.get(tag_id, 0) + n
+        owner = next(c for c in t.c if c.name != "tag_id")
+        for tag_id, oid in session.execute(select(t.c.tag_id, owner)).all():
+            owners.setdefault(tag_id, set()).add((t.name, oid))
+    children: dict[int, list[int]] = {}
+    ids = list(session.scalars(select(m.Tag.id)))
+    for tid, pid in session.execute(select(m.Tag.id, m.Tag.parent_id)).all():
+        if pid:
+            children.setdefault(pid, []).append(tid)
+
+    def family(tid: int) -> set[int]:
+        out, stack = set(), [tid]
+        while stack:
+            cur = stack.pop()
+            if cur in out:
+                continue
+            out.add(cur)
+            stack.extend(children.get(cur, []))
+        return out
+
+    usage: dict[int, dict[str, int]] = {}
+    for tid in ids:
+        direct = owners.get(tid, set())
+        total = set().union(*(owners.get(f, set()) for f in family(tid)))
+        if direct or total:
+            usage[tid] = {"direct": len(direct), "total": len(total)}
     return usage
 
 

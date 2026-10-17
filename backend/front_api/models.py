@@ -48,6 +48,7 @@ character_tags = _tag_link("character_tags", "character")
 world_tags = _tag_link("world_tags", "world")
 prompt_tags = _tag_link("prompt_tags", "prompt")
 sd_model_tags = _tag_link("sd_model_tags", "sd_model")
+prompt_snippet_tags = _tag_link("prompt_snippet_tags", "prompt_snippet")
 work_tags = _tag_link("work_tags", "work")
 
 collection_assets = Table(
@@ -199,6 +200,10 @@ class SDModel(TimestampMixin, Base):
     preview_asset_id: Mapped[int | None] = mapped_column(
         ForeignKey("assets.id", ondelete="SET NULL")
     )
+    # {"SHA256": ..., "AutoV1": ..., "AutoV2": ..., "AutoV3": ...}，与 Civitai / A1111 的叫法一致
+    hashes: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # Civitai 匹配结果（来自联网查询或本地的 .civitai.info）
+    civitai: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     tags: Mapped[list[Tag]] = relationship(secondary=sd_model_tags, lazy="selectin")
 
 
@@ -225,6 +230,25 @@ class Generation(TimestampMixin, Base):
     asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"))
     params: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     notes: Mapped[str | None] = mapped_column(Text)
+    # 同一次出图任务（XY 网格）的批次号，以及这张图在网格里的坐标 {"x": {...}, "y": {...}}
+    batch: Mapped[str | None] = mapped_column(String(40), index=True)
+    xy: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class PromptSnippet(TimestampMixin, Base):
+    """提示词片段：画风 / 服装 / 构图……可以一键组合成完整提示词。"""
+
+    __tablename__ = "prompt_snippets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    category: Mapped[str] = mapped_column(String(30), default="other", index=True)
+    positive: Mapped[str] = mapped_column(Text, default="")
+    negative: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    preview_asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"))
+    tags: Mapped[list[Tag]] = relationship(secondary=prompt_snippet_tags, lazy="selectin")
 
 
 class CharacterCard(TimestampMixin, Base):

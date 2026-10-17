@@ -10,7 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 AssetKind = Literal["drawing", "ai_image", "material", "novel", "cg", "reference", "other"]
 WorkKind = Literal["anime", "game", "galgame", "novel", "manga", "original", "other"]
 Gender = Literal["male", "female", "other", "unknown"]
-ModelKind = Literal["checkpoint", "lora", "lycoris", "vae", "embedding", "controlnet", "upscaler", "other"]
+ModelKind = Literal["checkpoint", "lora", "lycoris", "vae", "embedding", "controlnet", "upscaler", "hypernetwork", "text_encoder", "other"]
+SnippetCategory = Literal["quality", "style", "character", "clothing", "pose", "composition", "background", "lighting", "negative", "other"]
 
 
 class ORM(BaseModel):
@@ -277,6 +278,8 @@ class SDModelUpdate(BaseModel):
 
 class SDModelRead(SDModelBase, Timestamps):
     id: int
+    hashes: dict[str, Any] = {}
+    civitai: dict[str, Any] = {}
     tags: list[TagRead] = []
 
 
@@ -330,6 +333,39 @@ class GenerationUpdate(BaseModel):
 
 class GenerationRead(GenerationBase, Timestamps):
     id: int
+    batch: str | None = None
+    xy: dict[str, Any] = {}
+
+
+# ---------- Prompt snippet ----------
+class SnippetBase(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    category: SnippetCategory = "other"
+    positive: str = ""
+    negative: str | None = None
+    notes: str | None = None
+    position: int = 0
+    preview_asset_id: int | None = None
+
+
+class SnippetCreate(SnippetBase):
+    tag_ids: list[int] = []
+
+
+class SnippetUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    category: SnippetCategory | None = None
+    positive: str | None = None
+    negative: str | None = None
+    notes: str | None = None
+    position: int | None = None
+    preview_asset_id: int | None = None
+    tag_ids: list[int] | None = None
+
+
+class SnippetRead(SnippetBase, Timestamps):
+    id: int
+    tags: list[TagRead] = []
 
 
 # ---------- Character Card ----------

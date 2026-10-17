@@ -33,16 +33,40 @@ def resolve_tags(session: Session, tag_ids: list[int]) -> list[m.Tag]:
     return list(tags)
 
 
-def apply_payload(session: Session, obj: Any, data: dict[str, Any]) -> None:
+def set_collection_items(session: Session, collection_id: int, asset_ids: list[int]) -> None:
+    """按给定顺序写入收藏集内容（position 从 0 开始）。重复 id 只保留第一次出现。"""
+    ordered = list(dict.fromkeys(asset_ids))
+    found = set(session.scalars(select(m.Asset.id).where(m.Asset.id.in_(ordered))).all())
+    missing = [i for i in ordered if i not in found]
+    if missing:
+        raise HTTPException(422, f"素材不存在: {missing}")
+    session.execute(m.collection_assets.delete().where(m.collection_assets.c.collection_id == collection_id))
+    if ordered:
+        session.execute(
+            m.collection_assets.insert(),
+            [{"collection_id": collection_id, "asset_id": a, "position": i} for i, a in enumerate(ordered)],
+        )
+
+
+def apply_payload(session: Session, obj: Any, data: dict[str, Any]) -> list[int] | None:
+    """写入字段与标签；返回待写入的 asset_ids（需要在 flush 之后处理）。"""
     tag_ids = data.pop("tag_ids", None)
     asset_ids = data.pop("asset_ids", None)
     for key, value in data.items():
         setattr(obj, key, value)
     if tag_ids is not None:
         obj.tags = resolve_tags(session, tag_ids)
+    return asset_ids
+
+
+def _finish(session: Session, obj: Any, asset_ids: list[int] | None) -> None:
+    session.flush()
     if asset_ids is not None:
-        assets = session.scalars(select(m.Asset).where(m.Asset.id.in_(asset_ids))).all()
-        obj.assets = list(assets)
+        set_collection_items(session, obj.id, asset_ids)
+    session.commit()
+    session.refresh(obj)
+    if asset_ids is not None:
+        session.expire(obj, ["assets"])
 
 
 def make_crud_router(
@@ -102,10 +126,9 @@ def make_crud_router(
         if validate:
             validate(session, data)
         obj = model()
-        apply_payload(session, obj, data)
+        asset_ids = apply_payload(session, obj, data)
         session.add(obj)
-        session.commit()
-        session.refresh(obj)
+        _finish(session, obj, asset_ids)
         return obj
 
     @router.patch("/{obj_id}", response_model=read_schema)
@@ -114,9 +137,8 @@ def make_crud_router(
         data = payload.model_dump(exclude_unset=True)  # type: ignore[attr-defined]
         if validate:
             validate(session, data)
-        apply_payload(session, obj, data)
-        session.commit()
-        session.refresh(obj)
+        asset_ids = apply_payload(session, obj, data)
+        _finish(session, obj, asset_ids)
         return obj
 
     @router.delete("/{obj_id}", status_code=204)

@@ -1,6 +1,6 @@
 [project]
 name = "front-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "Front 创作素材库与百科数据库 · 后端 API"
 license = { text = "MIT" }
 requires-python = ">=3.10"

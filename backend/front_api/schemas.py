@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-AssetKind = Literal["drawing", "ai_image", "material", "novel", "cg", "reference", "other"]
+AssetKind = Literal["drawing", "ai_image", "material", "novel", "cg", "reference", "model3d", "live2d", "audio", "video", "pdf", "document", "archive", "code", "other"]
 WorkKind = Literal["anime", "game", "galgame", "novel", "manga", "original", "other"]
 Gender = Literal["male", "female", "other", "unknown"]
 ModelKind = Literal["checkpoint", "lora", "lycoris", "vae", "embedding", "controlnet", "upscaler", "hypernetwork", "text_encoder", "other"]
@@ -724,3 +724,38 @@ class AppearanceRead(AppearanceBase, Timestamps):
 class Page(BaseModel):
     items: list[Any]
     total: int
+
+
+# ---------- Note（超级笔记本）----------
+class NoteBase(BaseModel):
+    title: str = Field(default="无标题", min_length=1, max_length=200)
+    icon: str | None = Field(default=None, max_length=16)
+    content: str = ""
+    pinned: bool = False
+    position: int = 0
+    parent_id: int | None = None
+    work_id: int | None = None
+    world_id: int | None = None
+    cover_asset_id: int | None = None
+
+
+class NoteCreate(NoteBase):
+    tag_ids: list[int] = []
+
+
+class NoteUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    icon: str | None = None
+    content: str | None = None
+    pinned: bool | None = None
+    position: int | None = None
+    parent_id: int | None = None
+    work_id: int | None = None
+    world_id: int | None = None
+    cover_asset_id: int | None = None
+    tag_ids: list[int] | None = None
+
+
+class NoteRead(NoteBase, Timestamps):
+    id: int
+    tags: list[TagRead] = []

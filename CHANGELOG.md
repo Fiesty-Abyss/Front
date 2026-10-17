@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.6.1 · 2026-10-17
+
+第六轮（第二部分）：超级笔记本 + 多格式文件识别与预览。
+
+- **超级笔记本** `/notes`：块编辑器（Tiptap）写笔记：标题、粗体 / 斜体 / 删除线 / 高亮、行内代码、链接、待办、有序 / 无序列表、引用、代码块（highlight.js 高亮）、表格、图片、分隔线；输入 `/` 唤出插入菜单；拖入或粘贴文件直接上传进素材库并插入；**嵌入素材**、**链接到其他笔记**（`Ctrl/⌘` + 点击跳转）；页面可无限嵌套（目录树、移动、子页面），带图标、标签、置顶、关联作品；输入 600 ms 后自动保存，`Ctrl/⌘ S` 立即保存；正文存为 Markdown
+- **引用与反向链接**：每页列出“这页用到的素材”（带封面）、子页面和“链接到这里的笔记”；接口 `/api/notes`、`/api/notes/tree`、`/api/notes/{id}/move`、`/api/notes/{id}/refs`；笔记进入全文检索、总览统计与创作热力图
+- **文件识别**（新包 `front_api/filetypes`）：3D 模型（glb / gltf / vrm / obj / fbx / pmx / pmd）、Live2D（Cubism 2–5）、音频、视频、PDF、Office / OpenDocument / EPUB、压缩包、代码与脚本；读出的信息存入 `meta.file`，文字进入全文检索，自动生成封面（音频封面、VRM 缩略图、视频截帧、PDF 首页、包内图片）；识别出的类型优先于手选类型；新素材类型 model3d / live2d / audio / video / pdf / document / archive / code
+- **预览**：three.js 3D 预览（旋转、线框、背景、复位、动画、**设为封面**；舞台背景跟随主题），VRM 使用许可一览（人形骨骼不完整的 VRM 自动按普通 glTF 显示），自写的 PMX 静态网格读取；Live2D 贴图 / 动作 / 表情（不做实时渲染，Cubism Core 为专有许可）；音频播放器；视频播放；PDF 逐页渲染；Word / Excel / PPT 文字与表格预览；压缩包目录（包内图片可点开）；代码语法高亮
+- **模型包**：批量导入时，Live2D / PMX / glTF / OBJ + MTL 文件夹被认成一个条目并打包成一个 zip 素材；预览时通过 `GET /api/assets/{id}/entry/{path}` 按需读取包内文件，不解压到硬盘，单个文件 64 MB 上限防压缩炸弹
+- 新接口：`GET /api/assets/{id}/file?inline=1`、`GET /api/assets/{id}/pdf/{page}`、`PUT /api/assets/{id}/thumb`、`POST /api/assets/{id}/reanalyze`、`POST /api/assets/reanalyze`；素材列表不再带大段预览数据，打开详情时再取
+- 素材库：按 图片 / 3D / Live2D / 音频 / 视频 / 文档 / 文本 / 压缩包 分段筛选；无封面的文件显示类型图标卡片；宽版详情弹窗
+- 弹窗、图标按钮与链接按钮样式统一（`a.btn.ghost.iconbtn` 与按钮一致）
+- 新依赖：后端 tinytag（MIT）、pypdfium2（Apache-2.0 / BSD-3-Clause）；前端 three（MIT）、@pixiv/three-vrm（MIT）、Tiptap（MIT）、tiptap-markdown（MIT）、highlight.js（BSD-3-Clause）。FFmpeg 可选
+- 新文档 [docs/FILETYPES.md](docs/FILETYPES.md)
+- 测试 102 → 111 项（示例文件全部由 `tests/samples.py` 现场生成）
+
 ## v0.6.0 · 2026-10-17
 
 第六轮（第一部分）：界面焕新 + 浏览器查询。

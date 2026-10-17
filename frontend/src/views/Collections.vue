@@ -1,4 +1,5 @@
 <script setup>
+import AssetThumb from '../components/AssetThumb.vue'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, Assets, Collections, LABELS, thumb, Works } from '../api'
@@ -108,11 +109,10 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
           <div v-for="(a, i) in cur.assets" :key="a.id" class="tile" draggable="true"
             :style="drag.kind === 'item' && drag.over === i ? { borderColor: 'var(--accent2)' } : {}"
             @dragstart="dragStart('item', i)" @dragover="dragOver('item', i, $event)" @drop="drop('item', i)">
-            <div class="img" style="position:relative" :style="a.width ? { backgroundImage: `url(${thumb(a.id)})` } : {}">
-              {{ a.width ? '' : '📖' }}
+            <AssetThumb :asset="a" style="position:relative">
               <span class="badge" style="position:absolute;left:8px;top:8px;background:#000a;color:#fff">#{{ i + 1 }}</span>
               <span v-if="cur.effective_cover_id === a.id" class="badge" style="position:absolute;right:8px;top:8px;background:var(--accent2);color:#fff">封面</span>
-            </div>
+            </AssetThumb>
             <div class="meta"><div class="title">{{ a.title }}</div>
               <div class="row small" style="gap:6px"><span class="badge">{{ LABELS.assetKind[a.kind] }}</span><span class="spacer" /><a title="设为封面" @click="setCover(a)">{{ cur.cover_asset_id === a.id ? '★' : '☆' }}</a><a title="移出" @click="removeItem(a)"><Ico g="✕" /></a></div>
             </div>
@@ -125,7 +125,7 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
     <div class="row" style="margin-bottom:10px;flex-wrap:nowrap"><input v-model="pf.q" placeholder="搜索" /><select v-model="pf.kind" style="width:140px"><option value="">全部类型</option><option v-for="(l, k) in LABELS.assetKind" :key="k" :value="k">{{ l }}</option></select></div>
     <div class="thumbgrid" style="grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));max-height:56vh;overflow:auto">
       <div v-for="a in pool" :key="a.id" class="tile" :style="chosen.includes(a.id) ? { borderColor: 'var(--accent)', outline: '2px solid var(--accent)' } : {}" @click="toggle(a.id)">
-        <div class="img" :style="a.width ? { backgroundImage: `url(${thumb(a.id)})` } : {}">{{ a.width ? '' : '📖' }}</div>
+        <AssetThumb :asset="a" />
         <div class="meta small"><div class="title">{{ a.title }}</div></div>
       </div>
     </div>

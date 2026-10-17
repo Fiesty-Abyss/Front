@@ -5,7 +5,9 @@ Front 是自托管的：这里的“本地路径”指运行 Front 的这台电�
 
 from __future__ import annotations
 
+import io
 import os
+import zipfile
 from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
@@ -26,6 +28,31 @@ from ..db import get_session
 from ..ingest import IMAGE_EXT, IMPORTABLE_EXT, ingest, make_thumb
 
 MAX_FILES = 5000
+MAX_BUNDLE = 512 * 1024 * 1024
+
+
+def bundle_kind(filenames: list[str]) -> str | None:
+    """一个文件夹是不是“一整个模型”：Live2D（model3.json / model.json + .moc）、PMX、带外部文件的 glTF、OBJ + MTL。
+    是的话整个文件夹打包成一个素材，贴图和动作跟着模型走。"""
+    low = [n.lower() for n in filenames]
+    if any(n.endswith(".model3.json") for n in low) or (any(n.endswith(".moc") for n in low) and any(n.endswith(".json") and "model" in n for n in low)):
+        return "live2d"
+    if any(n.endswith((".pmx", ".gltf")) for n in low) or (any(n.endswith(".obj") for n in low) and any(n.endswith(".mtl") for n in low)):
+        return "model3d"
+    return None
+
+
+def zip_dir(path: Path) -> bytes:
+    buf = io.BytesIO()
+    total = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for fp in sorted(path.rglob("*")):
+            if fp.is_file() and not fp.name.startswith("."):
+                total += fp.stat().st_size
+                if total > MAX_BUNDLE:
+                    raise OSError(f"模型文件夹超过 {MAX_BUNDLE >> 20} MB")
+                z.write(fp, fp.relative_to(path).as_posix())
+    return buf.getvalue()
 router = APIRouter(tags=["批量导入 / CG"])
 
 
@@ -62,6 +89,10 @@ def scan_files(root: Path, recursive: bool) -> tuple[list[Path], int]:
     walker = os.walk(root) if recursive else [(str(root), [], [e.name for e in root.iterdir() if e.is_file()])]
     for dirpath, dirnames, filenames in walker:
         dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        if recursive and bundle_kind(filenames):
+            files.append(Path(dirpath))  # 整个文件夹作为一个模型包
+            dirnames[:] = []
+            continue
         for name in filenames:
             if name.startswith("."):
                 continue
@@ -76,6 +107,11 @@ def scan_files(root: Path, recursive: bool) -> tuple[list[Path], int]:
     return files, unsupported
 
 
+def _label(root: Path, fp: Path) -> str:
+    rel = fp.relative_to(root).as_posix()
+    return (rel if rel != "." else fp.name) + "/" if fp.is_dir() else rel
+
+
 def _image_size(fp: Path) -> tuple[int | None, int | None]:
     try:
         with Image.open(fp) as img:  # 只读文件头
@@ -87,7 +123,7 @@ def _image_size(fp: Path) -> tuple[int | None, int | None]:
 def _cg_items(root: Path, files: list[Path]) -> list[CGItem]:
     items = []
     for f in files:
-        if f.suffix.lower() in IMAGE_EXT:
+        if f.is_file() and f.suffix.lower() in IMAGE_EXT:
             w, h = _image_size(f)
             items.append(CGItem(name=f.name, width=w, height=h, ref=str(f.relative_to(root))))
     return items
@@ -98,15 +134,16 @@ def scan(req: ScanRequest) -> dict[str, Any]:
     """预览：列出将要导入的文件；CG 模式下给出差分分组结果。不写入任何数据。"""
     root = _resolve_dir(req.path)
     files, unsupported = scan_files(root, req.recursive)
-    exts = Counter(f.suffix.lower() for f in files)
+    exts = Counter("模型文件夹" if f.is_dir() else f.suffix.lower() for f in files)
     result: dict[str, Any] = {
         "path": str(root),
         "folder_name": root.name,
         "total": len(files),
         "unsupported": unsupported,
         "by_ext": dict(exts),
-        "total_size": sum(f.stat().st_size for f in files),
-        "files": [str(f.relative_to(root)) for f in files[:300]],
+        "total_size": sum(sum(x.stat().st_size for x in f.rglob("*") if x.is_file()) if f.is_dir() else f.stat().st_size for f in files),
+        "files": [_label(root, f) for f in files[:300]],
+        "bundles": [_label(root, f) for f in files if f.is_dir()][:100],
     }
     if req.cg_mode:
         groups = group_cgs(_cg_items(root, files))
@@ -154,15 +191,18 @@ def run(req: RunRequest, session: Session = Depends(get_session)) -> dict[str, A
     errors: list[dict[str, str]] = []
     thumbs: list[tuple[int, Path]] = []
     for i, fp in enumerate(files):
-        rel = str(fp.relative_to(root))
+        rel = _label(root, fp)
         try:
-            if fp.stat().st_size > settings.max_upload_mb * 1024 * 1024:
-                errors.append({"file": rel, "error": f"超过 {settings.max_upload_mb} MB"})
-                continue
-            data = fp.read_bytes()
+            if fp.is_dir():
+                data, fname, stem = zip_dir(fp), f"{fp.name}.zip", fp.name
+            else:
+                if fp.stat().st_size > settings.max_upload_mb * 1024 * 1024:
+                    errors.append({"file": rel, "error": f"超过 {settings.max_upload_mb} MB"})
+                    continue
+                data, fname, stem = fp.read_bytes(), fp.name, fp.stem
             wdate = date.fromtimestamp(fp.stat().st_mtime) if req.use_mtime else None
             asset, is_new = ingest(
-                session, data, fp.name, kind=kind, work_date=wdate, title=f"{prefix or ''}{fp.stem}", work_id=work_id,
+                session, data, fname, kind=kind, work_date=wdate, title=f"{prefix}{stem}" if prefix else (stem if fp.is_dir() else None), work_id=work_id,
                 world_id=req.world_id, tags=tags, source=str(fp),
                 extra_meta={"import": {"folder": root.name, "relative_path": rel, "imported_at": datetime.now().isoformat(timespec="seconds")}},
             )

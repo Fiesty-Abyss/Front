@@ -52,6 +52,7 @@ prompt_tags = _tag_link("prompt_tags", "prompt")
 sd_model_tags = _tag_link("sd_model_tags", "sd_model")
 prompt_snippet_tags = _tag_link("prompt_snippet_tags", "prompt_snippet")
 work_tags = _tag_link("work_tags", "work")
+note_tags = _tag_link("note_tags", "note")
 
 collection_assets = Table(
     "collection_assets",
@@ -469,3 +470,21 @@ class Embedding(Base):
     vector: Mapped[bytes] = mapped_column(LargeBinary)
     text_hash: Mapped[str] = mapped_column(String(64))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class Note(TimestampMixin, Base):
+    """超级笔记本里的一页笔记：Markdown 正文（块编辑器编辑），可以嵌套成笔记本，可以引用任何素材。"""
+
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), index=True, default="无标题")
+    icon: Mapped[str | None] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text, default="")
+    pinned: Mapped[bool] = mapped_column(default=False)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("notes.id", ondelete="CASCADE"), index=True)
+    work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
+    world_id: Mapped[int | None] = mapped_column(ForeignKey("worlds.id", ondelete="SET NULL"))
+    cover_asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"))
+    tags: Mapped[list[Tag]] = relationship(secondary=note_tags, lazy="selectin")

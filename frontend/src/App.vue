@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   LayoutDashboard, Images, FolderInput, Gamepad2, LibraryBig, Tags, BookUser, Globe, Waypoints,
   WandSparkles, NotebookPen, Puzzle, Box, MessageCircle, IdCard, BookMarked, ScanSearch, Settings,
-  Sun, Moon, PanelLeftClose, PanelLeftOpen,
+  Sun, Moon, PanelLeftClose, PanelLeftOpen, NotebookText,
 } from 'lucide-vue-next'
 import { toastState } from './toast'
 import { enterPage, enterToast, leaveToast, movePill } from './motion'
@@ -15,7 +15,7 @@ const q = ref('')
 const searchEl = ref(null)
 const go = () => q.value.trim() && router.push({ path: '/search', query: { q: q.value.trim() } })
 const nav = [
-  ['资料库', 'LIBRARY', [['/', LayoutDashboard, '总览'], ['/assets', Images, '素材库'], ['/import', FolderInput, '批量导入'], ['/works', Gamepad2, '作品 / CG'], ['/collections', LibraryBig, '收藏集'], ['/tags', Tags, '标签']]],
+  ['资料库', 'LIBRARY', [['/', LayoutDashboard, '总览'], ['/assets', Images, '素材库'], ['/notes', NotebookText, '笔记本'], ['/import', FolderInput, '批量导入'], ['/works', Gamepad2, '作品 / CG'], ['/collections', LibraryBig, '收藏集'], ['/tags', Tags, '标签']]],
   ['百科', 'WIKI', [['/characters', BookUser, '角色百科'], ['/worlds', Globe, '世界观'], ['/graph', Waypoints, '关系网']]],
   ['AI 绘画', 'DRAW', [['/generate', WandSparkles, '出图'], ['/prompts', NotebookPen, '提示词库'], ['/snippets', Puzzle, '提示词片段'], ['/models', Box, 'SD 模型库']]],
   ['AI 角色', 'ROLEPLAY', [['/chat', MessageCircle, 'AI 对话'], ['/cards', IdCard, '角色卡'], ['/lorebooks', BookMarked, '世界书'], ['/extract', ScanSearch, '抽取角色']]],

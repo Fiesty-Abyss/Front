@@ -1,7 +1,8 @@
 <script setup>
+import AssetThumb from '../components/AssetThumb.vue'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Images, BookUser, Globe, Waypoints, NotebookPen, Box, IdCard, Gamepad2, Upload, FolderInput, WandSparkles, MessageCircle, ScanSearch, ArrowRight } from 'lucide-vue-next'
+import { Images, BookUser, Globe, NotebookPen, Box, IdCard, Gamepad2, Upload, FolderInput, WandSparkles, MessageCircle, ScanSearch, ArrowRight, NotebookText } from 'lucide-vue-next'
 import { api, Assets, LABELS, thumb } from '../api'
 import { countUp, gsap, reduced } from '../motion'
 
@@ -18,11 +19,11 @@ const greeting = hour < 5 ? '夜深了，还在创作吗？' : hour < 11 ? '早�
 
 const cards = [
   ['assets', '素材', '/assets', Images], ['characters', '角色', '/characters', BookUser], ['worlds', '世界观', '/worlds', Globe],
-  ['relations', '关系', '/graph', Waypoints], ['prompts', '提示词', '/prompts', NotebookPen], ['sd_models', 'SD 模型', '/models', Box],
+  ['notes', '笔记', '/notes', NotebookText], ['prompts', '提示词', '/prompts', NotebookPen], ['sd_models', 'SD 模型', '/models', Box],
   ['cards', '角色卡', '/cards', IdCard], ['works', '作品', '/works', Gamepad2],
 ]
 const actions = [
-  ['上传素材', '/assets', Upload], ['批量导入', '/import', FolderInput], ['出图', '/generate', WandSparkles],
+  ['写笔记', '/notes', NotebookText], ['上传素材', '/assets', Upload], ['批量导入', '/import', FolderInput], ['出图', '/generate', WandSparkles],
   ['AI 对话', '/chat', MessageCircle], ['抽取角色', '/extract', ScanSearch],
 ]
 
@@ -102,7 +103,7 @@ const search = () => q.value.trim() && router.push({ path: '/search', query: { q
         <div class="row"><h2 style="margin:0">最近入库</h2><span class="spacer" /><RouterLink to="/assets" class="muted small">全部 →</RouterLink></div>
         <div v-reveal class="thumbgrid gallery recent">
           <RouterLink v-for="a in recent" :key="a.id" :to="{ path: '/assets', query: { open: a.id } }" class="tile">
-            <div class="img" :style="a.width ? { backgroundImage: `url(${thumb(a.id)})` } : {}">{{ a.width ? '' : '✎' }}</div>
+            <AssetThumb :asset="a" />
             <div class="meta"><div class="title">{{ a.title }}</div><span class="badge">{{ LABELS.assetKind[a.kind] }}</span></div>
           </RouterLink>
         </div>

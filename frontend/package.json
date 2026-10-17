@@ -1,7 +1,7 @@
 {
   "name": "front-web",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +9,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@pixiv/three-vrm": "^3.5.5",
+    "@tiptap/extension-highlight": "^3.32.0",
+    "@tiptap/extension-image": "^3.32.0",
+    "@tiptap/extension-placeholder": "^3.32.0",
+    "@tiptap/extension-table": "^3.32.0",
+    "@tiptap/extension-task-item": "^3.32.0",
+    "@tiptap/extension-task-list": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
+    "@tiptap/vue-3": "^3.32.0",
     "cytoscape": "^3.30.0",
     "gsap": "^3.15.0",
+    "highlight.js": "^11.12.0",
     "lucide-vue-next": "^1.0.0",
     "markdown-it": "^15.0.3",
+    "three": "^0.186.1",
+    "tiptap-markdown": "^0.9.0",
     "vue": "^3.5.0",
     "vue-router": "^4.4.0"
   },

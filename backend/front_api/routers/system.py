@@ -34,6 +34,7 @@ def stats(session: Session = Depends(get_session)) -> dict[str, Any]:
         "assets": count(m.Asset),
         "asset_kinds": kinds,
         "characters": count(m.Character),
+        "notes": count(m.Note),
         "worlds": count(m.World),
         "works": count(m.Work),
         "relations": count(m.Relation),
@@ -47,7 +48,7 @@ def stats(session: Session = Depends(get_session)) -> dict[str, Any]:
 
 ACTIVITY_SOURCES: dict[str, type] = {
     "characters": m.Character, "world_entries": m.WorldEntry, "prompts": m.Prompt, "generations": m.Generation,
-    "chat": m.ChatMessage, "cards": m.CharacterCard, "lore": m.LoreEntry,
+    "chat": m.ChatMessage, "cards": m.CharacterCard, "lore": m.LoreEntry, "notes": m.Note,
 }
 
 

@@ -496,7 +496,52 @@ def seed(client: TestClient) -> dict[str, int]:
             batches.append(job["batch"])
     finally:
         sdgen.client_factory, sdgen.backend_url, sdgen.POLL_INTERVAL = saved
-    return {"world_id": world, "card_id": card_id, "prompt_id": p1, "batches": batches, "chat_id": chat["id"], "lorebook_id": book["id"]}
+
+    # galgame 游戏库：用内置的“模拟元数据接口”（虚构的【示例】游戏）走一遍 Bangumi / VNDB / 月幕 的混合匹配
+    import os
+
+    from .galgame import sources as gsrc
+    from .mock_galgame import create_mock_app as create_mock_gal
+
+    gal_mock = create_mock_gal()
+    gal_base = os.environ.get("FRONT_MOCK_GALGAME", "http://127.0.0.1:7863")
+    saved_env = {k: os.environ.get(k) for k in ("FRONT_BANGUMI_API", "FRONT_VNDB_API", "FRONT_YMGAL_API")}
+    saved_factory = gsrc.client_factory
+    for k, path in (("FRONT_BANGUMI_API", "bangumi"), ("FRONT_VNDB_API", "vndb"), ("FRONT_YMGAL_API", "ymgal")):
+        os.environ[k] = f"{gal_base}/{path}"
+    gsrc.client_factory = lambda: TestClient(gal_mock, base_url=gal_base)
+    gsrc._ymgal_token.update(token=None, exp=0, base=None)
+    gal_ids = {}
+    try:
+        for key, body, patch in (
+            ("sakura", {"picks": {"bangumi": "900001"}, "status": "finished", "work": work_gal},
+             {"my_rating": 9, "play_minutes": 1840, "started_on": "2025-04-02", "finished_on": "2025-05-18",
+              "notes": "【示例】凛线是真结局，记得先通遥线。CG 档案在作品「樱色回廊」下。", "pinned": True}),
+            ("fog", {"picks": {"ymgal": "80002"}, "status": "playing", "import_characters": True},
+             {"play_minutes": 620, "started_on": "2026-09-20", "notes": "【示例】第 3 章：灯塔熄灭的那一分钟。"}),
+            ("star", {"picks": {"vndb": "v90003"}, "status": "wishlist"}, {}),
+            ("summer", {"picks": {"vndb": "v90004"}, "status": "shelved"}, {"play_minutes": 140, "my_rating": 6}),
+            ("night", {"picks": {"bangumi": "900005"}, "status": "dropped", "work": None}, {"play_minutes": 45}),
+        ):
+            r = client.post("/api/galgames/from-meta", json=body)
+            r.raise_for_status()
+            gal_ids[key] = r.json()["id"]
+            if patch:
+                client.patch(f"/api/galgames/{gal_ids[key]}", json=patch).raise_for_status()
+        r = client.post("/api/galgames/quick-add", json={"title": "【示例】纸飞机之夏", "status": "wishlist", "work": None})
+        r.raise_for_status()
+        gal_ids["unmatched"] = r.json()["id"]
+        client.patch(f"/api/galgames/{gal_ids['sakura']}", json={"tag_ids": [T["Galgame"]]}).raise_for_status()
+    finally:
+        gsrc.client_factory = saved_factory
+        gsrc._ymgal_token.update(token=None, exp=0, base=None)
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return {"world_id": world, "card_id": card_id, "prompt_id": p1, "batches": batches, "chat_id": chat["id"], "lorebook_id": book["id"],
+            "galgames": gal_ids}
 
 
 def main() -> None:

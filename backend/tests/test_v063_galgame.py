@@ -174,3 +174,18 @@ def test_offline_switch(client, mock, monkeypatch):
     assert all(not v["ok"] and "关闭" in v["error"] for v in r["results"].values())
     assert client.get("/api/galgames/meta/settings").json()["online"] is False
     assert client.post("/api/galgames/meta/preview", json={"picks": {"bangumi": "900001"}}).status_code == 502
+
+
+def test_seed_galgames(client):
+    from front_api.seed import seed
+
+    out = seed(client)["galgames"]
+    sakura = client.get(f"/api/galgames/{out['sakura']}").json()
+    assert sakura["status"] == "finished" and sakura["has_cover"] and sakura["pinned"]
+    assert set(sakura["sources"]) == {"bangumi", "vndb", "ymgal"}
+    assert client.get(f"/api/works/{sakura['work_id']}").json()["title"] == "【示例】樱色回廊"
+    assert client.get(f"/api/galgames/{out['sakura']}/cg").json()["count"] > 0  # 挂上了已有的 CG 档案
+    fog = client.get(f"/api/galgames/{out['fog']}").json()
+    assert fog["work_id"] and client.get("/api/characters", params={"work_id": fog["work_id"]}).json()["total"] == 3
+    assert client.get(f"/api/galgames/{out['unmatched']}").json()["sources"] == {}
+    assert client.get(f"/api/galgames/{out['night']}").json()["nsfw"] is True

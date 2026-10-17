@@ -16,7 +16,18 @@ from .. import schemas as s
 from ..config import get_settings
 from ..crud import get_or_404, make_crud_router
 from ..db import get_session
+from ..ai import lore as lore_mod
 from ..pngmeta import card_to_v2, read_card_png, v2_to_fields, write_card_png
+
+
+def _v2(session: Session, card: m.CharacterCard) -> dict[str, Any]:
+    """导出 V2：附带角色卡关联的世界书（character_book）。"""
+    data = card_to_v2(card)
+    if card.lorebook_id:
+        book = session.get(m.Lorebook, card.lorebook_id)
+        if book is not None:
+            data["data"]["character_book"] = lore_mod.book_to_v2(book)
+    return data
 
 router = make_crud_router(
     prefix="/api/cards", model=m.CharacterCard, create_schema=s.CardCreate,
@@ -46,6 +57,20 @@ async def import_card(file: UploadFile = File(...), session: Session = Depends(g
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(422, str(exc)) from exc
     card = m.CharacterCard(**fields)
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    book_json = data.get("character_book") if isinstance(data, dict) else None
+    if isinstance(book_json, dict) and book_json.get("entries"):
+        try:
+            book_data = lore_mod.book_from_json(dict(book_json, name=book_json.get("name") or f"{card.name} 的世界书"))
+        except (ValueError, TypeError):
+            book_data = None
+        if book_data:
+            entries = book_data.pop("entries")
+            book = m.Lorebook(**book_data)
+            book.entries = [m.LoreEntry(**e) for e in entries]
+            session.add(book)
+            session.flush()
+            card.lorebook_id = book.id
     session.add(card)
     session.commit()
     session.refresh(card)
@@ -55,7 +80,7 @@ async def import_card(file: UploadFile = File(...), session: Session = Depends(g
 @io_router.get("/{card_id}/export.json")
 def export_json(card_id: int, session: Session = Depends(get_session)) -> Response:
     card = get_or_404(session, m.CharacterCard, card_id)
-    body = json.dumps(card_to_v2(card), ensure_ascii=False, indent=2)
+    body = json.dumps(_v2(session, card), ensure_ascii=False, indent=2)
     return Response(
         body,
         media_type="application/json",
@@ -73,7 +98,7 @@ def export_png(card_id: int, session: Session = Depends(get_session)) -> Respons
             path = get_settings().data_dir / asset.file_path
             if path.is_file():
                 base = path.read_bytes()
-    png = write_card_png(card_to_v2(card), base)
+    png = write_card_png(_v2(session, card), base)
     return Response(
         png,
         media_type="image/png",

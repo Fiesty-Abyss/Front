@@ -44,6 +44,7 @@ const pct = computed(() => (toc.value && ch.value ? Math.round(((ch.value.index 
     <header class="reader-bar">
       <button class="ghost" @click="router.back()">← 返回</button>
       <button class="ghost" @click="showToc = !showToc">☰ 目录</button>
+      <button class="ghost" title="用 AI 从这篇小说里抽取角色" @click="router.push(`/extract?asset=${route.params.id}`)">⌕ 抽取角色</button>
       <b v-if="toc">{{ toc.title }}</b><span v-if="toc" class="small" style="opacity:.6">共 {{ toc.chapters.length }} 章 · {{ toc.words.toLocaleString() }} 字</span>
       <span class="spacer" />
       <span class="small" style="opacity:.6">字号</span><button class="ghost" @click="prefs.size = Math.max(14, prefs.size - 1)">A-</button><span class="small">{{ prefs.size }}</span><button class="ghost" @click="prefs.size = Math.min(32, prefs.size + 1)">A+</button>

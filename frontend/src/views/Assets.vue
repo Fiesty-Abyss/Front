@@ -27,8 +27,17 @@ async function load() {
 onMounted(async () => {
   works.value = (await Works.list({ limit: 500 })).items
   worlds.value = (await Worlds.list({ limit: 500 })).items
-  load()
+  taggerOn.value = (await api.get('/api/ai/tagger/status')).enabled
+  await load()
+  if (route.query.open) { const a = await Assets.get(Number(route.query.open)).catch(() => null); if (a) open(a) }
 })
+const taggerOn = ref(false)
+const aiTags = ref(null)
+async function suggestTags() {
+  aiTags.value = { loading: true, suggestions: [] }
+  try { aiTags.value = await api.post(`/api/ai/tagger/assets/${editing.value.id}`) } catch (e) { aiTags.value = null; toast(e.message, true) }
+}
+function addTag(s) { if (s.tag && !editing.value.tag_ids.includes(s.tag.id)) editing.value.tag_ids = [...editing.value.tag_ids, s.tag.id] }
 let timer
 watch(f, () => { clearTimeout(timer); timer = setTimeout(load, 200) }, { deep: true })
 
@@ -47,7 +56,7 @@ async function doUpload() {
 function newText() {
   editing.value = { title: '', kind: 'novel', content: '', work_date: new Date().toISOString().slice(0, 10), tag_ids: [], meta: {} }
 }
-function open(a) { editing.value = { ...a, tag_ids: a.tags.map((t) => t.id) } }
+function open(a) { aiTags.value = null; editing.value = { ...a, tag_ids: a.tags.map((t) => t.id) } }
 async function save() {
   const e = editing.value
   const body = { title: e.title, kind: e.kind, description: e.description, content: e.content, source: e.source, work_date: e.work_date || null, work_id: e.work_id || null, world_id: e.world_id || null, tag_ids: e.tag_ids }
@@ -141,7 +150,23 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
       </div>
       <p v-if="editing.id" class="small muted">{{ editing.original_name }} · {{ editing.width ? `${editing.width}×${editing.height} · ` : '' }}{{ editing.size ? (editing.size / 1024).toFixed(1) + ' KB' : '' }} <span class="mono">{{ editing.sha256?.slice(0, 16) }}</span></p>
       <TagPicker v-model="editing.tag_ids" />
-      <div class="row"><button v-if="editing.id" class="danger" @click="remove">删除</button><RouterLink v-if="editing.id && editing.content" class="btn" :to="`/read/${editing.id}`">📖 阅读模式</RouterLink><span class="spacer" /><button class="primary" @click="save">保存</button></div>
+      <div v-if="editing.id && editing.width" class="card aitag">
+        <div class="row"><b>AI 识别标签</b><span class="small muted">{{ taggerOn ? '结果按名称和别名对上已有标签，点击即可加上' : '未开启，可在设置页选择 WebUI Tagger 或视觉模型' }}</span><span class="spacer" />
+          <button v-if="taggerOn" class="ghost small" :disabled="aiTags?.loading" @click="suggestTags">{{ aiTags?.loading ? '识别中…' : '识别' }}</button>
+          <RouterLink v-else to="/settings" class="small">去设置 →</RouterLink></div>
+        <div v-if="aiTags && !aiTags.loading" class="row small" style="gap:6px;margin-top:8px">
+          <span v-for="s in aiTags.suggestions" :key="s.name" class="chip" :class="{ click: s.tag, on: s.tag && editing.tag_ids.includes(s.tag.id) }" :title="s.tag ? `对应标签：${s.tag.name}` : '没有对应的标签（可以把它加为某个标签的别名）'" @click="addTag(s)">
+            {{ s.tag ? s.tag.name : s.name }}<span v-if="s.tag && s.tag.name !== s.name" class="muted">← {{ s.name }}</span><span class="muted mono">{{ Math.round(s.score * 100) }}%</span>
+          </span>
+          <span class="muted">（{{ aiTags.backend === 'webui' ? 'WebUI Tagger' : '视觉模型' }}，阈值 {{ aiTags.threshold }}）</span>
+        </div>
+      </div>
+      <div class="row"><button v-if="editing.id" class="danger" @click="remove">删除</button><RouterLink v-if="editing.id && editing.content" class="btn" :to="`/read/${editing.id}`">📖 阅读模式</RouterLink>
+        <RouterLink v-if="editing.id && editing.kind === 'novel'" class="btn" :to="`/extract?asset=${editing.id}`">⌕ 抽取角色</RouterLink><span class="spacer" /><button class="primary" @click="save">保存</button></div>
     </div>
   </Modal>
 </template>
+
+<style scoped>
+.aitag { background: var(--panel2); padding: 10px 12px; }
+</style>

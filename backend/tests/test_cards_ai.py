@@ -104,19 +104,18 @@ def test_ai_suggest_relations(app, client):
     assert client.post(f"/api/ai/worlds/{w}/suggest-relations").json()["created"] == []
 
 
-def test_openai_compatible_provider_request(monkeypatch):
+def test_openai_compatible_provider_request():
     import httpx
 
     from front_api.ai import OpenAICompatibleProvider
 
     seen = {}
 
-    def fake_post(url, json, headers, timeout):
-        seen.update(url=url, body=json, headers=headers)
-        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]}, request=httpx.Request("POST", url))
+    def handler(req: httpx.Request):
+        seen.update(url=str(req.url), body=json.loads(req.content), headers=req.headers)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
 
-    monkeypatch.setattr(httpx, "post", fake_post)
-    p = OpenAICompatibleProvider("http://localhost:11434/v1/", "qwen2.5", api_key="k")
+    p = OpenAICompatibleProvider("http://localhost:11434/v1/", "qwen2.5", api_key="k", transport=httpx.MockTransport(handler))
     assert p.chat([{"role": "user", "content": "hi"}]) == "ok"
     assert seen["url"] == "http://localhost:11434/v1/chat/completions"
     assert seen["body"]["model"] == "qwen2.5" and seen["headers"]["Authorization"] == "Bearer k"

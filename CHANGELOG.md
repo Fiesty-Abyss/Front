@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.5.0 · 2026-10-17
+
+第五轮：AI 角色与世界观智能。
+
+- **流式对话** `POST /api/ai/sessions/{id}/generate`（SSE：`start` / `delta` / `done` / `error`），可随时停止 `POST /api/ai/generations/{token}/stop`，停止时保留已生成的部分
+- **重新生成与分支**：消息组成树（`chat_messages.parent_id` + `chat_sessions.head_id`），重新生成产生同级回复，‹ i/n › 切换；修改用户消息可“直接修改”或“另开分支并发送”；备选开场白也是可切换的根分支；编辑、删除（连同后续分支）消息；查看本次实际发给 AI 的上下文 `GET /api/ai/sessions/{id}/context`
+- **世界书 / Lorebook** `/api/lorebooks`、`/api/lore-entries`：关键词（`/正则/flags`）、次关键词、常驻、递归（最多 3 轮）、扫描深度、token 预算、插入位置（角色设定之前 / 之后）、启用开关；**命中测试**；从世界观百科生成；导入 SillyTavern 世界书 JSON、角色卡 JSON / PNG 里的 `character_book`；导出 V2 / SillyTavern；角色卡导入导出时带上 `character_book`；对话时自动启用角色卡、所属世界观以及会话挂载的世界书，回复上显示命中的条目
+- **设置页** `/settings`：多个 AI 服务（`/api/ai/providers`，Ollama / LM Studio / OpenAI / DeepSeek / OpenRouter 预设），读取模型列表、测试连接（对话 / 嵌入）；分别选择对话、嵌入、视觉服务；`/api/settings`。API Key 只存本机数据库，接口只返回打码提示；网页设置优先于环境变量
+- **从小说抽取角色** `/extract`：按章节分段（`POST /api/ai/extract/characters`，后台任务），合并别名、与已有角色对照，表格中修改后写入 `POST /api/ai/extract/apply`；关系以“AI 待确认”写入；素材库与阅读页都有入口
+- **语义检索**：`/api/search/semantic`（semantic / hybrid，RRF 融合）、`/api/search/similar`、索引状态与后台增量索引；默认本地 n-gram 向量（离线、近似），可改用嵌入模型；搜索页新增 关键词 / 语义 / 混合 切换与相关度条
+- **自动打标签（可选）**：WebUI WD14 Tagger 扩展（`/tagger/v1/interrogate`）或视觉模型；结果按标签名 / 别名对到已有标签；单张建议 `GET /api/ai/tagger/assets/{id}`，批量 `POST /api/ai/tagger/run`
+- **模拟 AI 服务** `python -m front_api.mock_ai`：OpenAI 兼容的对话（含流式）、嵌入与视觉接口，回复带“【模拟回复】”，用于测试、示例数据与截图；`mock_sd` 增加 Tagger 接口
+- 世界书条目进入全文检索
+- 数据库自动迁移：`chat_sessions.head_id` / `lorebook_ids`、`chat_messages.parent_id` / `meta`（老对话自动串成单链）、`character_cards.lorebook_id`；新表 `ai_providers`、`app_settings`、`lorebooks`、`lore_entries`、`embeddings`
+- 示例数据新增：雾港世界书与林汐的角色书、带分支的示例对话、第二篇示例小说（用于抽取新角色）、两个示例 AI 服务配置、标签别名 scenery / portrait
+- 测试 78 → 98 项
+
 ## v0.4.0 · 2026-10-17
 
 第四轮：AI 绘画工作流。

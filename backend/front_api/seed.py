@@ -242,6 +242,23 @@ def seed(client: TestClient) -> dict[str, int]:
         "tag_ids": [T["小说"], T["示例·雾港物语"]],
     }).raise_for_status()
 
+    novel2 = """示例小说（原创）：用来演示“从小说抽取角色”。
+
+第一章 雨天的访客
+雾季的第三天下起了雨。程雨眠推开旧书店的门，她的伞上还挂着细小的水珠。
+沈既白从书架后面探出头：“欢迎光临，要找什么书？”
+程雨眠把一张泛黄的借书卡放在柜台上，她说那是外婆留下的。
+
+第二章 邮差
+傍晚，邮差苏砚骑着自行车停在灯塔下，他从邮包里取出一封没有寄件人的信。
+林汐接过信，皱起眉：“又是没有署名的。”
+苏砚笑着说：“雾港的信，十封里有三封都找不到寄件人。”
+"""
+    client.post("/api/assets", json={
+        "title": "【示例】雾港短篇 · 雨天的访客", "kind": "novel", "work_date": "2026-10-12", "world_id": world,
+        "content": novel2, "source": "Front 示例数据（原创）", "tag_ids": [T["小说"], T["示例·雾港物语"]],
+    }).raise_for_status()
+
     prompt_text = "masterpiece, best quality, 1girl, lighthouse, sea fog, night, lantern light"
     neg = "lowres, bad hands, watermark"
     p1 = post("/api/prompts", title="【示例】雾夜灯塔少女", positive=prompt_text, negative=neg,
@@ -388,6 +405,55 @@ def seed(client: TestClient) -> dict[str, int]:
     ]):
         post("/api/prompt-snippets", title=f"【示例】{title}", category=cat, positive=pos, negative=neg, notes=notes, position=i)
 
+    # ---------- v0.5：AI 服务、世界书、带分支的示例对话 ----------
+    # 自动打标签的识别结果会按别名对上已有标签
+    client.patch(f"/api/tags/{T['场景']}", json={"aliases": ["scenery", "landscape"]}).raise_for_status()
+    client.patch(f"/api/tags/{T['立绘']}", json={"aliases": ["portrait", "standing"]}).raise_for_status()
+    mock_pid = post("/api/ai/providers", name="【示例】模拟 AI 服务", base_url="http://127.0.0.1:7862/v1",
+                    chat_model="mock-chat", embedding_model="mock-embed", vision_model="mock-vision",
+                    notes="python -m front_api.mock_ai --port 7862 启动；回复是模板拼出来的，不是真正的模型")
+    post("/api/ai/providers", name="本机 Ollama（示例配置）", base_url="http://127.0.0.1:11434/v1",
+         chat_model="qwen2.5:14b", embedding_model="bge-m3", vision_model="qwen2.5vl:7b",
+         notes="示例：安装 Ollama 并 pull 对应模型后即可使用")
+    book = client.post(f"/api/lorebooks/from-world/{world}").json()
+    client.patch(f"/api/lorebooks/{book['id']}", json={"name": "【示例】雾港世界书", "recursive": True}).raise_for_status()
+    for body in (
+        {"title": "灯塔节", "keys": ["灯塔节", "灯会"], "content": "灯塔节在雾季的最后一夜举行，全城沿旧港挂起提灯，为晚归的船指路。", "insertion_order": 5},
+        {"title": "雾季", "keys": ["雾季", "/大?雾/"], "content": "每年秋末，雾港会被乳白色的海雾笼罩约三个月，街灯只剩模糊的光晕。", "insertion_order": 6},
+        {"title": "第一百零八级台阶", "keys": ["台阶"], "secondary_keys": ["灯塔"], "selective": True,
+         "content": "灯塔共有一百零八级台阶，传说数错台阶的人会在雾里迷路。", "insertion_order": 7, "position": "after_char"},
+    ):
+        client.post(f"/api/lorebooks/{book['id']}/entries", json=body).raise_for_status()
+    secret = post("/api/lorebooks", name="【示例】林汐的角色书", description="角色卡自带的 character_book，导出角色卡时会一起导出",
+                  entries=[{"title": "林汐的秘密", "keys": ["明信片", "母亲"],
+                            "content": "林汐一直保存着一张没有署名的灯塔明信片，她怀疑那是失踪多年的母亲寄来的。", "insertion_order": 1}])
+    client.patch(f"/api/cards/{card_id}", json={"lorebook_id": secret,
+                                                "alternate_greetings": ["（坐在灯塔门口数台阶）……一百零七，一百零八。啊，{{user}}，你来得正好。"]}).raise_for_status()
+
+    from .ai import registry
+    from .mock_ai import create_mock_app as create_mock_ai
+
+    registry.transport_override[mock_pid] = TestClient(create_mock_ai(delay=0))._transport
+    client.patch("/api/settings", json={"chat_provider_id": mock_pid}).raise_for_status()
+    try:
+        chat = client.post("/api/ai/sessions", json={"card_id": card_id, "user_name": "旅人", "title": "【示例】灯塔节前夜的对话"}).json()
+
+        def say(**body):
+            r = client.post(f"/api/ai/sessions/{chat['id']}/generate", json=dict(body, stream=False))
+            r.raise_for_status()
+            return r.json()
+
+        sess = say(content="（抬头看着灯塔）雾季的时候，灯塔节还会照常举行吗？")
+        sess = say(regenerate_id=sess["messages"][-1]["id"])  # 重新生成一次：产生第二个回复分支
+        sess = say(content="听说灯塔的台阶一共有一百零八级？")
+        sess = say(content="你手里那张明信片是谁寄来的？")
+        user_msg = sess["messages"][-2]
+        say(edit_id=user_msg["id"], content="你的提灯是从哪里来的？")  # 编辑用户消息另开分支
+        client.post(f"/api/ai/sessions/{chat['id']}/select", json={"message_id": user_msg["id"]}).raise_for_status()
+    finally:
+        client.patch("/api/settings", json={"chat_provider_id": None}).raise_for_status()
+        registry.transport_override.pop(mock_pid, None)
+
     # 用内置的“模拟 SD 接口”跑两次出图任务，演示 XY 网格：没有真的调用 SD，图片是占位图
     from . import sdgen
     from .mock_sd import create_mock_app
@@ -423,7 +489,7 @@ def seed(client: TestClient) -> dict[str, int]:
             batches.append(job["batch"])
     finally:
         sdgen.client_factory, sdgen.backend_url, sdgen.POLL_INTERVAL = saved
-    return {"world_id": world, "card_id": card_id, "prompt_id": p1, "batches": batches}
+    return {"world_id": world, "card_id": card_id, "prompt_id": p1, "batches": batches, "chat_id": chat["id"], "lorebook_id": book["id"]}
 
 
 def main() -> None:

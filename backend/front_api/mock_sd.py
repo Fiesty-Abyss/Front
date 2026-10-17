@@ -139,6 +139,28 @@ def create_mock_app() -> FastAPI:
             raise HTTPException(404)
         return Response(state["files"][filename], media_type="image/png")
 
+    @app.post("/tagger/v1/interrogate")
+    def interrogate(body: dict[str, Any]) -> dict[str, Any]:
+        """模拟 wd14-tagger 扩展：只看颜色与长宽比，不是真正的识别。"""
+        import base64
+        import io
+
+        from PIL import Image
+
+        with Image.open(io.BytesIO(base64.b64decode(body.get("image", "")))) as im:
+            w, h = im.size
+            r, g, b = im.convert("RGB").resize((1, 1)).getpixel((0, 0))
+        tags = {"placeholder": 0.99, "no_humans": 0.62}
+        if h > w * 1.1:
+            tags["portrait"] = 0.71
+        elif w > h * 1.1:
+            tags["scenery"] = 0.83
+        tags["blue_theme" if b >= r else "orange_theme"] = 0.55
+        if max(r, g, b) < 90:
+            tags["night"] = 0.47
+        threshold = float(body.get("threshold", 0.35))
+        return {"caption": {"tag": {k: v for k, v in tags.items() if v >= threshold}, "rating": {"general": 0.98}}}
+
     return app
 
 

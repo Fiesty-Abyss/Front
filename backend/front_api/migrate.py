@@ -20,6 +20,12 @@ COLUMNS: list[tuple[str, str, str]] = [
     ("sd_models", "civitai", "JSON NOT NULL DEFAULT '{}'"),
     ("generations", "batch", "VARCHAR(40)"),
     ("generations", "xy", "JSON NOT NULL DEFAULT '{}'"),
+    # v0.5.0
+    ("chat_sessions", "head_id", "INTEGER"),
+    ("chat_sessions", "lorebook_ids", "JSON NOT NULL DEFAULT '[]'"),
+    ("chat_messages", "parent_id", "INTEGER"),
+    ("chat_messages", "meta", "JSON NOT NULL DEFAULT '{}'"),
+    ("character_cards", "lorebook_id", "INTEGER REFERENCES lorebooks(id) ON DELETE SET NULL"),
 ]
 
 
@@ -34,4 +40,18 @@ def upgrade(engine: Engine) -> list[str]:
             if column not in existing:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
                 added.append(f"{table}.{column}")
+        if "chat_messages.parent_id" in added:
+            _link_linear_chats(conn)
     return added
+
+
+def _link_linear_chats(conn) -> None:
+    """v0.5 之前的对话是线性的：把每条消息的上一条设为 parent，最后一条设为 head。"""
+    rows = conn.execute(text("SELECT id, session_id FROM chat_messages ORDER BY session_id, id")).fetchall()
+    last: dict[int, int] = {}
+    for mid, sid in rows:
+        if sid in last:
+            conn.execute(text("UPDATE chat_messages SET parent_id=:p WHERE id=:i"), {"p": last[sid], "i": mid})
+        last[sid] = mid
+    for sid, mid in last.items():
+        conn.execute(text("UPDATE chat_sessions SET head_id=:h WHERE id=:s"), {"h": mid, "s": sid})

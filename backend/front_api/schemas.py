@@ -386,6 +386,7 @@ class CardBase(BaseModel):
     extensions: dict[str, Any] = {}
     character_id: int | None = None
     avatar_asset_id: int | None = None
+    lorebook_id: int | None = None
 
 
 class CardCreate(CardBase):
@@ -409,6 +410,7 @@ class CardUpdate(BaseModel):
     extensions: dict[str, Any] | None = None
     character_id: int | None = None
     avatar_asset_id: int | None = None
+    lorebook_id: int | None = None
 
 
 class CardRead(CardBase, Timestamps):
@@ -421,6 +423,9 @@ class ChatMessageRead(ORM):
     role: str
     content: str
     created_at: datetime
+    parent_id: int | None = None
+    meta: dict[str, Any] = {}
+    sibling_ids: list[int] = []
 
 
 class ChatSessionCreate(BaseModel):
@@ -434,11 +439,215 @@ class ChatSessionRead(Timestamps):
     card_id: int
     title: str
     user_name: str
-    messages: list[ChatMessageRead] = []
+    head_id: int | None = None
+    lorebook_ids: list[int] = []
+    total_messages: int = 0
+    messages: list[ChatMessageRead] = []  # 当前分支：从第一条到 head
 
 
 class ChatSend(BaseModel):
     content: str = Field(min_length=1)
+
+
+class ChatSessionUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    user_name: str | None = Field(default=None, min_length=1, max_length=80)
+    lorebook_ids: list[int] | None = None
+
+
+class ChatGenerate(BaseModel):
+    """content：发送新消息（接在 parent_id 或当前 head 后）；edit_id：编辑某条用户消息并另开分支；
+    regenerate_id：重新生成某条 AI 回复（作为它的兄弟分支）；都不填：直接让 AI 接着当前 head 回复。"""
+    content: str | None = None
+    parent_id: int | None = None
+    edit_id: int | None = None
+    regenerate_id: int | None = None
+    stream: bool = True
+
+
+class ChatSelect(BaseModel):
+    message_id: int
+
+
+class ChatMessageUpdate(BaseModel):
+    content: str = Field(min_length=1)
+
+
+# ---------- v0.5 AI 服务 / 设置 ----------
+class ProviderBase(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    kind: str = "openai"
+    base_url: str = Field(min_length=1, max_length=500)
+    chat_model: str = ""
+    embedding_model: str = ""
+    vision_model: str = ""
+    temperature: float = Field(default=0.8, ge=0, le=2)
+    max_tokens: int | None = Field(default=None, ge=1)
+    timeout: float = Field(default=120.0, gt=0, le=3600)
+    notes: str | None = None
+
+
+class ProviderCreate(ProviderBase):
+    api_key: str | None = None
+
+
+class ProviderUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    base_url: str | None = Field(default=None, min_length=1, max_length=500)
+    api_key: str | None = None  # 不传 = 不修改；传空字符串 = 清除
+    chat_model: str | None = None
+    embedding_model: str | None = None
+    vision_model: str | None = None
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    max_tokens: int | None = Field(default=None, ge=1)
+    timeout: float | None = Field(default=None, gt=0, le=3600)
+    notes: str | None = None
+
+
+class ProviderRead(ProviderBase, Timestamps):
+    id: int
+    api_key: str | None = Field(default=None, exclude=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def api_key_set(self) -> bool:
+        return bool(self.api_key)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def api_key_hint(self) -> str | None:
+        k = self.api_key
+        if not k:
+            return None
+        return f"{k[:3]}…{k[-4:]}" if len(k) > 10 else "已设置"
+
+
+class SettingsUpdate(BaseModel):
+    chat_provider_id: int | None = None
+    embedding_backend: Literal["local", "provider"] | None = None
+    embedding_provider_id: int | None = None
+    tagger_backend: Literal["off", "webui", "vision"] | None = None
+    vision_provider_id: int | None = None
+    tagger_threshold: float | None = Field(default=None, ge=0, le=1)
+    tagger_model: str | None = None
+    user_name: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+# ---------- v0.5 世界书 ----------
+LorePosition = Literal["before_char", "after_char"]
+
+
+class LoreEntryBase(BaseModel):
+    title: str = Field(default="", max_length=200)
+    keys: list[str] = []
+    secondary_keys: list[str] = []
+    selective: bool = False
+    content: str = ""
+    enabled: bool = True
+    constant: bool = False
+    case_sensitive: bool = False
+    insertion_order: int = 100
+    priority: int = 10
+    position: LorePosition = "before_char"
+    extensions: dict[str, Any] = {}
+
+
+class LoreEntryCreate(LoreEntryBase):
+    pass
+
+
+class LoreEntryUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    keys: list[str] | None = None
+    secondary_keys: list[str] | None = None
+    selective: bool | None = None
+    content: str | None = None
+    enabled: bool | None = None
+    constant: bool | None = None
+    case_sensitive: bool | None = None
+    insertion_order: int | None = None
+    priority: int | None = None
+    position: LorePosition | None = None
+
+
+class LoreEntryRead(LoreEntryBase, Timestamps):
+    id: int
+    lorebook_id: int
+
+
+class LorebookBase(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = None
+    world_id: int | None = None
+    scan_depth: int = Field(default=4, ge=0, le=100)
+    token_budget: int = Field(default=1024, ge=0, le=100000)
+    recursive: bool = False
+
+
+class LorebookCreate(LorebookBase):
+    entries: list[LoreEntryCreate] = []
+
+
+class LorebookUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    world_id: int | None = None
+    scan_depth: int | None = Field(default=None, ge=0, le=100)
+    token_budget: int | None = Field(default=None, ge=0, le=100000)
+    recursive: bool | None = None
+
+
+class LorebookRead(LorebookBase, Timestamps):
+    id: int
+    entries: list[LoreEntryRead] = []
+
+
+class LoreTest(BaseModel):
+    text: str
+
+
+# ---------- v0.5 AI 抽取 / 打标签 ----------
+class ExtractRequest(BaseModel):
+    asset_id: int | None = None
+    text: str | None = None
+    max_chunks: int = Field(default=20, ge=1, le=200)
+    chunk_size: int = Field(default=3000, ge=500, le=20000)
+    world_id: int | None = None
+
+
+class ExtractedRelation(BaseModel):
+    target: str
+    kind: str = "相关"
+    evidence: str = ""
+
+
+class ExtractedCharacter(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    aliases: list[str] = []
+    gender: Gender = "unknown"
+    summary: str = ""
+    traits: list[str] = []
+    appearance: str = ""
+    relations: list[ExtractedRelation] = []
+    existing_id: int | None = None
+
+
+class ExtractApply(BaseModel):
+    characters: list[ExtractedCharacter]
+    world_id: int | None = None
+    work_id: int | None = None
+    tag_ids: list[int] = []
+    relations: bool = True
+    update_existing: bool = False
+    source: str | None = None
+
+
+class TaggerRun(BaseModel):
+    asset_ids: list[int] = []
+    only_untagged: bool = True
+    apply: bool = True
+    min_score: float = Field(default=0.5, ge=0, le=1)
+    limit: int = Field(default=200, ge=1, le=5000)
 
 
 # ---------- v0.3 世界观条目 / 出场作品 ----------

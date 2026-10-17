@@ -12,7 +12,9 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Float,
     Integer,
+    LargeBinary,
     String,
     Table,
     Text,
@@ -274,6 +276,8 @@ class CharacterCard(TimestampMixin, Base):
     character_id: Mapped[int | None] = mapped_column(
         ForeignKey("characters.id", ondelete="SET NULL")
     )
+    # v0.5：角色卡自带的世界书（Character Card V2 的 character_book）
+    lorebook_id: Mapped[int | None] = mapped_column(ForeignKey("lorebooks.id", ondelete="SET NULL"))
     avatar_asset_id: Mapped[int | None] = mapped_column(
         ForeignKey("assets.id", ondelete="SET NULL")
     )
@@ -286,6 +290,9 @@ class ChatSession(TimestampMixin, Base):
     card_id: Mapped[int] = mapped_column(ForeignKey("character_cards.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(200), default="新对话")
     user_name: Mapped[str] = mapped_column(String(80), default="User")
+    # v0.5：消息是一棵树（重新生成 / 编辑都会产生分支），head_id 指向当前显示分支的最后一条
+    head_id: Mapped[int | None] = mapped_column(Integer)
+    lorebook_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
     messages: Mapped[list["ChatMessage"]] = relationship(
         order_by="ChatMessage.id", cascade="all, delete-orphan", lazy="selectin"
     )
@@ -299,6 +306,9 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(20))  # user / assistant / system
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    parent_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    # 生成信息：模型、激活的世界书条目、是否被中断等
+    meta: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 # ---------------- v0.3 百科增强 ----------------
@@ -374,3 +384,88 @@ class GraphLayout(TimestampMixin, Base):
     scope: Mapped[str] = mapped_column(String(60), unique=True)
     positions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     kind_colors: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
+
+
+# ---------------- v0.5 AI 角色与世界观智能 ----------------
+class AIProviderConfig(TimestampMixin, Base):
+    """在设置页里配置的 AI 服务（OpenAI 兼容接口）。API Key 只保存在本机数据库里，接口永远不会返回原文。"""
+
+    __tablename__ = "ai_providers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(40), default="openai")
+    base_url: Mapped[str] = mapped_column(String(500))
+    api_key: Mapped[str | None] = mapped_column(Text)
+    chat_model: Mapped[str] = mapped_column(String(200), default="")
+    embedding_model: Mapped[str] = mapped_column(String(200), default="")
+    vision_model: Mapped[str] = mapped_column(String(200), default="")
+    temperature: Mapped[float] = mapped_column(Float, default=0.8)
+    max_tokens: Mapped[int | None] = mapped_column(Integer)
+    timeout: Mapped[float] = mapped_column(Float, default=120.0)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+
+class AppSetting(Base):
+    """键值设置：对话 / 嵌入 / 打标签各自用哪个服务等。"""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[Any] = mapped_column(JSON)
+
+
+class Lorebook(TimestampMixin, Base):
+    """世界书（Lorebook / World Info）：关键词命中时把条目内容注入对话上下文。
+    可以挂在世界观上（该世界观角色的对话自动使用），也可以作为角色卡的 character_book。"""
+
+    __tablename__ = "lorebooks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text)
+    world_id: Mapped[int | None] = mapped_column(ForeignKey("worlds.id", ondelete="SET NULL"), index=True)
+    scan_depth: Mapped[int] = mapped_column(Integer, default=4)
+    token_budget: Mapped[int] = mapped_column(Integer, default=1024)
+    recursive: Mapped[bool] = mapped_column(Boolean, default=False)
+    extensions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    entries: Mapped[list["LoreEntry"]] = relationship(
+        back_populates="lorebook", cascade="all, delete-orphan", lazy="selectin",
+        order_by="(LoreEntry.insertion_order, LoreEntry.id)",
+    )
+
+
+class LoreEntry(TimestampMixin, Base):
+    __tablename__ = "lore_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lorebook_id: Mapped[int] = mapped_column(ForeignKey("lorebooks.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200), default="")
+    keys: Mapped[list[str]] = mapped_column(JSON, default=list)
+    secondary_keys: Mapped[list[str]] = mapped_column(JSON, default=list)
+    selective: Mapped[bool] = mapped_column(Boolean, default=False)
+    content: Mapped[str] = mapped_column(Text, default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    constant: Mapped[bool] = mapped_column(Boolean, default=False)
+    case_sensitive: Mapped[bool] = mapped_column(Boolean, default=False)
+    insertion_order: Mapped[int] = mapped_column(Integer, default=100)
+    priority: Mapped[int] = mapped_column(Integer, default=10)
+    position: Mapped[str] = mapped_column(String(20), default="before_char")  # before_char / after_char
+    extensions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    lorebook: Mapped[Lorebook] = relationship(back_populates="entries")
+
+
+class Embedding(Base):
+    """语义检索用的向量。一条记录对应一个条目在某个嵌入模型下的向量（float32）。"""
+
+    __tablename__ = "embeddings"
+    __table_args__ = (UniqueConstraint("entity", "entity_id", "model"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity: Mapped[str] = mapped_column(String(40), index=True)
+    entity_id: Mapped[int] = mapped_column(Integer)
+    model: Mapped[str] = mapped_column(String(200), index=True)
+    dim: Mapped[int] = mapped_column(Integer)
+    vector: Mapped[bytes] = mapped_column(LargeBinary)
+    text_hash: Mapped[str] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

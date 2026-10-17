@@ -1,6 +1,6 @@
 [project]
 name = "front-api"
-version = "0.6.0"
+version = "0.6.1"
 description = "Front 创作素材库与百科数据库 · 后端 API"
 license = { text = "MIT" }
 requires-python = ">=3.10"
@@ -12,6 +12,8 @@ dependencies = [
   "python-multipart>=0.0.9",
   "pillow>=10.0",
   "httpx>=0.27",
+  "tinytag>=2.0",      # 音频标签（MIT）
+  "pypdfium2>=4.20",   # PDF 页数 / 文字 / 页面渲染（Apache-2.0 或 BSD-3）
 ]
 
 [project.optional-dependencies]

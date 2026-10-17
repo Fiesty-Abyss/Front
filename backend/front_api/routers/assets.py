@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import mimetypes
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,11 @@ from ..config import get_settings
 from ..crud import get_or_404, make_crud_router, qp, resolve_tags
 from ..db import get_session
 from ..chapters import chapter_text, split_chapters
-from ..ingest import find_duplicate, ingest, make_thumb, thumb_path
+from ..filetypes import FILE_KINDS, KIND_BY_EXT, analyze
+from ..filetypes.archive import read_entry
+from ..filetypes.docs import render_pdf_page
+from ..filetypes.util import is_image
+from ..ingest import find_duplicate, ingest, make_thumb, thumb_path, write_thumb
 from ..pngmeta import read_png_text
 
 
@@ -43,7 +48,17 @@ def _filters(stmt, request):
     return stmt
 
 
+def _trim(d: dict[str, Any]) -> dict[str, Any]:
+    """列表里不带大段的文件正文 / 预览（PDF、代码、压缩包目录），打开详情时再取。"""
+    f = (d.get("meta") or {}).get("file")
+    if f:
+        d["content"] = None
+        d["meta"] = {**d["meta"], "file": {k: v for k, v in f.items() if k not in ("preview", "entries", "motion_files", "material_names", "textures")}}
+    return d
+
+
 router = make_crud_router(
+    list_trim=_trim,
     prefix="/api/assets", model=m.Asset, create_schema=s.AssetCreate, update_schema=s.AssetUpdate,
     read_schema=s.AssetRead, tag_name="素材库", filters=_filters,
     order_by=(m.Asset.work_date.desc().nulls_last(), m.Asset.id.desc()),
@@ -113,9 +128,96 @@ def _file_of(asset: m.Asset) -> Path:
 
 
 @files.get("/{asset_id}/file")
-def get_file(asset_id: int, session: Session = Depends(get_session)) -> FileResponse:
+def get_file(asset_id: int, inline: bool = False, session: Session = Depends(get_session)) -> FileResponse:
+    """inline=1 时在浏览器里直接打开（PDF、音视频）；支持 Range，音视频可以拖动进度。"""
     asset = get_or_404(session, m.Asset, asset_id)
-    return FileResponse(_file_of(asset), media_type=asset.mime, filename=asset.original_name)
+    return FileResponse(_file_of(asset), media_type=asset.mime, filename=asset.original_name,
+                        content_disposition_type="inline" if inline else "attachment")
+
+
+@files.get("/{asset_id}/entry/{entry:path}")
+def get_entry(asset_id: int, entry: str, session: Session = Depends(get_session)) -> Response:
+    """读取模型包（zip）里的单个文件，供浏览器里的 3D / Live2D 预览加载贴图、动作等。只读，不解压到磁盘。"""
+    asset = get_or_404(session, m.Asset, asset_id)
+    path = _file_of(asset)
+    if not ((asset.meta or {}).get("file") or {}).get("bundle") and (asset.meta or {}).get("file", {}).get("format") != "zip":
+        raise HTTPException(404, "这个素材不是压缩包")
+    try:
+        data = read_entry(path, entry)
+    except KeyError:
+        raise HTTPException(404, f"包里没有 {entry}") from None
+    except ValueError as exc:
+        raise HTTPException(413, str(exc)) from None
+    mime = mimetypes.guess_type(entry)[0] or "application/octet-stream"
+    return Response(data, media_type=mime, headers={"Cache-Control": "private, max-age=3600"})
+
+
+@files.get("/{asset_id}/pdf/{page}")
+def pdf_page(asset_id: int, page: int, width: int = 1100, session: Session = Depends(get_session)) -> Response:
+    """把 PDF 的某一页渲染成图片（页码从 1 开始）。"""
+    asset = get_or_404(session, m.Asset, asset_id)
+    pages = ((asset.meta or {}).get("file") or {}).get("pages") or 0
+    if asset.kind != "pdf" or not 1 <= page <= pages:
+        raise HTTPException(404, "没有这一页")
+    data = render_pdf_page(_file_of(asset), page - 1, max(200, min(width, 2400)))
+    return Response(data, media_type="image/webp", headers={"Cache-Control": "private, max-age=86400"})
+
+
+@files.put("/{asset_id}/thumb", response_model=s.AssetRead)
+async def set_thumb(asset_id: int, file: UploadFile = File(...), session: Session = Depends(get_session)) -> Any:
+    """用浏览器里截下的画面做封面（3D 模型预览里的“设为封面”）。"""
+    asset = get_or_404(session, m.Asset, asset_id)
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024 or not is_image(data) or not write_thumb(asset.id, data):
+        raise HTTPException(422, "封面必须是 8 MB 以内的图片")
+    meta = dict(asset.meta or {})
+    meta["file"] = {**(meta.get("file") or {}), "thumb": True, "custom_thumb": True}
+    asset.meta = meta
+    session.commit()
+    session.refresh(asset)
+    return asset
+
+
+def reanalyze_asset(asset: m.Asset) -> bool:
+    name = asset.original_name or asset.file_path or ""
+    ext = Path(name).suffix.lower()
+    if not asset.file_path or not (ext in KIND_BY_EXT or ext == ".zip"):
+        return False
+    info = analyze(_file_of(asset), name)
+    meta = dict(asset.meta or {})
+    custom = (meta.get("file") or {}).get("custom_thumb")
+    meta["file"] = {**info.meta, **({"thumb": True, "custom_thumb": True} if custom else {})}
+    asset.meta = meta
+    if info.kind and asset.kind in ("other", "material", "reference", "drawing", "cg", "novel", *FILE_KINDS):
+        asset.kind = info.kind
+    if info.content:
+        asset.content = info.content
+    if info.thumb and not custom:
+        write_thumb(asset.id, info.thumb)
+    return True
+
+
+@files.post("/{asset_id}/reanalyze", response_model=s.AssetRead)
+def reanalyze_one(asset_id: int, session: Session = Depends(get_session)) -> Any:
+    asset = get_or_404(session, m.Asset, asset_id)
+    if not reanalyze_asset(asset):
+        raise HTTPException(422, "这个文件类型没有可提取的信息")
+    session.commit()
+    session.refresh(asset)
+    return asset
+
+
+@files.post("/reanalyze")
+def reanalyze_missing(session: Session = Depends(get_session)) -> dict[str, Any]:
+    """给旧版本导入、还没有文件信息的素材补上识别结果（例如 v0.5 导入的压缩包、音频）。"""
+    done = 0
+    for asset in session.scalars(select(m.Asset).where(m.Asset.file_path.is_not(None), m.Asset.width.is_(None))).all():
+        if not ((asset.meta or {}).get("file")) and reanalyze_asset(asset):
+            done += 1
+            if done % 20 == 0:
+                session.commit()
+    session.commit()
+    return {"updated": done}
 
 
 @files.get("/{asset_id}/thumb")
@@ -124,7 +226,11 @@ def get_thumb(asset_id: int, session: Session = Depends(get_session)) -> FileRes
     thumb = _thumb_path(asset_id)
     if not thumb.is_file():
         path = _file_of(asset)
-        _make_thumb(asset_id, path.read_bytes())
+        if asset.width:
+            _make_thumb(asset_id, path.read_bytes())
+        elif ((asset.meta or {}).get("file") or {}).get("thumb"):
+            name = asset.original_name or path.name
+            write_thumb(asset_id, analyze(path, name).thumb)
     if not thumb.is_file():
         raise HTTPException(404, "无法生成缩略图")
     return FileResponse(thumb, media_type="image/webp")

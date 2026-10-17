@@ -8,6 +8,7 @@ import Ico from './components/Ico.vue'
 const routes = [
   { path: '/', component: () => import('./views/Dashboard.vue'), meta: { title: '总览' } },
   { path: '/assets', component: () => import('./views/Assets.vue'), meta: { title: '素材库' } },
+  { path: '/notes/:id?', component: () => import('./views/Notes.vue'), meta: { title: '笔记本' } },
   { path: '/characters', component: () => import('./views/Characters.vue'), meta: { title: '角色百科' } },
   { path: '/characters/:id', component: () => import('./views/CharacterDetail.vue'), meta: { title: '角色详情' } },
   { path: '/worlds', component: () => import('./views/Worlds.vue'), meta: { title: '世界观' } },

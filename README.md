@@ -22,7 +22,9 @@
 | 模块 | 说明 |
 | --- | --- |
 | 🎨 **全新界面（v0.6）** | 深靛夜色 + 单一雾紫强调色的统一设计系统，悬浮侧栏（可收起）、玻璃顶栏、画廊式素材网格、创作热力图总览；深色 / 浅色两套主题；GSAP 驱动的克制动效（页面对焦进入、列表依次显现、侧栏高亮块滑动），自动遵循系统“减少动态效果”。设计说明见 [docs/DESIGN.md](docs/DESIGN.md) |
-| 🗂 **素材库** | 自己的画、AI 生成图、绘画素材、参考图、小说正文。按**日期（年/月）**、**类型**、**标签**、**作品**、**世界观**筛选；上传自动读取尺寸、生成缩略图、按 SHA256 去重 |
+| 📓 **超级笔记本（v0.6.1）** | 块编辑器写笔记：标题、待办、表格、引用、代码块（语法高亮）、高亮、图片；输入 `/` 唤出插入菜单，拖入 / 粘贴文件直接上传进素材库；**嵌入素材**与**链接到其他笔记**，自动列出“这页用到的素材”和**反向链接**；页面可以无限嵌套、拖成目录树，带图标、标签、置顶、关联作品；自动保存（`Ctrl/⌘ S` 立即保存），正文存为 Markdown，进入全文检索 |
+| 🧊 **多格式文件预览（v0.6.1）** | 上传或批量导入时自动识别格式并读出信息：**3D 模型** glb / gltf / vrm / obj / fbx / pmx / pmd（浏览器内 three.js 预览：旋转、线框、换背景、播放动画、把当前画面**设为封面**；VRM 读出作者与使用许可）、**Live2D**（Cubism 2–5 的 `model.json` / `model3.json`、moc / moc3 版本、贴图、动作、表情）、**音频**（标签、封面、内置播放器）、**视频**（时长、编码、自动截帧做封面，需要 ffmpeg）、**PDF**（逐页渲染）、**Word / Excel / PowerPoint / ODT / EPUB**（文字与表格预览）、**压缩包**（zip / tar 目录，7z / rar 识别）、**代码 / 脚本**（语法高亮，Ren'Py / KiriKiri 标签）。模型文件夹（Live2D、PMX + 贴图、glTF + bin、OBJ + MTL）**整包存为一个 zip**，预览时只读取包内文件，不解压到硬盘。详见 [docs/FILETYPES.md](docs/FILETYPES.md) |
+| 🗂 **素材库** | 自己的画、AI 生成图、绘画素材、参考图、小说正文，以及 3D / Live2D 模型、音频、视频、文档、压缩包、代码。按类型分段筛选；按**日期（年/月）**、**类型**、**标签**、**作品**、**世界观**筛选；上传自动读取尺寸、生成缩略图、按 SHA256 去重 |
 | ⇪ **批量导入** | 输入本机文件夹路径（或在浏览器里选择文件夹），扫描预览后一键导入；可递归子文件夹、用文件修改时间作为日期、统一打标签；同内容文件自动跳过 |
 | ✦ **AI 出图参数识别** | 自动识别 **SD WebUI / Forge** 的 `parameters` 与 **ComfyUI** 的 `prompt` / `workflow`：沿节点连线找出正/反向提示词，提取采样器、步数、CFG、种子、尺寸、Checkpoint、LoRA；可下载原始工作流拖回 ComfyUI，一键存入提示词库 |
 | 📖 **角色百科** | 角色条目 + 分面标签：性别（男/女）、媒介（动漫/游戏）、来源作品、画风、类型……多个标签取交集，像百科一样检索 |
@@ -51,7 +53,29 @@
 
 ## 界面截图
 
-> 以下截图均为真实运行的 Front v0.6.0（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。AI 相关截图（对话、抽取角色、语义检索、自动打标签）连接的是仓库自带的**模拟 AI 服务**（`front_api.mock_ai`），回复以“【模拟回复】”开头、由模板拼出，**不是真实大模型的输出**，只用来演示界面和完整流程。
+> 以下截图均为真实运行的 Front v0.6.1（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。v0.6.1 的 3D 模型（灯塔、灯笼）、Live2D 结构演示包、音乐（五声音阶小曲）、视频、PDF 与 Office 文档全部是截图前由脚本**现场生成的原创文件**（生成方法与 [`backend/tests/samples.py`](backend/tests/samples.py) 相同，不含任何第三方模型、音乐或文档）；Live2D 演示包只有结构和贴图，不是可以运行的模型。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。AI 相关截图（对话、抽取角色、语义检索、自动打标签）连接的是仓库自带的**模拟 AI 服务**（`front_api.mock_ai`），回复以“【模拟回复】”开头、由模板拼出，**不是真实大模型的输出**，只用来演示界面和完整流程。
+
+| **超级笔记本：块编辑、嵌入素材、待办** | **笔记本总览（目录树 + 置顶页面）** |
+| --- | --- |
+| ![笔记页](docs/screenshots/note-page.png) | ![笔记本](docs/screenshots/notes.png) |
+| **`/` 插入菜单、站内链接** | **这页用到的素材 + 反向链接** |
+| ![斜杠菜单](docs/screenshots/note-slash.png) | ![引用](docs/screenshots/note-refs.png) |
+| **3D 预览 · glTF（可设为封面）** | **3D 预览 · VRM 元数据与使用许可** |
+| ![glTF](docs/screenshots/preview-gltf.png) | ![VRM](docs/screenshots/preview-vrm.png) |
+| **3D 预览 · PMX 模型包** | **3D 预览 · OBJ + MTL（浅色主题）** |
+| ![PMX](docs/screenshots/preview-pmx.png) | ![OBJ](docs/screenshots/preview-light.png) |
+| **Live2D：版本、贴图、动作、表情** | **音频：封面、标签、播放器** |
+| ![Live2D](docs/screenshots/preview-live2d.png) | ![音频](docs/screenshots/preview-audio.png) |
+| **视频：自动截帧封面** | **PDF 逐页预览** |
+| ![视频](docs/screenshots/preview-video.png) | ![PDF](docs/screenshots/preview-pdf.png) |
+| **Word 文档** | **Excel 表格** |
+| ![Word](docs/screenshots/preview-docx.png) | ![Excel](docs/screenshots/preview-xlsx.png) |
+| **PowerPoint 幻灯片** | **压缩包目录** |
+| ![PPT](docs/screenshots/preview-pptx.png) | ![压缩包](docs/screenshots/preview-archive.png) |
+| **Ren'Py 脚本（语法高亮 + 标签）** | **素材库 · 3D 分类（封面来自“设为封面”）** |
+| ![代码](docs/screenshots/preview-code.png) | ![3D 分类](docs/screenshots/assets-3d.png) |
+| **浅色主题 · 笔记本** | |
+| ![浅色笔记本](docs/screenshots/note-light.png) | |
 
 | 总览：问候、创作热力图、统计 | 素材库：画廊式网格 |
 | --- | --- |
@@ -209,6 +233,7 @@ python -m front_api.mock_ai --port 7862
 ## 文档
 
 - [设计与动效](docs/DESIGN.md)：设计令牌、克制原则、动效清单
+- [支持的文件格式](docs/FILETYPES.md)：每种格式读出哪些信息、怎样预览、有哪些限制
 - [架构说明](docs/ARCHITECTURE.md)：技术栈、数据模型、API 一览、AI 接口层、世界书匹配规则
 - [路线图](docs/ROADMAP.md)：后续每一轮的开发计划
 - [更新日志](CHANGELOG.md)
@@ -218,10 +243,14 @@ python -m front_api.mock_ai --port 7862
 - 界面观感参考了 [Nephele Workshop](https://nephele.arisfusion.com/) 官网展示的设计风格（只参考风格与布局思路，未使用其代码、图片或品牌素材）。
 - 设计与动效原则参考：[apple-design-skills](https://github.com/s1gmamale1/apple-design-skills)（MIT）、[gsap-skills](https://github.com/greensock/gsap-skills)（MIT）、[design-motion-principles](https://github.com/kylezantos/design-motion-principles)（MIT）、[awesome-ai-motion](https://github.com/guanmo-ai/awesome-ai-motion)（MIT，仅学习案例思路）。具体取舍见 [docs/DESIGN.md](docs/DESIGN.md)。
 - 动效库 [GSAP](https://gsap.com)（GreenSock 标准免费许可 “Standard no-charge license”），图标 [Lucide](https://lucide.dev)（ISC）。
+- 笔记本编辑器 [Tiptap](https://tiptap.dev)（MIT）与 [tiptap-markdown](https://github.com/aguingand/tiptap-markdown)（MIT），代码高亮 [highlight.js](https://highlightjs.org)（BSD-3-Clause）。
+- 3D 预览 [three.js](https://threejs.org)（MIT）与 [@pixiv/three-vrm](https://github.com/pixiv/three-vrm)（MIT）；PMX / PMD 读取按公开的格式说明自行实现（只读静态网格与材质）。
+- 音频标签 [tinytag](https://github.com/tinytag/tinytag)（MIT），PDF 渲染 [pypdfium2](https://github.com/pypdfium2-team/pypdfium2)（Apache-2.0 / BSD-3-Clause，内含 PDFium，BSD-3-Clause）；视频信息与截帧调用本机的 [FFmpeg](https://ffmpeg.org)（可选，不随 Front 分发）。
+- Live2D：只按公开的 `model3.json` / `model.json` 结构读取信息与贴图，**不包含也不调用** Live2D Cubism Core（专有许可），因此不做实时渲染。
 
 ## 技术栈
 
-FastAPI · SQLAlchemy 2 · SQLite（FTS5 trigram）· Pillow · httpx ｜ Vue 3 · Vite · Vue Router · GSAP · Lucide · Cytoscape.js · markdown-it
+FastAPI · SQLAlchemy 2 · SQLite（FTS5 trigram）· Pillow · httpx ｜ Vue 3 · Vite · Vue Router · GSAP · Lucide · Cytoscape.js · markdown-it · Tiptap · three.js · highlight.js ｜ tinytag · pypdfium2 · FFmpeg（可选）
 
 ## 许可证
 

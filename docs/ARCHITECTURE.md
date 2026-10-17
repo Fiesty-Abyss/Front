@@ -28,7 +28,8 @@
 | `tags` | 分面标签 | `category`（gender / medium / source / style / type / custom）+ `name` 唯一；`aliases`（JSON 列表）、`parent_id`（层级）、`color` |
 | `works` | 作品（动漫、游戏、galgame、小说、原创企划） | `kind`、`year`、`publisher` |
 | `worlds` | 世界观 | `summary`、`content`（Markdown，AI 关系识别的语料） |
-| `assets` | 素材 | `kind`（drawing / ai_image / material / novel / cg / reference / other）、`work_date`、`file_path`、`sha256`、`meta`（SD 参数等）、`work_id`、`world_id` |
+| `assets` | 素材 | `kind`（drawing / ai_image / material / novel / cg / reference / other，v0.6.1 起加 model3d / live2d / audio / video / pdf / document / archive / code）、`work_date`、`file_path`、`sha256`、`meta`（SD 参数；`meta.file` 为文件识别结果）、`content`（小说正文或识别出的文字）、`work_id`、`world_id` |
+| `notes` | 笔记本页面 | `title`、`icon`、`content`（Markdown）、`pinned`、`position`、`parent_id`（层级，删除时级联删除子页面）、`work_id`、`world_id`、`cover_asset_id`；标签表 `note_tags` |
 | `collections` | 收藏集 | 与 `assets` 多对多，可挂 `work_id` |
 | `characters` | 角色百科条目 | `gender`、`world_id`、`work_id`、`avatar_asset_id`、`profile` |
 | `world_entries` | 世界观百科条目 | `world_id`、`kind`（location / organization / event / item / concept）、`parent_id`（层级；事件的上级即发生地点）、`content`（Markdown）、`date_label` + `sort_key`（时间线） |
@@ -82,6 +83,14 @@ DELETE /api/<资源>/{id}
 | `POST /api/collections/{id}/items`、`DELETE .../items/{asset}`、`PUT .../order`、`PUT /api/collections/order` | 收藏集追加 / 移出 / 排序、收藏集之间排序 |
 | `GET /api/assets/{id}/file`、`/thumb` | 原文件、WebP 缩略图 |
 | `GET /api/assets/stats/timeline` | 按 年-月 × 类型 统计 |
+| `GET /api/assets/{id}/file?inline=1` | 在浏览器内打开原文件（音视频 / PDF 预览用） |
+| `GET /api/assets/{id}/entry/{path}` | 读取模型包（zip）里的单个文件，只读、不解压到硬盘，单个文件上限 64 MB |
+| `GET /api/assets/{id}/pdf/{page}?width=` | 把 PDF 的某一页渲染成 WebP |
+| `PUT /api/assets/{id}/thumb` | 上传自定义封面（3D 预览“设为封面”用），只接受图片 |
+| `POST /api/assets/{id}/reanalyze`、`POST /api/assets/reanalyze` | 按最新规则重新识别单个 / 全部文件素材（保留自定义封面） |
+| `/api/notes`（CRUD）、`GET /api/notes/tree` | 笔记本页面；目录树（不含正文） |
+| `POST /api/notes/{id}/move` | 移动到新的上级 / 位置（拒绝移到自己的子页面下） |
+| `GET /api/notes/{id}/refs` | 这页引用的素材与反向链接（从正文里的 `/assets?open=ID`、`/notes/ID` 链接解析） |
 | `GET /api/graph?world_id=&kinds=&include_unconfirmed=` | 关系网节点与边、关系类型统计、已保存的布局与配色 |
 | `PUT /api/graph/layout`、`DELETE /api/graph/layout?world_id=` | 保存节点位置 / 关系类型颜色（只更新传入的字段）、恢复自动布局 |
 | `GET /api/graph/export?world_id=` | 导出关系网 JSON |
@@ -122,7 +131,9 @@ DELETE /api/<资源>/{id}
 
 ## 素材入库流程（`ingest.py`）
 
-上传接口与文件夹导入共用 `ingest()`：计算 SHA256 去重 → 判断类型（文本 / 图片）→ 读取尺寸 → 识别出图信息（`parameters` → SD WebUI；`prompt` / `workflow` → ComfyUI，见 `comfy.py`）→ 写入 `media/YYYY/MM/<sha>.<ext>` → 生成缩略图。
+上传接口与文件夹导入共用 `ingest()`：计算 SHA256 去重 → 判断类型（文本 / 图片 / 其他文件）→ 读取尺寸 → 识别出图信息（`parameters` → SD WebUI；`prompt` / `workflow` → ComfyUI，见 `comfy.py`）→ 写入 `media/YYYY/MM/<sha>.<ext>` → 其他文件交给 `filetypes.analyze()` 读出信息、文字与封面（识别出的类型优先于手选类型）→ 生成缩略图。各格式的细节见 [FILETYPES.md](FILETYPES.md)。
+
+批量导入扫描时，含 `*.model3.json`（或 `model.json` + `.moc`）/ `.pmx` / `.gltf` / `.obj` + `.mtl` 的文件夹被视为一个**模型包**，导入时打包成一个 zip 素材（上限 512 MB）。
 
 ## galgame CG 分组（`cg.py`）
 
@@ -204,14 +215,16 @@ backend/
     mock_sd.py     模拟 SD 后端（测试 / 演示）
     mock_ai.py     模拟 OpenAI 兼容 AI 服务（测试 / 演示）
     seed.py        【示例】数据
+    filetypes/     文件识别：model3d live2d audio video docs archive code
     ai/            provider registry prompts lore extract embed tagger
-    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools quicksearch system
+    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools quicksearch notes system
   tests/
 frontend/
   src/views/       每个页面一个组件
   src/style.css    设计令牌与全局样式（深色 / 浅色），说明见 DESIGN.md
   src/motion.js    GSAP 动效与 v-reveal 指令
-  src/components/  Modal、TagPicker、TagChips、TagTree、JobProgress、QuickSearch、QuickSites、Ico
+  src/components/  Modal、TagPicker、TagChips、TagTree、JobProgress、QuickSearch、QuickSites、Ico、NoteEditor（Tiptap）、AssetPicker、AssetThumb、KindIcon
+  src/viewers/     文件预览：FilePreview（分发）、ModelViewer（three.js）、pmx.js、AudioPlayer、PdfViewer、DocPreview、CodeView
 docs/
   screenshots/     README 截图（仓库中唯一允许放图片的目录之一）
 ```

@@ -18,14 +18,25 @@ from .comfy import parse_comfy_chunks
 from .config import get_settings
 from .pngmeta import parse_sd_parameters, read_png_text
 
-IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
-TEXT_EXT = {".txt", ".md", ".markdown"}
-IMPORTABLE_EXT = IMAGE_EXT | TEXT_EXT
+from .filetypes import IMAGE_EXT, KIND_BY_EXT, KNOWN_EXT, TEXT_EXT, analyze  # noqa: F401  (IMAGE_EXT 供 importer 使用)
+
+IMPORTABLE_EXT = KNOWN_EXT
 THUMB_SIZE = (480, 480)
+for _ext, _mime in ((".glb", "model/gltf-binary"), (".vrm", "model/gltf-binary"), (".gltf", "model/gltf+json"), (".pmx", "application/octet-stream"),
+                    (".fbx", "application/octet-stream"), (".obj", "model/obj"), (".flac", "audio/flac"), (".opus", "audio/ogg"),
+                    (".m4a", "audio/mp4"), (".webm", "video/webm"), (".mkv", "video/x-matroska"), (".7z", "application/x-7z-compressed")):
+    mimetypes.add_type(_mime, _ext)
 
 
 def thumb_path(asset_id: int) -> Path:
     return get_settings().thumb_dir / f"{asset_id}.webp"
+
+
+def write_thumb(asset_id: int, data: bytes | None) -> bool:
+    if not data:
+        return False
+    make_thumb(asset_id, data)
+    return thumb_path(asset_id).is_file()
 
 
 def make_thumb(asset_id: int, data: bytes) -> None:
@@ -106,9 +117,25 @@ def ingest(
     if tags:
         asset.tags = list(tags)
 
-    if ext in TEXT_EXT or mime.startswith("text/"):
+    rel = Path("media") / date.today().strftime("%Y/%m") / f"{sha[:20]}{ext}"
+    dest = settings.data_dir / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not dest.exists():
+        dest.write_bytes(data)
+    asset.file_path = rel.as_posix()
+    pending_thumb = None
+
+    if ext in TEXT_EXT or (mime.startswith("text/") and ext not in KIND_BY_EXT):
         asset.kind = kind or "novel"
         asset.content = decode_text(data)
+    elif ext in KIND_BY_EXT or ext == ".zip":
+        info = analyze(dest, name)
+        asset.kind = info.kind or kind or "other"  # 识别出的文件类型优先（上传表单的默认类型是给图片用的）
+        asset.meta = {**asset.meta, "file": info.meta}
+        asset.content = info.content
+        if info.title and not title:
+            asset.title = info.title[:200]
+        pending_thumb = info.thumb
     else:
         asset.kind = kind or "other"
         try:
@@ -124,12 +151,8 @@ def ingest(
             if not kind:
                 asset.kind = "ai_image"
 
-    rel = Path("media") / date.today().strftime("%Y/%m") / f"{sha[:20]}{ext}"
-    dest = settings.data_dir / rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if not dest.exists():
-        dest.write_bytes(data)
-    asset.file_path = rel.as_posix()
     session.add(asset)
     session.flush()
+    if pending_thumb:
+        write_thumb(asset.id, pending_thumb)
     return asset, True

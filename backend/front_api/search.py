@@ -43,6 +43,7 @@ SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.Collection: ("collection", lambda o: o.name, lambda o: _join(o.description)),
     m.PromptSnippet: ("snippet", lambda o: o.title, lambda o: _join(o.positive, o.negative, o.notes, _tags(o))),
     m.LoreEntry: ("lore", lambda o: o.title or "、".join(o.keys or []), lambda o: _join(" ".join(o.keys or []), " ".join(o.secondary_keys or []), o.content)),
+    m.Note: ("note", lambda o: o.title, lambda o: _join(o.content, _tags(o))),
     m.WorldEntry: ("world_entry", lambda o: o.name, lambda o: _join(o.summary, o.content, o.date_label, _tags(o))),
 }
 

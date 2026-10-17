@@ -111,6 +111,7 @@ def make_crud_router(
     order_by: Any = None,
     validate: Callable[..., None] | None = None,
     validate_with_id: bool = False,
+    list_trim: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix=prefix, tags=[tag_name])
     entity = SPEC[model][0] if model in SPEC else None
@@ -144,7 +145,7 @@ def make_crud_router(
             stmt = stmt.order_by(order_by)
         rows = session.scalars(stmt.limit(limit).offset(offset)).all()
         return {
-            "items": [read_schema.model_validate(r).model_dump(mode="json") for r in rows],
+            "items": [(list_trim or (lambda d: d))(read_schema.model_validate(r).model_dump(mode="json")) for r in rows],
             "total": total,
         }
 

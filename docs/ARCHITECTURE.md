@@ -25,12 +25,17 @@
 
 | 表 | 作用 | 关键字段 |
 | --- | --- | --- |
-| `tags` | 分面标签 | `category`（gender / medium / source / style / type / custom）+ `name` 唯一 |
+| `tags` | 分面标签 | `category`（gender / medium / source / style / type / custom）+ `name` 唯一；`aliases`（JSON 列表）、`parent_id`（层级）、`color` |
 | `works` | 作品（动漫、游戏、galgame、小说、原创企划） | `kind`、`year`、`publisher` |
 | `worlds` | 世界观 | `summary`、`content`（Markdown，AI 关系识别的语料） |
 | `assets` | 素材 | `kind`（drawing / ai_image / material / novel / cg / reference / other）、`work_date`、`file_path`、`sha256`、`meta`（SD 参数等）、`work_id`、`world_id` |
 | `collections` | 收藏集 | 与 `assets` 多对多，可挂 `work_id` |
 | `characters` | 角色百科条目 | `gender`、`world_id`、`work_id`、`avatar_asset_id`、`profile` |
+| `world_entries` | 世界观百科条目 | `world_id`、`kind`（location / organization / event / item / concept）、`parent_id`（层级；事件的上级即发生地点）、`content`（Markdown）、`date_label` + `sort_key`（时间线） |
+| `entry_characters` | 条目 × 角色 | `role`（会长、成员、当事人……） |
+| `appearances` | 出场登记 | `character_id` × `work_id` 唯一，`role`、`note` |
+| `character_assets` | 角色图集 | `position` 排序 |
+| `graph_layouts` | 关系网布局 | `scope`（`world:<id>` / `all`）、`positions`、`kind_colors` |
 | `relations` | 关系网的边 | `source_id`、`target_id`、`kind`、`bidirectional`、`ai_suggested`、`confirmed` |
 | `sd_models` | SD 模型登记 | `kind`、`base_model`、`local_path`、`sha256`、`trigger_words` |
 | `prompts` | 提示词 | `positive`、`negative`、`params`（JSON） |
@@ -39,7 +44,7 @@
 | `chat_sessions` / `chat_messages` | 角色扮演对话 | 会话绑定角色卡，消息按顺序保存 |
 | `search_index` | FTS5 虚拟表 | `entity`、`entity_id`、`title`、`body` |
 
-标签通过 `*_tags` 关联表挂在素材、角色、世界观、作品、提示词、模型上。删除角色会级联删除其关系；删除作品/世界观只会把引用置空。
+标签通过 `*_tags` 关联表挂在素材、角色、世界观、作品、提示词、模型上。删除角色会级联删除其关系、出场登记、图集与条目关联；删除世界观会级联删除其百科条目；删除作品/世界观只会把引用置空。
 
 ## API 一览
 
@@ -53,7 +58,9 @@ PATCH  /api/<资源>/{id}                                   只更新传入的�
 DELETE /api/<资源>/{id}
 ```
 
-资源：`tags` `works` `worlds` `assets` `collections` `characters` `relations` `sd-models` `prompts` `generations` `cards`
+资源：`tags` `works` `worlds` `world-entries` `appearances` `assets` `collections` `characters` `relations` `sd-models` `prompts` `generations` `cards`
+
+按标签筛选（`tag=`）会同时匹配该标签的所有子标签；`/api/tags?name=` 同时匹配别名。
 
 额外接口：
 
@@ -69,7 +76,14 @@ DELETE /api/<资源>/{id}
 | `POST /api/collections/{id}/items`、`DELETE .../items/{asset}`、`PUT .../order`、`PUT /api/collections/order` | 收藏集追加 / 移出 / 排序、收藏集之间排序 |
 | `GET /api/assets/{id}/file`、`/thumb` | 原文件、WebP 缩略图 |
 | `GET /api/assets/stats/timeline` | 按 年-月 × 类型 统计 |
-| `GET /api/graph?world_id=` | 关系网节点与边 |
+| `GET /api/graph?world_id=&kinds=&include_unconfirmed=` | 关系网节点与边、关系类型统计、已保存的布局与配色 |
+| `PUT /api/graph/layout`、`DELETE /api/graph/layout?world_id=` | 保存节点位置 / 关系类型颜色（只更新传入的字段）、恢复自动布局 |
+| `GET /api/graph/export?world_id=` | 导出关系网 JSON |
+| `GET /api/characters/{id}/detail` | 角色详情聚合：世界观、图集、出场作品、关系、所属条目、角色卡 |
+| `PUT/POST /api/characters/{id}/gallery`、`DELETE .../gallery/{asset}` | 图集整体排序 / 追加 / 移出 |
+| `GET /api/worlds/{id}/timeline` | 事件时间线（含地点与参与角色） |
+| `GET /api/works/{id}/characters` | 作品的登场角色 |
+| `GET /api/tags/tree`、`/api/tags/usage`、`POST /api/tags/{id}/merge` | 标签树、使用次数、合并标签 |
 | `GET /api/prompts/{id}/compare` | 同一提示词按模型分组的出图 |
 | `POST /api/sd-models/inspect` | 读取本机模型文件信息（safetensors 元数据、可选 SHA256） |
 | `POST /api/cards/import` | 导入 JSON / PNG 角色卡 |

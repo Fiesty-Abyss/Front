@@ -10,7 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from .config import Settings, get_settings
 from .db import Base, init_engine
-from .routers import ai, assets, cards, characters, library, sd, system
+from .migrate import upgrade
+from .routers import ai, assets, cards, characters, collections, importer, library, sd, system
 from .search import ensure_fts
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         d.mkdir(parents=True, exist_ok=True)
     engine = init_engine(f"sqlite:///{settings.db_path}")
     Base.metadata.create_all(engine)
+    upgrade(engine)
     ensure_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()
@@ -42,7 +44,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     for r in (
         system.router,
-        library.tags, library.works, library.worlds, library.collections,
+        library.tags, library.works, library.worlds,
+        collections.extra, collections.crud,
+        importer.router,
         assets.files, assets.router,
         characters.characters, characters.relations, characters.graph,
         sd.extra, sd.models, sd.prompts, sd.generations,

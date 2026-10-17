@@ -143,3 +143,61 @@ def inspect_model_file(req: InspectRequest) -> dict[str, Any]:
         "base_model": guess_base_model(meta),
         "metadata": meta,
     }
+
+
+class FromAsset(BaseModel):
+    prompt_id: int | None = None
+    title: str | None = None
+
+
+def _stem(name: str) -> str:
+    return Path(name.replace("\\", "/")).stem.lower()
+
+
+def match_model(session: Session, model_name: str | None) -> m.SDModel | None:
+    """按出图参数里的模型名（可能带路径、扩展名、或 "名字 [hash]"）匹配已登记的模型。"""
+    if not model_name:
+        return None
+    key = _stem(model_name.split(" [")[0])
+    for mdl in session.scalars(select(m.SDModel)).all():
+        for cand in (mdl.file_name, mdl.local_path, mdl.name):
+            if cand and _stem(cand) == key:
+                return mdl
+    return None
+
+
+@extra.post("/api/prompts/from-asset/{asset_id}")
+def prompt_from_asset(asset_id: int, body: FromAsset | None = None, session: Session = Depends(get_session)) -> dict[str, Any]:
+    """把 AI 图里的出图参数存进提示词库，并记录一次出图（提示词 × 模型 → 图片）。
+    正向提示词完全相同的已有提示词会被复用，所以多张同提示词、不同模型的图会自动汇集到同一个对比视图。"""
+    body = body or FromAsset()
+    asset = get_or_404(session, m.Asset, asset_id)
+    sd = (asset.meta or {}).get("sd")
+    if not sd or not sd.get("prompt"):
+        raise HTTPException(422, "这张图没有可识别的出图参数")
+    params = dict(sd.get("params") or {})
+    if body.prompt_id:
+        prompt = get_or_404(session, m.Prompt, body.prompt_id)
+    else:
+        prompt = session.scalar(select(m.Prompt).where(m.Prompt.positive == sd["prompt"]))
+    reused = prompt is not None
+    if prompt is None:
+        prompt = m.Prompt(
+            title=body.title or (sd["prompt"][:40] + ("…" if len(sd["prompt"]) > 40 else "")),
+            positive=sd["prompt"],
+            negative=sd.get("negative_prompt") or None,
+            params={k: v for k, v in params.items() if k not in ("Model", "Model hash", "Seed")},
+            notes=f"从素材 #{asset.id} 导入（{sd.get('source', 'sd')}）",
+        )
+        session.add(prompt)
+        session.flush()
+    model = match_model(session, params.get("Model"))
+    existing = session.scalar(select(m.Generation).where(m.Generation.prompt_id == prompt.id, m.Generation.asset_id == asset.id))
+    gen = existing or m.Generation(prompt_id=prompt.id, asset_id=asset.id)
+    gen.model_id = model.id if model else gen.model_id
+    gen.params = params
+    if not existing:
+        gen.notes = None if model else f"未匹配到已登记模型：{params.get('Model') or '未知'}"
+        session.add(gen)
+    session.commit()
+    return {"prompt_id": prompt.id, "reused_prompt": reused, "generation_id": gen.id, "model_id": gen.model_id}

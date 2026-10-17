@@ -548,3 +548,15 @@ class Galgame(TimestampMixin, Base):
     pinned: Mapped[bool] = mapped_column(default=False)
     work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
     tags: Mapped[list[Tag]] = relationship(secondary=galgame_tags, lazy="selectin")
+
+
+class GalgamePlay(Base):
+    """一次游玩记录（手动记）：日期 + 分钟数 + 备注。添加 / 删除时同步增减 Galgame.play_minutes。"""
+
+    __tablename__ = "galgame_plays"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    galgame_id: Mapped[int] = mapped_column(ForeignKey("galgames.id", ondelete="CASCADE"), index=True)
+    played_on: Mapped[str] = mapped_column(String(10), index=True)
+    minutes: Mapped[int] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text)

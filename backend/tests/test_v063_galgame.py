@@ -189,3 +189,38 @@ def test_seed_galgames(client):
     assert fog["work_id"] and client.get("/api/characters", params={"work_id": fog["work_id"]}).json()["total"] == 3
     assert client.get(f"/api/galgames/{out['unmatched']}").json()["sources"] == {}
     assert client.get(f"/api/galgames/{out['night']}").json()["nsfw"] is True
+
+
+def test_plays_bulk_export_unplayed(client, mock):
+    from datetime import date, timedelta
+
+    g = client.post("/api/galgames", json={"title": "记录测试", "status": "unplayed"}).json()
+    today = date.today().isoformat()
+    r = client.post(f"/api/galgames/{g['id']}/plays", json={"played_on": today, "minutes": 90, "note": "第一章"}).json()
+    assert r["play_minutes"] == 90 and r["status"] == "playing"
+    old = (date.today() - timedelta(days=40)).isoformat()
+    client.post(f"/api/galgames/{g['id']}/plays", json={"played_on": old, "minutes": 30}).raise_for_status()
+    assert client.post(f"/api/galgames/{g['id']}/plays", json={"played_on": "x", "minutes": 5}).status_code == 422
+    assert client.post(f"/api/galgames/{g['id']}/plays", json={"played_on": today, "minutes": 0}).status_code == 422
+    plays = client.get(f"/api/galgames/{g['id']}/plays").json()
+    assert [p["minutes"] for p in plays] == [90, 30]
+    gg = client.get(f"/api/galgames/{g['id']}").json()
+    assert gg["play_minutes"] == 120 and gg["started_on"] == old
+    s = client.get("/api/galgames/plays/summary").json()
+    assert s["today"] == 90 and s["month"] >= 90 and s["by_day"][old] == 30 and s["recent"][0]["title"] == "记录测试"
+    client.delete(f"/api/galgames/plays/{plays[1]['id']}").raise_for_status()
+    assert client.get(f"/api/galgames/{g['id']}").json()["play_minutes"] == 90
+    # 批量
+    h = client.post("/api/galgames", json={"title": "批量二"}).json()
+    assert client.post("/api/galgames/bulk", json={"ids": [g["id"], h["id"]], "status": "shelved"}).json()["count"] == 2
+    assert client.get("/api/galgames", params={"status": "shelved"}).json()["total"] == 2
+    # 导出
+    j = client.get("/api/galgames/export/file", params={"format": "json"})
+    assert j.json()["format"] == "front-galgames" and len(j.json()["items"]) == 2
+    c = client.get("/api/galgames/export/file", params={"format": "csv"})
+    assert c.content.startswith(b"\xef\xbb\xbf") and "记录测试" in c.content.decode("utf-8-sig")
+    client.post("/api/galgames/bulk", json={"ids": [g["id"], h["id"]], "delete": True}).raise_for_status()
+    assert client.get("/api/galgames").json()["total"] == 0
+    # 一键模式：相似度不够也直接用第一条
+    r = client.post("/api/galgames/quick-add", json={"title": "钟楼的月夜", "accept_first": True}).json()
+    assert r["status"] == "matched" and "月下钟楼" in r["title"]

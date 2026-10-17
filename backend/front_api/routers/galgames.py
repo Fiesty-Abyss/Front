@@ -1,8 +1,8 @@
 """galgame 游戏库：游玩状态、评分、游玩时长、笔记；元数据从 Bangumi / VNDB / 月幕 拉取（混合模式可互相补全），
 可一键建立作品（CG 档案挂在作品下）、把来源里的角色导入角色百科。
 
-设计参考了 ReinaManager（AGPL-3.0）的思路：多来源元数据、用户改过的字段优先、状态筛选、批量添加、
-NSFW 封面模糊。这里没有使用它的任何代码。
+设计参考了 ReinaManager（AGPL-3.0）与恋页 KoiPage（未指定许可证）的思路：多来源元数据、用户改过的字段优先、
+状态筛选、批量添加、NSFW 封面模糊、手动游玩记录与时长日历、分享足迹。这里没有使用它们的任何代码。
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from PIL import Image
 from pydantic import BaseModel, Field
 from sqlalchemy import event, func, select
@@ -27,7 +27,7 @@ from ..filetypes.util import is_image
 from ..galgame import meta
 from ..galgame import sources as src
 
-STATUSES = ("wishlist", "playing", "finished", "shelved", "dropped")
+STATUSES = ("unplayed", "wishlist", "playing", "finished", "shelved", "dropped")
 META_FIELDS = ("title", "title_cn", "original", "aliases", "description", "developer", "release_date",
                "platforms", "source_tags", "nsfw")
 IMAGE_HOSTS = ("bgm.tv", "vndb.org", "ymgal.games", "ymgal.com")
@@ -287,6 +287,7 @@ class QuickAdd(BaseModel):
     status: s.GalStatus = "wishlist"
     work: str | None = "new"
     save_cover: bool = True
+    accept_first: bool = False  # 一键模式：不看相似度，直接用排在最前的来源的第一条结果
 
 
 @extra.post("/quick-add", status_code=201)
@@ -302,7 +303,11 @@ def quick_add(payload: QuickAdd, session: Session = Depends(get_session)) -> dic
             if sc > best[0]:
                 best = (sc, it)
     errors = [r["error"] for r in found["results"].values() if r.get("error")]
-    if best[1] and best[0] >= 0.6:
+    if payload.accept_first:
+        first = next((it for so in found["order"] for it in found["results"].get(so, {}).get("items", [])[:1]), None)
+        if first:
+            best = (meta.best_score([title], first), first)
+    if best[1] and (best[0] >= 0.6 or payload.accept_first):
         dup = next((gid for gid, so in session.execute(select(m.Galgame.id, m.Galgame.sources)).all()
                     if str(((so or {}).get(best[1]["source"]) or {}).get("id")) == str(best[1]["sid"])), None)
         if dup:
@@ -495,3 +500,131 @@ def cg_summary(gid: int, session: Session = Depends(get_session)) -> dict[str, A
     items = [{"id": a.id, "title": a.title, "kind": a.kind} for a in session.scalars(stmt.limit(12))]
     return {"work_id": g.work_id, "count": total, "items": items}
 
+
+
+# ------------------------------------------------------------------ 游玩记录
+class PlayIn(BaseModel):
+    played_on: s.DateStr
+    minutes: int = Field(ge=1, le=24 * 60)
+    note: str | None = Field(default=None, max_length=500)
+
+
+def _play_dict(p: m.GalgamePlay, title: str | None = None) -> dict[str, Any]:
+    d = {"id": p.id, "galgame_id": p.galgame_id, "played_on": p.played_on, "minutes": p.minutes, "note": p.note}
+    if title is not None:
+        d["title"] = title
+    return d
+
+
+@extra.get("/plays/summary")
+def plays_summary(days: int = Query(default=120, ge=7, le=800), session: Session = Depends(get_session)) -> dict[str, Any]:
+    """首页 / 游戏库用：每天的时长（日历）、今天 / 本周 / 本月合计、最近记录。日期按本地日期。"""
+    from datetime import date, timedelta
+
+    today = date.today()
+    start = (today - timedelta(days=days - 1)).isoformat()
+    rows = session.execute(select(m.GalgamePlay.played_on, func.sum(m.GalgamePlay.minutes))
+                           .where(m.GalgamePlay.played_on >= start).group_by(m.GalgamePlay.played_on)).all()
+    by_day = {d: int(n) for d, n in rows}
+    week0 = (today - timedelta(days=today.weekday())).isoformat()
+    month0 = today.replace(day=1).isoformat()
+    recent = session.execute(select(m.GalgamePlay, m.Galgame.title).join(m.Galgame, m.Galgame.id == m.GalgamePlay.galgame_id)
+                             .order_by(m.GalgamePlay.played_on.desc(), m.GalgamePlay.id.desc()).limit(12)).all()
+    return {
+        "today": by_day.get(today.isoformat(), 0),
+        "week": sum(v for k, v in by_day.items() if k >= week0),
+        "month": sum(v for k, v in by_day.items() if k >= month0),
+        "by_day": by_day, "start": start, "end": today.isoformat(),
+        "recent": [_play_dict(p, t) for p, t in recent],
+    }
+
+
+@extra.get("/{gid}/plays")
+def list_plays(gid: int, session: Session = Depends(get_session)) -> list[dict[str, Any]]:
+    get_or_404(session, m.Galgame, gid)
+    rows = session.scalars(select(m.GalgamePlay).where(m.GalgamePlay.galgame_id == gid)
+                           .order_by(m.GalgamePlay.played_on.desc(), m.GalgamePlay.id.desc()))
+    return [_play_dict(p) for p in rows]
+
+
+@extra.post("/{gid}/plays", status_code=201)
+def add_play(gid: int, payload: PlayIn, session: Session = Depends(get_session)) -> dict[str, Any]:
+    g = get_or_404(session, m.Galgame, gid)
+    p = m.GalgamePlay(galgame_id=gid, played_on=payload.played_on, minutes=payload.minutes, note=payload.note or None)
+    session.add(p)
+    g.play_minutes = (g.play_minutes or 0) + payload.minutes
+    if g.status in ("unplayed", "wishlist"):
+        g.status = "playing"
+    if not g.started_on or g.started_on > payload.played_on:
+        g.started_on = payload.played_on
+    session.commit()
+    return {**_play_dict(p), "play_minutes": g.play_minutes, "status": g.status}
+
+
+@extra.delete("/plays/{pid}", status_code=204)
+def delete_play(pid: int, session: Session = Depends(get_session)) -> Response:
+    p = get_or_404(session, m.GalgamePlay, pid)
+    g = session.get(m.Galgame, p.galgame_id)
+    if g:
+        g.play_minutes = max(0, (g.play_minutes or 0) - p.minutes)
+    session.delete(p)
+    session.commit()
+    return Response(status_code=204)
+
+
+# ------------------------------------------------------------------ 批量操作与导出
+class Bulk(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=1000)
+    status: s.GalStatus | None = None
+    pinned: bool | None = None
+    delete: bool = False
+
+
+@extra.post("/bulk")
+def bulk(payload: Bulk, session: Session = Depends(get_session)) -> dict[str, Any]:
+    rows = session.scalars(select(m.Galgame).where(m.Galgame.id.in_(payload.ids))).all()
+    for g in rows:
+        if payload.delete:
+            session.delete(g)
+            continue
+        if payload.status:
+            g.status = payload.status
+        if payload.pinned is not None:
+            g.pinned = payload.pinned
+    session.commit()
+    return {"count": len(rows), "deleted": payload.delete}
+
+
+EXPORT_FIELDS = ("id", "title", "title_cn", "original", "status", "my_rating", "play_minutes", "started_on", "finished_on",
+                 "developer", "release_date", "platforms", "aliases", "nsfw", "work_id", "notes")
+
+
+@extra.get("/export/file")
+def export_library(format: str = Query(default="json", pattern="^(json|csv)$"), session: Session = Depends(get_session)) -> Response:
+    """导出游戏库（不含封面图片）。CSV 用 UTF-8 BOM，Excel 可直接打开。"""
+    import csv
+    import json
+
+    rows = session.scalars(select(m.Galgame).order_by(m.Galgame.id)).all()
+    data = []
+    for g in rows:
+        d = {f: getattr(g, f) for f in EXPORT_FIELDS}
+        d["sources"] = {k: v.get("id") for k, v in (g.sources or {}).items() if isinstance(v, dict)}
+        d["tags"] = [t.name for t in g.tags]
+        data.append(d)
+    if format == "json":
+        body = json.dumps({"format": "front-galgames", "version": 1, "items": data}, ensure_ascii=False, indent=2).encode()
+        return Response(body, media_type="application/json",
+                        headers={"Content-Disposition": "attachment; filename=front-galgames.json"})
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    cols = [*EXPORT_FIELDS, "bangumi", "vndb", "ymgal", "tags"]
+    w.writerow(cols)
+    for d in data:
+        row = []
+        for c in cols:
+            v = d["sources"].get(c) if c in src.SOURCES else d.get(c)
+            row.append("、".join(v) if isinstance(v, list) else "" if v is None else v)
+        w.writerow(row)
+    return Response(("\ufeff" + buf.getvalue()).encode(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename=front-galgames.csv"})

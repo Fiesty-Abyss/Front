@@ -518,17 +518,29 @@ def seed(client: TestClient) -> dict[str, int]:
              {"my_rating": 9, "play_minutes": 1840, "started_on": "2025-04-02", "finished_on": "2025-05-18",
               "notes": "【示例】凛线是真结局，记得先通遥线。CG 档案在作品「樱色回廊」下。", "pinned": True}),
             ("fog", {"picks": {"ymgal": "80002"}, "status": "playing", "import_characters": True},
-             {"play_minutes": 620, "started_on": "2026-09-20", "notes": "【示例】第 3 章：灯塔熄灭的那一分钟。"}),
+             {"notes": "【示例】第 3 章：灯塔熄灭的那一分钟。"}),
             ("star", {"picks": {"vndb": "v90003"}, "status": "wishlist"}, {}),
-            ("summer", {"picks": {"vndb": "v90004"}, "status": "shelved"}, {"play_minutes": 140, "my_rating": 6}),
-            ("night", {"picks": {"bangumi": "900005"}, "status": "dropped", "work": None}, {"play_minutes": 45}),
+            ("summer", {"picks": {"vndb": "v90004"}, "status": "shelved"}, {"my_rating": 6}),
+            ("night", {"picks": {"bangumi": "900005"}, "status": "dropped", "work": None}, {}),
         ):
             r = client.post("/api/galgames/from-meta", json=body)
             r.raise_for_status()
             gal_ids[key] = r.json()["id"]
             if patch:
                 client.patch(f"/api/galgames/{gal_ids[key]}", json=patch).raise_for_status()
-        r = client.post("/api/galgames/quick-add", json={"title": "【示例】纸飞机之夏", "status": "wishlist", "work": None})
+        # 示例游玩记录：最近几周断断续续地玩（日期相对今天，日历上总有内容）
+        from datetime import date, timedelta
+
+        rnd = random.Random(20261017)
+        for key, n, span in (("fog", 14, 34), ("summer", 3, 70), ("night", 1, 90)):
+            for _ in range(n):
+                day = (date.today() - timedelta(days=rnd.randint(0, span))).isoformat()
+                client.post(f"/api/galgames/{gal_ids[key]}/plays",
+                            json={"played_on": day, "minutes": rnd.choice([25, 40, 60, 75, 90, 120]),
+                                  "note": rnd.choice([None, None, "【示例】推进主线", "【示例】回收 CG", "【示例】读到深夜"])}).raise_for_status()
+        client.patch(f"/api/galgames/{gal_ids['summer']}", json={"status": "shelved"}).raise_for_status()
+        client.patch(f"/api/galgames/{gal_ids['night']}", json={"status": "dropped"}).raise_for_status()
+        r = client.post("/api/galgames/quick-add", json={"title": "【示例】纸飞机之夏", "status": "unplayed", "work": None})
         r.raise_for_status()
         gal_ids["unmatched"] = r.json()["id"]
         client.patch(f"/api/galgames/{gal_ids['sakura']}", json={"tag_ids": [T["Galgame"]]}).raise_for_status()

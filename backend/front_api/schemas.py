@@ -798,7 +798,7 @@ class DiagramRead(DiagramBase, Timestamps):
 
 
 # ---- v0.6.3 galgame 游戏库 ----
-GalStatus = Literal["wishlist", "playing", "finished", "shelved", "dropped"]
+GalStatus = Literal["unplayed", "wishlist", "playing", "finished", "shelved", "dropped"]
 GalSource = Literal["bangumi", "vndb", "ymgal"]
 DateStr = Annotated[str, Field(pattern=r"^\d{4}(-\d{2}(-\d{2})?)?$")]
 

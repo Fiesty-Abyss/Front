@@ -83,7 +83,7 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
 <template>
   <div class="grid" style="grid-template-columns: 300px 1fr; align-items:start">
     <aside class="card grid" style="gap:8px">
-      <button class="primary" @click="create">＋ 新建收藏集</button>
+      <button class="primary" @click="create"><Ico g="＋" />新建收藏集</button>
       <p class="small muted" style="margin:0">拖动可调整收藏集顺序</p>
       <div v-for="(c, i) in list" :key="c.id" class="card row coll" draggable="true" style="padding:8px;flex-wrap:nowrap;cursor:pointer"
         :style="{ borderColor: cur?.id === c.id ? 'var(--accent)' : drag.kind === 'col' && drag.over === i ? 'var(--accent2)' : '' }"
@@ -102,9 +102,9 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
         </div>
       </div>
       <div class="card">
-        <div class="row" style="margin-bottom:10px"><h2 style="margin:0">内容 · {{ cur.assets.length }} 项</h2><span class="small muted">拖动卡片排序，★ 设为封面</span><span class="spacer" /><button class="primary" @click="openPicker">＋ 添加素材</button></div>
+        <div class="row" style="margin-bottom:10px"><h2 style="margin:0">内容 · {{ cur.assets.length }} 项</h2><span class="small muted">拖动卡片排序，★ 设为封面</span><span class="spacer" /><button class="primary" @click="openPicker"><Ico g="＋" />添加素材</button></div>
         <div v-if="!cur.assets.length" class="empty">空收藏集，点右上角添加素材</div>
-        <div class="thumbgrid">
+        <div v-reveal class="thumbgrid">
           <div v-for="(a, i) in cur.assets" :key="a.id" class="tile" draggable="true"
             :style="drag.kind === 'item' && drag.over === i ? { borderColor: 'var(--accent2)' } : {}"
             @dragstart="dragStart('item', i)" @dragover="dragOver('item', i, $event)" @drop="drop('item', i)">
@@ -114,7 +114,7 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
               <span v-if="cur.effective_cover_id === a.id" class="badge" style="position:absolute;right:8px;top:8px;background:var(--accent2);color:#fff">封面</span>
             </div>
             <div class="meta"><div class="title">{{ a.title }}</div>
-              <div class="row small" style="gap:6px"><span class="badge">{{ LABELS.assetKind[a.kind] }}</span><span class="spacer" /><a title="设为封面" @click="setCover(a)">{{ cur.cover_asset_id === a.id ? '★' : '☆' }}</a><a title="移出" @click="removeItem(a)">✕</a></div>
+              <div class="row small" style="gap:6px"><span class="badge">{{ LABELS.assetKind[a.kind] }}</span><span class="spacer" /><a title="设为封面" @click="setCover(a)">{{ cur.cover_asset_id === a.id ? '★' : '☆' }}</a><a title="移出" @click="removeItem(a)"><Ico g="✕" /></a></div>
             </div>
           </div>
         </div>

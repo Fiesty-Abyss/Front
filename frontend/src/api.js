@@ -65,6 +65,7 @@ export const fileUrl = (id) => `/api/assets/${id}/file`
 
 export const LABELS = {
   assetKind: { drawing: '我的画', ai_image: 'AI 生成', material: '绘画素材', novel: '小说', cg: 'CG', reference: '参考', other: '其他' },
+  activity: { assets: '素材', characters: '角色', world_entries: '百科条目', prompts: '提示词', generations: '出图', chat: '对话', cards: '角色卡', lore: '世界书' },
   gender: { male: '男', female: '女', other: '其他', unknown: '未知' },
   workKind: { anime: '动漫', game: '游戏', galgame: 'Galgame', novel: '小说', manga: '漫画', original: '原创', other: '其他' },
   modelKind: { checkpoint: 'Checkpoint', lora: 'LoRA', lycoris: 'LyCORIS', vae: 'VAE', embedding: 'Embedding', controlnet: 'ControlNet', upscaler: '放大', hypernetwork: 'Hypernetwork', text_encoder: '文本编码器', other: '其他' },

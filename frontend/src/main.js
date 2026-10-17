@@ -2,6 +2,8 @@ import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import './style.css'
+import { vReveal } from './motion'
+import Ico from './components/Ico.vue'
 
 const routes = [
   { path: '/', component: () => import('./views/Dashboard.vue'), meta: { title: '总览' } },
@@ -27,7 +29,12 @@ const routes = [
   { path: '/search', component: () => import('./views/Search.vue'), meta: { title: '搜索' } },
 ]
 
-const router = createRouter({ history: createWebHistory(), routes })
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior: (to, from, saved) => saved || (to.hash ? new Promise((r) => setTimeout(() => r({ el: to.hash, top: 90, behavior: 'smooth' }), 400)) : { top: 0 }),
+})
 router.afterEach((to) => { document.title = `${to.meta.title ?? ''} · Front` })
 
-createApp(App).use(router).mount('#app')
+const app = createApp(App).use(router).directive('reveal', vReveal).component('Ico', Ico)
+router.isReady().then(() => app.mount('#app'))

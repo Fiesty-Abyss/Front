@@ -69,7 +69,7 @@ function exportBook(fmt) { window.location.href = `/api/lorebooks/${cur.value.id
 <template>
   <div class="grid" style="grid-template-columns: 260px 1fr; align-items:start">
     <aside class="card grid" style="gap:8px;align-content:start">
-      <div class="row"><button class="primary" @click="create">＋ 新建</button><button class="ghost" @click="fileInput.click()">导入</button>
+      <div class="row"><button class="primary" @click="create"><Ico g="＋" />新建</button><button class="ghost" @click="fileInput.click()">导入</button>
         <input ref="fileInput" type="file" accept=".json,.png" hidden @change="importFile" /></div>
       <select @change="fromWorld($event.target.value); $event.target.value = ''"><option value="">从世界观生成…</option><option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.name }}</option></select>
       <div class="small muted">导入支持 SillyTavern 世界书 JSON、Character Card V2 的 character_book、带世界书的角色卡（JSON / PNG）。</div>
@@ -102,7 +102,7 @@ function exportBook(fmt) { window.location.href = `/api/lorebooks/${cur.value.id
       </section>
 
       <section class="grid" style="gap:10px">
-        <div class="row"><b>条目（{{ cur.entries.length }}）</b><input v-model="filter" placeholder="筛选" style="max-width:220px" /><span class="spacer" /><button class="ghost" @click="addEntry">＋ 添加条目</button></div>
+        <div class="row"><b>条目（{{ cur.entries.length }}）</b><input v-model="filter" placeholder="筛选" style="max-width:220px" /><span class="spacer" /><button class="ghost" @click="addEntry"><Ico g="＋" />添加条目</button></div>
         <div v-for="e in entries" :key="e.id" class="card entry" :class="{ hit: activeIds.has(e.id), skip: skippedIds.has(e.id), off: !e.enabled }">
           <div class="row" style="gap:8px">
             <label class="row small" style="gap:4px"><input type="checkbox" style="width:auto" :checked="e.enabled" @change="saveEntry(e, { enabled: $event.target.checked })" />启用</label>
@@ -117,7 +117,7 @@ function exportBook(fmt) { window.location.href = `/api/lorebooks/${cur.value.id
               <label>顺序<input type="number" :value="e.insertion_order" @change="saveEntry(e, { insertion_order: Number($event.target.value) })" /></label>
               <label>优先级<input type="number" :value="e.priority" @change="saveEntry(e, { priority: Number($event.target.value) })" /></label>
             </div>
-            <button class="ghost small danger" title="删除条目" @click="removeEntry(e)">✕</button>
+            <button class="ghost small danger" title="删除条目" @click="removeEntry(e)"><Ico g="✕" /></button>
           </div>
           <div class="grid" style="grid-template-columns: 300px 1fr; gap:10px">
             <div class="grid" style="gap:6px;align-content:start">

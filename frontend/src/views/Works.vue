@@ -1,4 +1,5 @@
 <script setup>
+import QuickSearch from '../components/QuickSearch.vue'
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, Assets, Collections, LABELS, thumb, Works } from '../api'
@@ -64,7 +65,7 @@ async function newCollection() {
 <template>
   <div class="grid" style="grid-template-columns: 280px 1fr">
     <aside class="card grid" style="align-content:start;gap:6px">
-      <div class="row" style="flex-wrap:nowrap"><select v-model="kind" @change="load"><option value="">全部类型</option><option v-for="(l, k) in LABELS.workKind" :key="k" :value="k">{{ l }}</option></select><button class="primary" @click="edit(null)">＋</button></div>
+      <div class="row" style="flex-wrap:nowrap"><select v-model="kind" @change="load"><option value="">全部类型</option><option v-for="(l, k) in LABELS.workKind" :key="k" :value="k">{{ l }}</option></select><button class="primary" @click="edit(null)"><Ico g="＋" /></button></div>
       <div v-for="w in items" :key="w.id" class="card" style="cursor:pointer;padding:10px" :style="cur?.id === w.id ? { borderColor: 'var(--accent)' } : {}" @click="select(w)">
         <div class="row" style="gap:6px"><b>{{ w.title }}</b><span class="badge">{{ LABELS.workKind[w.kind] }}</span></div>
         <div class="small muted">{{ [w.year, w.publisher].filter(Boolean).join(' · ') }}</div>
@@ -72,7 +73,7 @@ async function newCollection() {
     </aside>
     <section v-if="cur" class="grid" style="align-content:start">
       <div class="card">
-        <div class="row"><h2 style="margin:0">{{ cur.title }}</h2><span class="badge">{{ LABELS.workKind[cur.kind] }}</span><span class="spacer" /><button @click="edit(cur)">编辑</button></div>
+        <div class="row"><h2 style="margin:0">{{ cur.title }}</h2><span class="badge">{{ LABELS.workKind[cur.kind] }}</span><span class="spacer" /><a v-if="cur.url" class="btn" :href="cur.url" target="_blank" rel="noopener noreferrer">官网 ↗</a><QuickSearch :q="cur.title" kind="work" /><button @click="edit(cur)">编辑</button></div>
         <p class="muted">{{ cur.description }}</p>
         <TagChips :tags="cur.tags" show-cat />
       </div>
@@ -87,11 +88,11 @@ async function newCollection() {
       </div>
       <div class="card">
         <div class="row"><h2 style="margin:0">CG 档案 · {{ cgs.length }} 组 / {{ cgTotal() }} 张</h2><span class="spacer" />
-          <button v-if="cgs.length" class="primary" @click="viewing = 0">▶ 鉴赏模式</button>
+          <button v-if="cgs.length" class="primary" @click="viewing = 0"><Ico g="▶" />鉴赏模式</button>
           <button v-if="cgs.length" @click="regroup">重新识别差分</button>
           <RouterLink class="btn" to="/import">批量导入 CG</RouterLink></div>
         <p class="small muted">同一张 CG 的差分会自动归为一组（如 ev01a / ev01b、ev03_01 / ev03_02、ev0101 / ev0102），点击进入鉴赏模式。</p>
-        <div class="thumbgrid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr))">
+        <div v-reveal class="thumbgrid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr))">
           <div v-for="(g, i) in cgs" :key="g.key" class="tile" @click="viewing = i">
             <div class="img" style="aspect-ratio:16/9;position:relative" :style="{ backgroundImage: `url(${thumb(g.cover_id)})` }"><span v-if="g.count > 1" class="badge" style="position:absolute;right:8px;top:8px;background:#000a;color:#fff">差分 × {{ g.count }}</span></div>
             <div class="meta"><div class="title">{{ g.key }}</div><div class="small muted">{{ g.size }}</div></div>
@@ -100,7 +101,7 @@ async function newCollection() {
         <div v-if="!cgs.length" class="empty">还没有 CG</div>
       </div>
       <div class="card">
-        <div class="row"><h2 style="margin:0">收藏集</h2><span class="spacer" /><button @click="newCollection">＋ 新建收藏集</button></div>
+        <div class="row"><h2 style="margin:0">收藏集</h2><span class="spacer" /><button @click="newCollection"><Ico g="＋" />新建收藏集</button></div>
         <RouterLink v-for="c in collections" :key="c.id" :to="{ path: '/collections', query: { id: c.id } }" class="row" style="margin-top:8px"><b>{{ c.name }}</b><span class="small muted">{{ c.assets.length }} 项 · {{ c.description }}</span></RouterLink>
         <div v-if="assets.length" class="small muted" style="margin-top:10px">关联素材：{{ assets.map((a) => a.title).join('、') }}</div>
       </div>

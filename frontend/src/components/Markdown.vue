@@ -19,7 +19,7 @@ const html = computed(() => {
 .md h1 { font-size: 20px; } .md h2 { font-size: 17px; } .md h3 { font-size: 15px; }
 .md p { margin: .5em 0; }
 .md a { color: #c4b5fd; text-decoration: underline; text-underline-offset: 3px; }
-.md blockquote { margin: .6em 0; padding: 4px 14px; border-left: 3px solid var(--accent); color: var(--muted); background: #8b7cf610; border-radius: 0 8px 8px 0; }
+.md blockquote { margin: .6em 0; padding: 4px 14px; border-left: 3px solid var(--accent); color: var(--muted); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
 .md code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .md table { border-collapse: collapse; margin: .6em 0; }
 .md th, .md td { border: 1px solid var(--line); padding: 5px 10px; }

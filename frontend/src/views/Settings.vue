@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { api, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
 import Modal from '../components/Modal.vue'
+import QuickSites from '../components/QuickSites.vue'
 import { guard, toast } from '../toast'
 
 const data = ref({ items: [], presets: [], env: null })
@@ -160,6 +161,8 @@ const role = (p) => [settings.value?.chat_provider_id === p.id && '对话', sett
       <JobProgress :job="job" />
     </div>
   </div>
+
+  <QuickSites id="quick-search" style="margin-top:14px" />
 
   <Modal v-if="editing" :title="editing.id ? '编辑 AI 服务' : '添加 AI 服务'" @close="editing = null">
     <form class="grid" style="gap:10px" @submit.prevent="save">

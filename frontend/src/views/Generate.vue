@@ -140,7 +140,7 @@ async function submit() {
         <div class="row" style="gap:8px">
           <select style="width:220px" value="" @change="addLora(Number($event.target.value)); $event.target.value = ''"><option value="">＋ 加 LoRA…</option><option v-for="m in loraModels" :key="m.id" :value="m.id">{{ m.name }}</option></select>
           <span v-for="(l, i) in form.loras" :key="l.model_id" class="pick row" style="flex-wrap:nowrap;gap:6px">
-            <b class="small">{{ nameOf(l.model_id) }}</b><input v-model.number="l.weight" type="number" step="0.05" style="width:70px" /><a class="small" @click="form.loras.splice(i, 1)">✕</a>
+            <b class="small">{{ nameOf(l.model_id) }}</b><input v-model.number="l.weight" type="number" step="0.05" style="width:70px" /><a class="small" @click="form.loras.splice(i, 1)"><Ico g="✕" /></a>
           </span>
         </div>
       </div>
@@ -192,6 +192,6 @@ async function submit() {
 </template>
 <style scoped>
 .pick { padding: 4px 8px; border-radius: 8px; background: var(--panel2); }
-.thumb { aspect-ratio: 4/5; border-radius: 8px; background: #0b0c18 center/cover; position: relative; }
+.thumb { aspect-ratio: 4/5; border-radius: 8px; background: var(--sunken) center/cover; position: relative; }
 .thumb span { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px; background: #000a; border-radius: 0 0 8px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

@@ -120,8 +120,8 @@ function rich(text) {
         <b style="cursor:pointer" title="点击改名" @click="rename">{{ cur.title }}</b>
         <span class="small muted">{{ cur.messages.length }} 条 · 共 {{ cur.total_messages }} 条（含分支）</span>
         <span class="spacer" />
-        <span v-for="b in ctx?.lorebooks || []" :key="b.id" class="chip" :title="b.world_id ? '世界观自动关联' : ''">❧ {{ b.name }}</span>
-        <button class="ghost small" title="为这个对话额外启用世界书" @click="showBooks = !showBooks">＋ 世界书</button>
+        <span v-for="b in ctx?.lorebooks || []" :key="b.id" class="chip" :title="b.world_id ? '世界观自动关联' : ''"><Ico g="❧" />{{ b.name }}</span>
+        <button class="ghost small" title="为这个对话额外启用世界书" @click="showBooks = !showBooks"><Ico g="＋" />世界书</button>
         <button class="ghost small" @click="refreshCtx(); showCtx = true">查看上下文</button>
         <button class="ghost small danger" @click="remove">删除</button>
       </div>
@@ -142,13 +142,13 @@ function rich(text) {
                 <button class="ghost" :disabled="m.sibling_ids.at(-1) === m.id || streaming" @click="swipe(m, 1)">›</button>
               </span>
               <span v-if="m.meta?.greeting !== undefined" class="muted">开场白</span>
-              <span v-if="m.meta?.lore?.length" class="lore" :title="m.meta.lore.map((l) => `${l.title}（${l.reason}）`).join('\n')">❧ 世界书 {{ m.meta.lore.length }} 条</span>
+              <span v-if="m.meta?.lore?.length" class="lore" :title="m.meta.lore.map((l) => `${l.title}（${l.reason}）`).join('\n')"><Ico g="❧" />世界书 {{ m.meta.lore.length }} 条</span>
               <span v-if="m.meta?.interrupted" class="muted">已停止</span>
               <span v-if="m.meta?.edited" class="muted">已修改</span>
               <span v-if="m.meta?.error" style="color:#fca5a5">中断：{{ m.meta.error }}</span>
               <template v-if="m.id !== 'pending' && !streaming">
-                <button v-if="m.role === 'assistant' && m.meta?.greeting === undefined" class="ghost" title="重新生成（保留原回复，左右切换）" @click="regenerate(m)">↻ 重新生成</button>
-                <button class="ghost" @click="editing = { msg: m, text: m.content }">✎ 编辑</button>
+                <button v-if="m.role === 'assistant' && m.meta?.greeting === undefined" class="ghost" title="重新生成（保留原回复，左右切换）" @click="regenerate(m)"><Ico g="↻" />重新生成</button>
+                <button class="ghost" @click="editing = { msg: m, text: m.content }"><Ico g="✎" />编辑</button>
                 <button class="ghost" @click="removeMsg(m)">删除</button>
               </template>
             </div>
@@ -206,7 +206,7 @@ function rich(text) {
 .col { display: grid; gap: 4px; max-width: 72%; }
 .msg.user .col { justify-items: end; }
 .bubble { padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; line-height: 1.65; background: var(--panel2); border: 1px solid #ffffff10; }
-.msg.user .bubble { background: #8b7cf633; }
+.msg.user .bubble { background: var(--accent-soft); }
 .bubble :deep(.act) { color: #a5a9c8; }
 .bubble :deep(.mockbadge) { font-size: 10px; padding: 1px 6px; margin-right: 6px; border-radius: 99px; background: #f472b633; color: #f9a8d4; vertical-align: 2px; }
 .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; opacity: .9; }

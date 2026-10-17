@@ -1,4 +1,5 @@
 <script setup>
+import QuickSearch from '../components/QuickSearch.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api, LABELS, SDModels, thumb, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
@@ -92,9 +93,9 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
     <select v-model="f.base_model" style="width:130px"><option value="">全部底模</option><option v-for="b in ['SD1.5', 'SD2', 'SDXL', 'Pony', 'Illustrious', 'SD3', 'Flux']" :key="b">{{ b }}</option></select>
     <span class="spacer" />
     <button :disabled="!missingHash" @click="runJob('/api/sd-models/hash-all', { only_missing: true })"># 计算缺失哈希<template v-if="missingHash"> · {{ missingHash }}</template></button>
-    <button @click="runJob('/api/sd-models/civitai-all', { apply: true })">☁ 全部匹配 Civitai</button>
-    <button @click="openScan">⌕ 扫描模型目录</button>
-    <button class="primary" @click="edit(null)">＋ 登记模型</button>
+    <button @click="runJob('/api/sd-models/civitai-all', { apply: true })"><Ico g="☁" />全部匹配 Civitai</button>
+    <button @click="openScan"><Ico g="⌕" />扫描模型目录</button>
+    <button class="primary" @click="edit(null)"><Ico g="＋" />登记模型</button>
   </div>
   <JobProgress v-if="job" :job="job" style="margin-bottom:12px" />
   <div class="card" style="padding:0">
@@ -175,7 +176,7 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
         <div class="row small">
           <label class="row" style="gap:4px"><input v-model="civ.overwrite" type="checkbox" style="width:auto" />覆盖已有字段</label>
           <label class="row" style="gap:4px"><input v-model="civ.download_preview" type="checkbox" style="width:auto" />下载预览图</label>
-          <span class="spacer" /><button :disabled="!!busy" @click="civitaiOne">{{ busy === 'civitai' ? '查询中…' : '☁ 按哈希匹配 Civitai' }}</button>
+          <span class="spacer" /><QuickSearch :q="editing.civitai?.model_name || editing.name" kind="model" :alts="[editing.name]" /><button :disabled="!!busy" @click="civitaiOne">{{ busy === 'civitai' ? '查询中…' : '☁ 按哈希匹配 Civitai' }}</button>
         </div>
         <div v-if="editing.civitai?.fetched_at" class="small muted">更新于 {{ new Date(editing.civitai.fetched_at).toLocaleString('zh-CN') }}</div>
       </div>

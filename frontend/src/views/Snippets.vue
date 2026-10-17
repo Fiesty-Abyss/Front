@@ -64,13 +64,13 @@ async function remove() {
       <div class="row card" style="padding:10px 14px">
         <input v-model="q" placeholder="搜索片段" style="max-width:260px" />
         <span class="small muted">点击片段加入右侧组合器；✎ 编辑</span>
-        <span class="spacer" /><button class="primary" @click="edit(null)">＋ 新片段</button>
+        <span class="spacer" /><button class="primary" @click="edit(null)"><Ico g="＋" />新片段</button>
       </div>
       <div class="grid cols-2" style="align-items:start">
         <div v-for="[cat, list] in grouped" :key="cat" class="card">
           <div class="row" style="margin-bottom:8px"><h2 style="margin:0">{{ LABELS.snippetCategory[cat] }}</h2><span class="small muted">{{ list.length }}</span></div>
           <div v-for="s in list" :key="s.id" class="snip" :class="{ on: picked.some((p) => p.id === s.id) }" @click="add(s)">
-            <div class="row" style="flex-wrap:nowrap"><b>{{ s.title }}</b><span class="spacer" /><a class="small" title="编辑" @click.stop="edit(s)">✎</a></div>
+            <div class="row" style="flex-wrap:nowrap"><b>{{ s.title }}</b><span class="spacer" /><a class="small" title="编辑" @click.stop="edit(s)"><Ico g="✎" /></a></div>
             <div v-if="s.positive" class="mono small">{{ s.positive }}</div>
             <div v-if="s.negative" class="mono small neg">− {{ s.negative }}</div>
           </div>
@@ -87,7 +87,7 @@ async function remove() {
         <b class="small" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ byId[p.id].title }}</b>
         <input v-model.number="p.weight" type="range" min="0.5" max="1.6" step="0.05" style="width:90px" :disabled="!byId[p.id].positive" @input="persist" />
         <span class="mono small" style="width:34px">{{ (+p.weight).toFixed(2) }}</span>
-        <a class="small" @click="move(i, -1)">↑</a><a class="small" @click="move(i, 1)">↓</a><a class="small" @click="drop(i)">✕</a>
+        <a class="small" @click="move(i, -1)">↑</a><a class="small" @click="move(i, 1)">↓</a><a class="small" @click="drop(i)"><Ico g="✕" /></a>
       </div>
       <label class="field"><span class="row">正向提示词<span class="spacer" /><a class="small" @click="copy(positive)">复制</a></span><textarea class="mono" readonly :value="positive" style="min-height:110px" /></label>
       <label class="field"><span class="row">反向提示词<span class="spacer" /><a class="small" @click="copy(negative)">复制</a></span><textarea class="mono" readonly :value="negative" style="min-height:60px" /></label>
@@ -113,7 +113,7 @@ async function remove() {
 <style scoped>
 .snip { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; cursor: pointer; display: grid; gap: 3px; }
 .snip:hover { border-color: var(--accent); }
-.snip.on { border-color: var(--accent2); background: #f472b612; }
+.snip.on { border-color: var(--accent2); background: var(--accent-soft); }
 .snip .neg { color: #fca5a5; }
 .pick { padding: 6px 8px; border-radius: 8px; background: var(--panel2); gap: 6px; }
 </style>

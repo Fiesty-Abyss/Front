@@ -66,8 +66,8 @@ const fields = {
 <template>
   <div class="grid" style="grid-template-columns: 260px 1fr">
     <aside class="card grid" style="align-content:start;gap:8px">
-      <button class="primary" @click="select(null)">＋ 新建角色卡</button>
-      <label class="btn" style="justify-content:center">⇪ 导入 JSON / PNG 卡<input ref="importInput" type="file" accept=".json,.png" hidden @change="doImport" /></label>
+      <button class="primary" @click="select(null)"><Ico g="＋" />新建角色卡</button>
+      <label class="btn" style="justify-content:center"><Ico g="⇪" />导入 JSON / PNG 卡<input ref="importInput" type="file" accept=".json,.png" hidden @change="doImport" /></label>
       <div v-for="c in items" :key="c.id" class="card row" style="cursor:pointer;padding:8px;flex-wrap:nowrap" :style="cur?.id === c.id ? { borderColor: 'var(--accent)' } : {}" @click="select(c)">
         <div class="avatar" style="width:40px;height:40px" :style="c.avatar_asset_id ? { backgroundImage: `url(${thumb(c.avatar_asset_id)})` } : {}" />
         <div><b>{{ c.name }}</b><div class="small muted">{{ c.creator }} {{ c.character_version }}</div></div>

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, Assets, Cards, thumb } from '../api'
+import { api, Assets, Cards, Lorebooks, thumb } from '../api'
 import { guard, toast } from '../toast'
 
 const router = useRouter()
@@ -12,7 +12,8 @@ const images = ref([])
 const importInput = ref(null)
 const tab = ref('basic')
 
-async function load() { items.value = (await Cards.list({ limit: 500 })).items }
+const books = ref([])
+async function load() { items.value = (await Cards.list({ limit: 500 })).items; books.value = (await Lorebooks.list()).items }
 onMounted(async () => {
   await load()
   images.value = (await Assets.list({ kind: 'drawing,ai_image,cg,reference', limit: 500 })).items
@@ -34,7 +35,7 @@ function body() {
     post_history_instructions: c.post_history_instructions, creator: c.creator, character_version: c.character_version,
     alternate_greetings: c.greetingsText.split(/\n-{3,}\n/).map((s) => s.trim()).filter(Boolean),
     card_tags: c.tagsText.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
-    extensions, avatar_asset_id: c.avatar_asset_id || null, character_id: c.character_id || null,
+    extensions, avatar_asset_id: c.avatar_asset_id || null, character_id: c.character_id || null, lorebook_id: c.lorebook_id || null,
   }
 }
 async function save() {
@@ -85,6 +86,8 @@ const fields = {
           <div class="grid cols-2">
             <label class="field">头像（素材库图片）<select v-model="cur.avatar_asset_id"><option :value="null">无（导出时用渐变占位图）</option><option v-for="a in images" :key="a.id" :value="a.id">{{ a.title }}</option></select></label>
             <label class="field">标签（逗号分隔）<input v-model="cur.tagsText" /></label>
+            <label class="field">角色书 character_book <span class="small muted">（导出时一起导出；<RouterLink :to="cur.lorebook_id ? `/lorebooks?id=${cur.lorebook_id}` : '/lorebooks'">编辑世界书</RouterLink>）</span>
+              <select v-model="cur.lorebook_id"><option :value="null">无</option><option v-for="b in books" :key="b.id" :value="b.id">{{ b.name }}（{{ b.entries }} 条）</option></select></label>
           </div>
         </div>
       </div>

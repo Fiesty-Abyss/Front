@@ -100,3 +100,35 @@ export function composePrompt(base, parts) {
   }
   return out.join(', ')
 }
+
+export const Lorebooks = resource('/api/lorebooks')
+
+/** POST 并按 Server-Sent Events 解析流式响应：onEvent(event, data)。 */
+export async function streamPost(url, body, onEvent, signal) {
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
+  if (!res.ok) {
+    const data = res.headers.get('content-type')?.includes('json') ? await res.json() : { detail: await res.text() }
+    throw Object.assign(new Error(typeof data.detail === 'string' ? data.detail : res.statusText), { status: res.status, data })
+  }
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    let i
+    while ((i = buf.indexOf('\n\n')) >= 0) {
+      const block = buf.slice(0, i)
+      buf = buf.slice(i + 2)
+      let event = 'message'
+      const data = []
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) data.push(line.slice(5).trim())
+      }
+      if (data.length) onEvent(event, JSON.parse(data.join('\n')))
+    }
+  }
+}
+

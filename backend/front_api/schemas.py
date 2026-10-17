@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -794,4 +794,68 @@ class DiagramRead(DiagramBase, Timestamps):
     data: dict[str, Any] | None = None  # 列表里省略，详情里返回
     nodes: int = 0
     edges: int = 0
+    tags: list[TagRead] = []
+
+
+# ---- v0.6.3 galgame 游戏库 ----
+GalStatus = Literal["wishlist", "playing", "finished", "shelved", "dropped"]
+GalSource = Literal["bangumi", "vndb", "ymgal"]
+DateStr = Annotated[str, Field(pattern=r"^\d{4}(-\d{2}(-\d{2})?)?$")]
+
+
+class GalgameBase(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    title_cn: str | None = Field(default=None, max_length=300)
+    original: str | None = Field(default=None, max_length=300)
+    aliases: list[str] = Field(default_factory=list, max_length=50)
+    status: GalStatus = "wishlist"
+    my_rating: int | None = Field(default=None, ge=1, le=10)
+    play_minutes: int = Field(default=0, ge=0, le=10_000_000)
+    started_on: DateStr | None = None
+    finished_on: DateStr | None = None
+    notes: str | None = None
+    description: str | None = None
+    developer: str | None = Field(default=None, max_length=300)
+    release_date: DateStr | None = None
+    platforms: list[str] = Field(default_factory=list, max_length=30)
+    source_tags: list[str] = Field(default_factory=list, max_length=100)
+    nsfw: bool = False
+    pinned: bool = False
+    work_id: int | None = None
+
+
+class GalgameCreate(GalgameBase):
+    tag_ids: list[int] = []
+
+
+class GalgameUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    title_cn: str | None = Field(default=None, max_length=300)
+    original: str | None = Field(default=None, max_length=300)
+    aliases: list[str] | None = Field(default=None, max_length=50)
+    status: GalStatus | None = None
+    my_rating: int | None = Field(default=None, ge=1, le=10)
+    play_minutes: int | None = Field(default=None, ge=0, le=10_000_000)
+    started_on: DateStr | None = None
+    finished_on: DateStr | None = None
+    notes: str | None = None
+    description: str | None = None
+    developer: str | None = Field(default=None, max_length=300)
+    release_date: DateStr | None = None
+    platforms: list[str] | None = Field(default=None, max_length=30)
+    source_tags: list[str] | None = Field(default=None, max_length=100)
+    nsfw: bool | None = None
+    pinned: bool | None = None
+    work_id: int | None = None
+    tag_ids: list[int] | None = None
+
+
+class GalgameRead(GalgameBase, Timestamps):
+    id: int
+    cover_url: str | None = None
+    has_cover: bool = False
+    sources: dict[str, Any] = {}
+    characters: list[dict[str, Any]] | None = None  # 列表里省略
+    links: list[dict[str, Any]] = []
+    overrides: list[str] = []
     tags: list[TagRead] = []

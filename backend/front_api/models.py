@@ -54,6 +54,7 @@ prompt_snippet_tags = _tag_link("prompt_snippet_tags", "prompt_snippet")
 work_tags = _tag_link("work_tags", "work")
 note_tags = _tag_link("note_tags", "note")
 diagram_tags = _tag_link("diagram_tags", "diagram")
+galgame_tags = _tag_link("galgame_tags", "galgame")
 
 collection_assets = Table(
     "collection_assets",
@@ -513,3 +514,37 @@ class Diagram(TimestampMixin, Base):
     @property
     def edges(self) -> int:
         return len((self.data or {}).get("edges") or [])
+
+
+class Galgame(TimestampMixin, Base):
+    """galgame 游戏库的一条。元数据来自 Bangumi / VNDB / 月幕（sources 里记着各来源的 id 与评分），
+    用户手动改过的字段记在 overrides，重新拉取时不会被覆盖。CG 档案通过 work_id 挂在作品下。"""
+
+    __tablename__ = "galgames"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(300), index=True)
+    title_cn: Mapped[str | None] = mapped_column(String(300))
+    original: Mapped[str | None] = mapped_column(String(300))
+    aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(20), default="wishlist", index=True)
+    my_rating: Mapped[int | None] = mapped_column(Integer)
+    play_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    started_on: Mapped[str | None] = mapped_column(String(10))
+    finished_on: Mapped[str | None] = mapped_column(String(10))
+    notes: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    developer: Mapped[str | None] = mapped_column(String(300))
+    release_date: Mapped[str | None] = mapped_column(String(10))
+    platforms: Mapped[list[str]] = mapped_column(JSON, default=list)
+    source_tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    nsfw: Mapped[bool] = mapped_column(default=False)
+    cover_url: Mapped[str | None] = mapped_column(String(1000))
+    has_cover: Mapped[bool] = mapped_column(default=False)
+    sources: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    characters: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    links: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    overrides: Mapped[list[str]] = mapped_column(JSON, default=list)
+    pinned: Mapped[bool] = mapped_column(default=False)
+    work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
+    tags: Mapped[list[Tag]] = relationship(secondary=galgame_tags, lazy="selectin")

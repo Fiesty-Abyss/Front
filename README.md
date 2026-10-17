@@ -9,13 +9,13 @@
 画作、AI 出图、绘画素材、小说、galgame CG、世界观与角色关系网、SD 模型与提示词、AI 角色卡与对话，全部放进一个属于自己的数据库。
 
 [![CI](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.4.0-8b7cf6)
+![version](https://img.shields.io/badge/version-0.5.0-8b7cf6)
 ![license](https://img.shields.io/badge/license-MIT-f472b6)
 ![stack](https://img.shields.io/badge/FastAPI%20%2B%20SQLite%20%2B%20Vue%203-1f2340)
 
 </div>
 
-> Front 是一个长期持续开发的项目，当前为 **v0.4.0**（第四轮）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+> Front 是一个长期持续开发的项目，当前为 **v0.5.0**（第五轮）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ## 能做什么
 
@@ -37,14 +37,19 @@
 | ✎ **提示词库** | 正向/反向提示词、参数 JSON、标签；**同一提示词 × 不同模型**并排风格对比，**不同的参数高亮**，还有逐张的**参数差异表**和与基准提示词相比**增 / 删的词**；从 AI 图存入时，提示词相同会自动归到同一组，并按模型名或模型哈希（AutoV1 / AutoV2）匹配已登记的模型 |
 | ❏ **提示词片段** | 按质量 / 画风 / 角色 / 服装 / 动作 / 构图 / 背景 / 光影 / 负面分类收藏常用片段；**组合器**里点选拼接、调权重 `(片段:1.2)`、调顺序、自动去重，可存为提示词或一键带去出图 |
 | ⬡ **SD 模型库** | **扫描模型目录**（WebUI / Forge / ComfyUI 的 `models` 文件夹，按子文件夹判断类型），预览后批量登记；计算 **SHA256 / AutoV1 / AutoV2 / AutoV3**（后台任务）、读取 `.safetensors` 元数据判断底模、导入同名预览图、读取 `.civitai.info` / `.json` 说明；**可选 Civitai 匹配**：按哈希查出模型名、版本、触发词、底模与预览图。**模型文件留在你的硬盘上，不复制、不上传** |
-| ▤ **角色卡编辑器** | 在线编辑 AI 角色扮演角色卡，导入/导出 **SillyTavern / TavernAI Character Card V2**（JSON 与 PNG 卡，兼容导入 V1、V3）；可从百科角色一键生成 |
-| ✉ **AI 对话** | 用角色卡进行带上下文的角色扮演对话，会话持久保存；接入任意 OpenAI 兼容接口 |
-| 🔍 **全文检索** | SQLite FTS5（trigram），中文/日文子串可搜：角色设定、世界观正文、小说、提示词全部即时可搜 |
+| ▤ **角色卡编辑器** | 在线编辑 AI 角色扮演角色卡，导入/导出 **SillyTavern / TavernAI Character Card V2**（JSON 与 PNG 卡，兼容导入 V1、V3），**内嵌世界书 `character_book` 一并导入导出**；可从百科角色一键生成 |
+| ✉ **AI 对话** | **流式输出**（逐字显示，可随时停止）；**重新生成**与**分支**：每条回复可 ‹ 1/3 › 左右切换，修改自己的话可以直接改或另开分支，开场白与备选开场白也是可切换的分支；可编辑 / 删除消息、查看本次实际发给 AI 的上下文和命中的世界书条目 |
+| ❧ **世界书 / Lorebook** | 兼容 SillyTavern 世界书与 Character Card V2 `character_book`：关键词（支持 `/正则/`）、次关键词（AND）、常驻、递归激活、扫描深度、token 预算、插入位置；**命中测试**输入一段话实时看哪些条目会被触发；可从世界观百科一键生成，导入 JSON / PNG 卡，导出 V2 或 SillyTavern 格式；对话时自动启用角色卡、所属世界观的世界书，也可按会话额外挂载 |
+| ⌕ **从小说抽取角色** | 选素材库里的小说（或粘贴文本），按章节分段交给 AI，汇总出角色、别名、性别、简介、特征与角色关系；结果与已有角色自动对照，可在表格里逐条修改、勾选后写入角色百科，关系以“AI 待确认”写入关系网 |
+| ≈ **语义检索** | 关键词 / 语义 / 混合（RRF 融合）三种检索方式，还能“找相似”；默认用离线的本地 n-gram 向量（无需任何服务，但只是近似），在设置里换成嵌入模型（如 Ollama `bge-m3`）才是真正的语义检索；后台增量建索引 |
+| 🏷 **自动打标签（可选）** | 接 SD WebUI 的 WD14 Tagger 扩展或任意视觉模型识别图片，结果**按标签名和别名对到你已有的标签**（给标签加上 danbooru 风格的别名即可），单张点选加入，或后台批量给没有标签的图片打上高置信度标签 |
+| ⚙ **设置页** | 在网页里管理多个 AI 服务（Ollama / LM Studio / OpenAI / DeepSeek / OpenRouter 预设，或任意 OpenAI 兼容接口），读取模型列表、测试连接；分别指定对话、嵌入、视觉用哪个服务。API Key 只存在本机数据库里，接口只返回打码后的提示 |
+| 🔍 **全文检索** | SQLite FTS5（trigram），中文/日文子串可搜：角色设定、世界观正文、小说、提示词、世界书条目全部即时可搜 |
 | ⚙ **完整增删改查** | 所有数据都有 REST API（`/docs` 自带交互式文档），前端实时增删改查 |
 
 ## 界面截图
 
-> 以下截图均为真实运行的 Front v0.4.0（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。
+> 以下截图均为真实运行的 Front v0.5.0（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。AI 相关截图（对话、抽取角色、语义检索、自动打标签）连接的是仓库自带的**模拟 AI 服务**（`front_api.mock_ai`），回复以“【模拟回复】”开头、由模板拼出，**不是真实大模型的输出**，只用来演示界面和完整流程。
 
 | 总览 | 素材库 |
 | --- | --- |
@@ -71,10 +76,18 @@
 | ![阅读模式 羊皮纸](docs/screenshots/reader-paper.png) | ![ComfyUI](docs/screenshots/asset-comfyui.png) |
 | **SD WebUI 出图参数** | **提示词替换 XY：night / dawn / sunset** |
 | ![出图参数](docs/screenshots/asset-ai-params.png) | ![提示词替换](docs/screenshots/prompts-xy-sr.png) |
-| **角色卡编辑器** | **AI 对话（未配置 AI 时的提示）** |
+| **角色卡编辑器（含角色世界书）** | **AI 对话：分支切换 ‹ 2/2 ›、命中的世界书** |
 | ![角色卡](docs/screenshots/cards.png) | ![AI 对话](docs/screenshots/chat.png) |
-| **全文搜索（含百科条目）** | **SD 模型库：哈希 / Civitai 标记 / 预览图** |
-| ![搜索](docs/screenshots/search.png) | ![SD 模型库](docs/screenshots/models.png) |
+| **AI 对话：流式输出中（可停止）** | **AI 对话：查看实际发送的上下文** |
+| ![流式输出](docs/screenshots/chat-streaming.png) | ![上下文](docs/screenshots/chat-context.png) |
+| **世界书：条目编辑与命中测试** | **从小说抽取角色：与已有角色对照** |
+| ![世界书](docs/screenshots/lorebooks.png) | ![抽取角色](docs/screenshots/extract.png) |
+| **混合检索（关键词 + 语义）** | **设置：AI 服务、语义检索、自动打标签** |
+| ![语义检索](docs/screenshots/search-semantic.png) | ![设置](docs/screenshots/settings.png) |
+| **AI 识别标签：英文标签按别名对到已有标签** | **全文搜索（含百科条目）** |
+| ![自动打标签](docs/screenshots/asset-autotag.png) | ![搜索](docs/screenshots/search.png) |
+| **SD 模型库：哈希 / Civitai 标记 / 预览图** | |
+| ![SD 模型库](docs/screenshots/models.png) | |
 | **扫描模型目录：预览后批量登记** | **模型详情：哈希与 Civitai 信息** |
 | ![扫描模型目录](docs/screenshots/models-scan.png) | ![模型详情](docs/screenshots/model-detail.png) |
 | **提示词片段与组合器** | **出图：多模型 × 采样器 XY，自动入库** |
@@ -127,7 +140,7 @@ API 交互式文档：<http://127.0.0.1:8000/docs>
 | --- | --- | --- |
 | `FRONT_DATA_DIR` | `~/.front-data` | 数据目录：数据库 `front.db`、上传文件 `media/`、缩略图 `thumbs/`。**在仓库之外**，备份这一个文件夹即可 |
 | `FRONT_MAX_UPLOAD_MB` | `200` | 单个文件上传 / 导入上限 |
-| `FRONT_AI_BASE_URL` | — | OpenAI 兼容接口地址，例如 `https://api.deepseek.com/v1`、`http://127.0.0.1:11434/v1`（Ollama）、`http://127.0.0.1:1234/v1`（LM Studio） |
+| `FRONT_AI_BASE_URL` | — | （也可以直接在网页“设置”里配置，设置页优先）OpenAI 兼容接口地址，例如 `https://api.deepseek.com/v1`、`http://127.0.0.1:11434/v1`（Ollama）、`http://127.0.0.1:1234/v1`（LM Studio） |
 | `FRONT_AI_MODEL` | — | 模型名，例如 `deepseek-chat`、`qwen2.5:14b` |
 | `FRONT_AI_API_KEY` | — | 需要鉴权时填写 |
 | `FRONT_SD_WEBUI_URL` | — | SD WebUI / Forge 地址（启动时需加 `--api`），例如 `http://127.0.0.1:7860` |
@@ -145,7 +158,9 @@ $env:FRONT_AI_MODEL = "qwen2.5:14b"
 python -m front_api
 ```
 
-未配置 AI 时，其余功能完全可用；AI 对话与关系识别会提示如何配置。未配置 SD 后端时，出图页会显示如何配置，其余功能不受影响。
+AI 服务更推荐在网页左侧 **系统 › 设置** 里添加：选预设（Ollama、LM Studio、OpenAI、DeepSeek、OpenRouter）、填地址和 Key、点“读取模型列表”“测试连接”，再分别选对话、嵌入、视觉用哪个服务。设置页里的配置优先于环境变量。
+
+未配置 AI 时，其余功能完全可用；AI 对话、抽取角色与关系识别会提示如何配置，语义检索自动使用离线的本地向量。未配置 SD 后端时，出图页会显示如何配置，其余功能不受影响。
 
 ### 没有显卡也想试试出图流程
 
@@ -157,6 +172,16 @@ python -m front_api.mock_sd --port 7861
 FRONT_SD_WEBUI_URL=http://127.0.0.1:7861 FRONT_COMFYUI_URL=http://127.0.0.1:7861 python -m front_api
 ```
 
+### 没有大模型也想试试 AI 流程
+
+同样有一个**模拟 AI 服务**（OpenAI 兼容：`/v1/models`、`/v1/chat/completions`（含流式）、`/v1/embeddings`，以及视觉识别），回复以“【模拟回复】”开头、由模板拼出，抽取角色用的是简单的规则，**不是真实大模型**，只用于体验界面和完整流程：
+
+```bash
+python -m front_api.mock_ai --port 7862
+```
+
+然后在 设置 › 添加服务 › 自定义，地址填 `http://127.0.0.1:7862/v1`，模型填 `mock-chat`（嵌入 `mock-embed`、视觉 `mock-vision`）。示例数据里已经带了这条配置，只需在“对话 · 抽取角色”里选中它。
+
 ## 升级
 
 直接 `git pull`，重新 `pip install -e "backend[dev]"`、`npm run build` 后启动即可。数据库会在启动时自动补齐新版本增加的字段，已有数据不受影响（升级前建议备份数据目录）。
@@ -167,13 +192,14 @@ FRONT_SD_WEBUI_URL=http://127.0.0.1:7861 FRONT_COMFYUI_URL=http://127.0.0.1:7861
 - Front 默认只监听 `127.0.0.1`。批量导入、模型目录扫描与模型信息读取会访问本机路径，请不要把服务直接暴露到公网。
 - 数据库、图片、小说、CG 都在 `FRONT_DATA_DIR` 里，不在仓库目录中。
 - SD 模型只登记路径、哈希与元数据，模型文件本身不会被复制或上传；扫描时不能选 Front 自己的数据目录。
+- AI 服务的 API Key 只保存在本机数据目录的数据库里（明文，与其余数据同等对待），接口永远只返回 `sk-…abcd` 这样的打码提示；对话、抽取角色、打标签只会把内容发给**你自己配置的** AI 服务。
 - Civitai 只在你手动点“匹配 Civitai”时访问 `civitai.com`，只发送模型哈希；预览图只从 Civitai 官方图床下载。`FRONT_CIVITAI=off` 可彻底关闭。
 - `.gitignore` 屏蔽了 `*.safetensors`、`*.ckpt`、`*.db`、压缩包、绘画工程文件等；测试 [`test_repo_guard.py`](backend/tests/test_repo_guard.py) 会在 CI 中检查，任何模型、数据库或 `docs/screenshots/` 以外的图片被提交都会直接失败。
 - Front 是**个人自托管**工具。你收藏的他人作品（游戏 CG、插画等）版权归原作者所有，请只用于个人收藏与学习，不要通过 Front 再分发。本仓库不包含任何第三方受版权保护的素材。
 
 ## 文档
 
-- [架构说明](docs/ARCHITECTURE.md)：技术栈、数据模型、API 一览、AI 接口层
+- [架构说明](docs/ARCHITECTURE.md)：技术栈、数据模型、API 一览、AI 接口层、世界书匹配规则
 - [路线图](docs/ROADMAP.md)：后续每一轮的开发计划
 - [更新日志](CHANGELOG.md)
 

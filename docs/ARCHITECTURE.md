@@ -42,7 +42,12 @@
 | `prompt_snippets` | 提示词片段 | `category`（quality / style / character / clothing / pose / composition / background / lighting / negative / other）、`positive`、`negative`、`position`，多对多 `prompt_snippet_tags` |
 | `generations` | 出图记录 | `prompt_id` × `model_id` → `asset_id`、`params`；`batch`（同一次出图任务）、`xy`（该格在 X / Y 轴上的取值） |
 | `character_cards` | AI 角色卡 | 与 Character Card V2 的 `data` 字段一一对应 |
-| `chat_sessions` / `chat_messages` | 角色扮演对话 | 会话绑定角色卡，消息按顺序保存 |
+| `character_cards` 补充 | | `lorebook_id`：角色卡自带的世界书 |
+| `chat_sessions` / `chat_messages` | 角色扮演对话（消息树） | 消息 `parent_id` 组成树，同一父消息下的多条即“分支”；会话 `head_id` 指向当前显示的末尾，`lorebook_ids` 为额外挂载的世界书；消息 `meta` 记录模型、命中的世界书条目、是否被停止 |
+| `lorebooks` / `lore_entries` | 世界书 | 书：`world_id`、`scan_depth`、`token_budget`、`recursive`；条目：`keys`、`secondary_keys`、`selective`、`constant`、`enabled`、`case_sensitive`、`insertion_order`、`priority`、`position`、`extensions`（导入的未用字段原样保留） |
+| `ai_providers` | AI 服务 | `kind`、`base_url`、`api_key`（仅本机）、`chat_model` / `embedding_model` / `vision_model`、`temperature`、`max_tokens`、`timeout` |
+| `app_settings` | 键值设置 | `chat_provider_id`、`embedding_backend`、`embedding_provider_id`、`tagger_backend`、`vision_provider_id`、`tagger_threshold`、`tagger_model`、`user_name` |
+| `embeddings` | 向量 | `entity` × `entity_id` × `model` 唯一；`vector`（float32 二进制）、`dim`、`text_hash`（内容未变就不重算） |
 | `search_index` | FTS5 虚拟表 | `entity`、`entity_id`、`title`、`body` |
 
 标签通过 `*_tags` 关联表挂在素材、角色、世界观、作品、提示词、模型上。删除角色会级联删除其关系、出场登记、图集与条目关联；删除世界观会级联删除其百科条目；删除作品/世界观只会把引用置空。
@@ -97,8 +102,18 @@ DELETE /api/<资源>/{id}
 | `POST /api/cards/import` | 导入 JSON / PNG 角色卡 |
 | `GET /api/cards/{id}/export.json`、`export.png` | 导出 V2 角色卡 |
 | `POST /api/cards/from-character/{id}` | 从百科角色生成角色卡 |
-| `GET /api/ai/status` | AI 服务状态 |
-| `/api/ai/sessions[...]` | 对话会话增删查、发送消息 |
+| `GET /api/ai/status` | AI 服务状态（来源：设置页 / 环境变量 / 未配置） |
+| `/api/ai/providers[...]`、`/{id}/models`、`/{id}/test` | AI 服务增删改查（Key 打码）、读取模型列表、测试连接 |
+| `GET/PATCH /api/settings` | 用途选择与其他设置 |
+| `/api/ai/sessions[...]` | 对话会话增删改查；`/select` 切换分支、`/context` 查看实际上下文 |
+| `POST /api/ai/sessions/{id}/generate` | 发送 / 重新生成 / 编辑后生成（`stream: true` 时为 SSE） |
+| `POST /api/ai/generations/{token}/stop` | 停止正在生成的回复 |
+| `PATCH/DELETE /api/ai/messages/{id}` | 编辑消息、删除消息及其后续分支 |
+| `/api/lorebooks[...]`、`/api/lore-entries/{id}` | 世界书与条目；`/test` 命中测试、`/import`、`/{id}/export?format=v2\|st`、`/from-world/{id}` |
+| `POST /api/ai/extract/characters`、`/apply` | 从小说抽取角色（后台任务）、写入角色百科 |
+| `GET /api/search/semantic?q=&mode=semantic\|hybrid`、`/api/search/similar` | 语义 / 混合检索、找相似 |
+| `GET /api/search/semantic/status`、`POST /api/search/semantic/index` | 向量索引状态、后台增量索引 |
+| `GET /api/ai/tagger/status`、`/assets/{id}`、`POST /api/ai/tagger/run` | 自动打标签状态、单张建议、批量打标签（后台任务） |
 | `POST /api/ai/worlds/{id}/suggest-relations` | AI 识别世界观中的角色关系 |
 | `GET /api/search?q=&entity=` | 全局全文检索 |
 | `POST /api/search/rebuild` | 重建索引 |
@@ -130,7 +145,7 @@ DELETE /api/<资源>/{id}
 
 ## 全文检索
 
-`search_index` 使用 FTS5 的 `trigram` 分词器，中文、日文不需要额外分词即可按子串搜索。SQLAlchemy 的 `after_flush` 事件在每次写入时同步索引，所以新增、修改、删除即时生效。trigram 至少需要 3 个字符，更短的查询（如“诗梦”）自动退回 `LIKE` 子串匹配。
+`search_index` 使用 FTS5 的 `trigram` 分词器，中文、日文不需要额外分词即可按子串搜索。SQLAlchemy 的 `after_flush` 事件在每次写入时同步索引（含世界书条目），所以新增、修改、删除即时生效。trigram 至少需要 3 个字符，更短的查询（如“诗梦”）自动退回 `LIKE` 子串匹配。
 
 ## AI 接口层
 
@@ -138,12 +153,26 @@ DELETE /api/<资源>/{id}
 class AIProvider(Protocol):
     name: str
     def available(self) -> bool: ...
-    def chat(self, messages, *, temperature=0.8, max_tokens=None) -> str: ...
+    def chat(self, messages, *, temperature=None, max_tokens=None) -> str: ...
+    def stream(self, messages, ...) -> Iterator[str]: ...   # SSE 增量，接口不支持流式时退回整段
+    def list_models(self) -> list[str]: ...
+    def embed(self, texts) -> list[list[float]]: ...
+    def vision(self, prompt, image_png) -> str: ...
 ```
 
-- `OpenAICompatibleProvider`：调用 `{FRONT_AI_BASE_URL}/chat/completions`。
-- `NullProvider`：未配置时使用，相关接口返回 503 和配置提示。
+- `OpenAICompatibleProvider`：`/chat/completions`（含 `stream`）、`/models`、`/embeddings`，视觉以 data URL 的 `image_url` 发送；底层 `httpx.Client` 可注入 transport（测试与示例数据用）。
+- `ai/registry.py`：先看设置页（`app_settings` + `ai_providers`），再看 `FRONT_AI_*` 环境变量，都没有则为 `NullProvider`（相关接口返回 503 和配置提示）。
 - 路由通过 FastAPI 依赖 `provider_dep` 获取 Provider，测试中用假 Provider 替换。
+
+**对话树**：生成时取 `head_id` 到根的路径作为历史；重新生成 = 以被重新生成回复的父消息为父再生成一条；“另开分支” = 新建一条与原消息同父的用户消息；切换分支时 `head_id` 移到该分支最深处（每层取最新）。流式生成在后台线程里进行，每段增量以 SSE 推给前端，结束后用独立会话写库；停止令牌是一个 `threading.Event`。
+
+**世界书**（`ai/lore.py`）：扫描最近 `scan_depth` 条消息；主关键词任意命中即激活（英文 / 数字关键词按整词匹配，`/正则/flags` 按正则）；`selective` 还要求次关键词命中；`constant` 常驻；`recursive` 时已激活条目的内容参与下一轮扫描（最多 3 轮）；超出 `token_budget`（中日韩字符记 1，其余约 4 字符记 1）时按 常驻 > 优先级 > 插入顺序 取舍。激活结果按 `position` 放在角色设定之前（【世界书】）或示例对话之后（【世界书（补充）】）。
+
+**抽取角色**（`ai/extract.py`）：按章节切成不超过 `chunk_size` 的段（保留章节标题），每段要求模型只输出 JSON；按名字 / 别名合并、累计出现次数，再与世界观中已有角色对照。写入时角色关系为 `ai_suggested=True, confirmed=False`。
+
+**语义检索**（`ai/embed.py`）：每个可检索条目取标题 + 正文前 2000 字生成向量。本地后端 `local:ngram-512` 把中日韩单字 + 双字、英文单词 + 4-gram 哈希到 512 维的 L2 归一化向量，完全离线但只是近似“语义”；嵌入模型后端调用 `/embeddings`。余弦相似度用纯 Python 计算（个人库规模足够）；混合检索把全文检索与语义检索结果用 RRF（k=60）融合。
+
+**自动打标签**（`ai/tagger.py`）：WebUI 后端调用 WD14 Tagger 扩展；视觉后端把缩小到 768px 的 PNG 和候选标签交给视觉模型并要求输出 JSON。识别出的标签名统一（下划线转空格、忽略大小写）后按标签名和别名对到已有标签，对不上的只显示、不自动创建。
 
 **角色扮演**：`build_roleplay_messages` 把角色卡的 system_prompt、description、personality、scenario、mes_example 组装成 system 消息，替换 `{{char}}` / `{{user}}`，附上最近 40 条历史，最后追加 `post_history_instructions`。
 
@@ -171,9 +200,10 @@ backend/
     sdparams.py    出图参数归一化与差异
     jobs.py        后台任务
     mock_sd.py     模拟 SD 后端（测试 / 演示）
+    mock_ai.py     模拟 OpenAI 兼容 AI 服务（测试 / 演示）
     seed.py        【示例】数据
-    ai/            Provider 与提示词构建
-    routers/       library assets importer collections characters sd sdtools cards ai system
+    ai/            provider registry prompts lore extract embed tagger
+    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools system
   tests/
 frontend/
   src/views/       每个页面一个组件

@@ -8,7 +8,7 @@ const hits = ref([])
 const NAMES = {
   asset: ['素材', () => '/assets'], character: ['角色', (id) => `/characters/${id}`], world: ['世界观', (id) => `/worlds?id=${id}`],
   world_entry: ['百科条目', (id) => `/worlds?entry=${id}`], work: ['作品', (id) => `/works?id=${id}`], prompt: ['提示词', (id) => `/prompts?id=${id}`],
-  sd_model: ['SD 模型', () => '/models'], card: ['角色卡', (id) => `/cards?id=${id}`], collection: ['收藏集', (id) => `/collections?id=${id}`],
+  sd_model: ['SD 模型', () => '/models'], snippet: ['提示词片段', () => '/snippets'], card: ['角色卡', (id) => `/cards?id=${id}`], collection: ['收藏集', (id) => `/collections?id=${id}`],
 }
 watchEffect(async () => { hits.value = route.query.q ? await api.get('/api/search', { q: route.query.q }) : [] })
 </script>

@@ -29,6 +29,8 @@
 | `works` | 作品（动漫、游戏、galgame、小说、原创企划） | `kind`、`year`、`publisher` |
 | `worlds` | 世界观 | `summary`、`content`（Markdown，AI 关系识别的语料） |
 | `assets` | 素材 | `kind`（drawing / ai_image / material / novel / cg / reference / other，v0.6.1 起加 model3d / live2d / audio / video / pdf / document / archive / code）、`work_date`、`file_path`、`sha256`、`meta`（SD 参数；`meta.file` 为文件识别结果）、`content`（小说正文或识别出的文字）、`work_id`、`world_id` |
+| `galgames` | galgame 游戏库 | `title`、`title_cn`、`original`、`aliases`、`status`（unplayed / wishlist / playing / finished / shelved / dropped）、`my_rating`、`play_minutes`、`started_on`、`finished_on`、`notes`、元数据字段（`description`、`developer`、`release_date`、`platforms`、`source_tags`、`nsfw`、`cover_url`、`characters`、`links`）、`sources`（`{bangumi|vndb|ymgal: {id, url, score, rank, votes, length_minutes, fetched_at}}`）、`overrides`（用户改过、刷新时保留的字段）、`work_id`；本地封面 `thumbs/galgame-<id>.webp`；标签表 `galgame_tags` |
+| `galgame_plays` | 手动游玩记录 | `galgame_id`、`played_on`、`minutes`、`note`；增删时同步 `galgames.play_minutes` |
 | `diagrams` | 图表画布 | `title`、`kind`（flowchart / workflow / mindmap / other）、`description`、`data`（`{nodes, edges, viewport}`，与 Vue Flow 结构一致）、`pinned`、`work_id`、`world_id`；标签表 `diagram_tags`；缩略图存在 `thumbs/diagram-<id>.webp` |
 | `notes` | 笔记本页面 | `title`、`icon`、`content`（Markdown）、`pinned`、`position`、`parent_id`（层级，删除时级联删除子页面）、`work_id`、`world_id`、`cover_asset_id`；标签表 `note_tags` |
 | `collections` | 收藏集 | 与 `assets` 多对多，可挂 `work_id` |
@@ -93,6 +95,11 @@ DELETE /api/<资源>/{id}
 | `POST /api/notes/{id}/move` | 移动到新的上级 / 位置（拒绝移到自己的子页面下） |
 | `/api/diagrams`（CRUD，`?kind=`）、`GET /api/diagrams/templates` | 图表画布；内置模板。保存时校验：节点 id 唯一、连线两端存在、链接只能是站内页面或 http(s)，最多 5000 节点 / 10000 连线 / 8 MB |
 | `GET /api/diagrams/{id}/export`、`POST /api/diagrams/import` | 导出 / 导入图表 JSON（`format: front-diagram`，也接受 Vue Flow `toObject()`） |
+| `/api/galgames`（CRUD，`?status= &source= &developer= &nsfw= &sort=`）、`GET /stats/summary`、`POST /bulk`、`GET /export/file` | 游戏库；统计；批量改状态 / 删除；导出 JSON / CSV |
+| `GET|PUT /api/galgames/meta/settings`、`GET /meta/search`、`POST /meta/preview` | 元数据设置（模式、来源顺序、启用、Bangumi 令牌只写不读）；三来源搜索（每个来源各自的结果 / 错误 / 耗时）；混合补全预览 |
+| `POST /api/galgames/from-meta`、`POST /quick-add`、`POST /{id}/refresh`、`POST /{id}/match`、`DELETE /{id}/sources/{s}` | 按选中的来源添加（可新建作品、保存封面、导入角色）；批量添加用的单条匹配；刷新（保留 overrides）；手动关联来源；解除关联 |
+| `GET|POST|PUT|DELETE /api/galgames/{id}/cover`、`POST /{id}/work`、`POST /{id}/import-characters`、`GET /{id}/cg` | 封面（下载 / 上传 / 删除，只接受来源图床）；新建作品；角色导入百科；关联作品的 CG 概览 |
+| `GET|POST /api/galgames/{id}/plays`、`DELETE /plays/{pid}`、`GET /plays/summary` | 游玩记录；今天 / 本周 / 本月与每日时长 |
 | `POST /api/diagrams/{id}/duplicate`、`PUT|GET|DELETE /api/diagrams/{id}/preview` | 复制图表；前端渲染的缩略图 |
 | `GET /api/notes/{id}/refs` | 这页引用的素材与反向链接（从正文里的 `/assets?open=ID`、`/notes/ID` 链接解析） |
 | `GET /api/graph?world_id=&kinds=&include_unconfirmed=` | 关系网节点与边、关系类型统计、已保存的布局与配色 |
@@ -142,6 +149,10 @@ DELETE /api/<资源>/{id}
 ## galgame CG 分组（`cg.py`）
 
 按顺序尝试：显式差分标记（`ev01_diff2`、`ev01差分2`）→ 数字后接字母（`ev01a`）→ 带数字前缀 + 分隔符 + 数字（`ev01_02`）→ 末尾 4 位以上数字且有兄弟文件（`ev0101`/`ev0102`）。同组还要求分辨率相同，同名不同分辨率的组以 `@1920x1080` 区分。分组结果写入 `asset.meta["cg"]`（group / variant / 顺序），档案与鉴赏模式按它展示。
+
+## galgame 元数据（`galgame/`）
+
+`sources.py` 是三个来源的客户端：Bangumi `POST /v0/search/subjects`（type 4）+ `GET /v0/subjects/{id}` + `/characters`（带 User-Agent，可选个人令牌）；VNDB Kana `POST /vn`、`POST /character`（JSON 过滤器，不需要令牌）；月幕 `GET /oauth/token`（client_credentials，令牌缓存 1 小时，401 时重新获取一次）+ `GET /open/archive/search-game`、`GET /open/archive`（`version: 1` 头）。三者都整理成同一种“候选 / 详情”结构。`meta.py` 负责混合模式：并行搜索、按名称相似度（NFKC 规范化 + 子串 + SequenceMatcher）与发售年份自动匹配其他来源、按来源顺序合并字段。HTTP 客户端可替换（测试与示例数据用 `mock_galgame`）。
 
 ## 小说章节（`chapters.py`）
 
@@ -222,7 +233,7 @@ backend/
     diagram_templates.py  图表画布内置模板（也用作示例数据）
     filetypes/     文件识别：model3d live2d audio video docs archive code
     ai/            provider registry prompts lore extract embed tagger
-    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools quicksearch notes diagrams system
+    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools quicksearch notes diagrams galgames system
   tests/
 frontend/
   src/views/       每个页面一个组件

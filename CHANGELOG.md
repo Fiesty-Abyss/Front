@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.6.3 · 2026-10-17
+
+第六轮（第四部分）：galgame 游戏库。
+
+- **游戏库** `/galgames`：从 **Bangumi**（`api.bgm.tv` v0）、**VNDB**（Kana API）、**月幕 Galgame**（开放 API，OAuth 客户端凭证）搜索并添加游戏
+- **混合模式**（默认）：三个来源同时搜索；选中一条后用原名 / 标题在其余来源里自动找同一部作品（名称相似度 ≥ 0.8、发售年份不冲突），按来源顺序合并字段（简介优先中文），别名、标签、平台、链接取并集，各来源的评分 / 排名 / 票数 / 时长分别保留；某个来源出错、超时、限流都不影响其他来源，错误显示在界面上。**单一来源模式**：出错或没结果时按顺序回退。设置里可调整模式、来源顺序、启用的来源、Bangumi 令牌（可选，用于 R18 条目）、是否拉取角色、是否模糊 R18 封面
+- 游玩记录：六种状态（未游玩 / 想玩 / 在玩 / 玩过 / 搁置 / 弃坑）、1–10 评分、游玩时长、开始 / 通关日期、Markdown 游玩笔记；**手动记每一次游玩**（日期、时长、备注），详情页有近 8 周柱状图与时间线，游戏库顶部有“继续游玩”横幅（滚轮切换）、今天 / 本周 / 本月时长与 17 周游玩日历
+- **手动修改优先**：改过的元数据字段记在 `overrides`，刷新元数据时保留，可一键恢复为来源数据；可单独刷新、解除或重新匹配某个来源
+- 一键**新建作品**（类型 galgame），作品下的 **CG 档案**直接在游戏详情里浏览（鉴赏模式）；来源里的角色（名字、原名、配音、链接）可导入角色百科并记为出场作品
+- 游戏库：网格 / 列表视图、按状态 / 来源 / 品牌筛选、六种排序、标题 / 原名 / 别名 / 品牌 / 笔记全文检索、多选批量改状态 / 置顶 / 删除、随机挑一款、**批量添加**（逐个按相似度匹配，或一键用第一条结果；匹配不上的先建标题）、手动添加、导出 JSON / CSV、R18 封面默认模糊（可临时显示）
+- **分享足迹**：把玩过的作品排成一张图（排序、逐款隐藏或遮盖封面），在本机生成 PNG 或复制到剪贴板，不上传
+- 封面只在添加时勾选“保存封面”或手动点“保存封面”时下载，只接受三家来源的图床地址，转成 webp 存在 `thumbs/galgame-<id>.webp`；也可以上传自己的封面
+- 接口：`/api/galgames`（CRUD，`?status= &source= &developer= &nsfw= &sort=`）、`GET|PUT /api/galgames/meta/settings`、`GET /api/galgames/meta/search`、`POST /api/galgames/meta/preview`、`POST /api/galgames/from-meta`、`POST /api/galgames/quick-add`、`POST /{id}/refresh`、`POST /{id}/match`、`DELETE /{id}/sources/{source}`、`GET|POST|PUT|DELETE /{id}/cover`、`POST /{id}/work`、`POST /{id}/import-characters`、`GET /{id}/cg`、`GET|POST /{id}/plays`、`DELETE /plays/{pid}`、`GET /plays/summary`、`GET /stats/summary`、`POST /bulk`、`GET /export/file?format=json|csv`
+- 模拟元数据接口 `python -m front_api.mock_galgame`（虚构的【示例】游戏，按三家真实接口格式返回），测试与示例截图都不联网；`FRONT_GALGAME=off` 可完全关闭联网
+- 设计参考 ReinaManager（AGPL-3.0）与恋页 KoiPage（未指定许可证）的功能思路，未使用其代码；KoiPage 使用的 NextMoe 接口需要以资源站名义署名，因此没有接入
+- **修复**：v0.6.0 起的页面切换动画（`mode="out-in"` + 同步结束的离场钩子）会让站内跳转后的新页面不渲染（页面空白，控制台报 `Cannot read properties of null (reading 'parentNode')`）；之前的截图都是逐页直接打开，没有暴露这个问题
+- 测试 117 → 129 项
+
 ## v0.6.2 · 2026-10-17
 
 第六轮（第三部分）：图表画布。

@@ -37,9 +37,10 @@
 | `character_assets` | 角色图集 | `position` 排序 |
 | `graph_layouts` | 关系网布局 | `scope`（`world:<id>` / `all`）、`positions`、`kind_colors` |
 | `relations` | 关系网的边 | `source_id`、`target_id`、`kind`、`bidirectional`、`ai_suggested`、`confirmed` |
-| `sd_models` | SD 模型登记 | `kind`、`base_model`、`local_path`、`sha256`、`trigger_words` |
+| `sd_models` | SD 模型登记 | `kind`、`base_model`、`local_path`、`sha256`、`hashes`（SHA256 / AutoV1 / AutoV2 / AutoV3）、`civitai`（匹配结果摘要）、`trigger_words` |
 | `prompts` | 提示词 | `positive`、`negative`、`params`（JSON） |
-| `generations` | 出图记录 | `prompt_id` × `model_id` → `asset_id`，用于风格对比 |
+| `prompt_snippets` | 提示词片段 | `category`（quality / style / character / clothing / pose / composition / background / lighting / negative / other）、`positive`、`negative`、`position`，多对多 `prompt_snippet_tags` |
+| `generations` | 出图记录 | `prompt_id` × `model_id` → `asset_id`、`params`；`batch`（同一次出图任务）、`xy`（该格在 X / Y 轴上的取值） |
 | `character_cards` | AI 角色卡 | 与 Character Card V2 的 `data` 字段一一对应 |
 | `chat_sessions` / `chat_messages` | 角色扮演对话 | 会话绑定角色卡，消息按顺序保存 |
 | `search_index` | FTS5 虚拟表 | `entity`、`entity_id`、`title`、`body` |
@@ -58,7 +59,7 @@ PATCH  /api/<资源>/{id}                                   只更新传入的�
 DELETE /api/<资源>/{id}
 ```
 
-资源：`tags` `works` `worlds` `world-entries` `appearances` `assets` `collections` `characters` `relations` `sd-models` `prompts` `generations` `cards`
+资源：`tags` `works` `worlds` `world-entries` `appearances` `assets` `collections` `characters` `relations` `sd-models` `prompts` `prompt-snippets` `generations` `cards`
 
 按标签筛选（`tag=`）会同时匹配该标签的所有子标签；`/api/tags?name=` 同时匹配别名。
 
@@ -83,9 +84,16 @@ DELETE /api/<资源>/{id}
 | `PUT/POST /api/characters/{id}/gallery`、`DELETE .../gallery/{asset}` | 图集整体排序 / 追加 / 移出 |
 | `GET /api/worlds/{id}/timeline` | 事件时间线（含地点与参与角色） |
 | `GET /api/works/{id}/characters` | 作品的登场角色 |
-| `GET /api/tags/tree`、`/api/tags/usage`、`POST /api/tags/{id}/merge` | 标签树、使用次数、合并标签 |
-| `GET /api/prompts/{id}/compare` | 同一提示词按模型分组的出图 |
-| `POST /api/sd-models/inspect` | 读取本机模型文件信息（safetensors 元数据、可选 SHA256） |
+| `GET /api/tags/tree`、`/api/tags/usage`、`POST /api/tags/{id}/merge` | 标签树、使用次数（`{direct, total}`，total 含所有子标签、同一条目去重）、合并标签 |
+| `GET /api/prompts/{id}/compare` | 同一提示词按模型分组的出图；每张带归一化参数 `norm`、相对基准提示词的增删词，顶层 `diff_keys`（取值不同的参数）与 `common` |
+| `GET /api/prompts/{id}/batches`、`/xy?x=&y=&batch=` | 出图批次列表；XY 网格（批次自带的轴优先，也可按任意两个参数排） |
+| `POST /api/sd-models/inspect` | 读取本机模型文件信息（safetensors 元数据、可选哈希） |
+| `POST /api/sd-models/scan`、`/scan/run` | 扫描模型目录（只读预览）；后台登记（可算哈希、导入预览图、更新已登记项） |
+| `POST /api/sd-models/{id}/hash`、`/hash-all` | 计算 SHA256 / AutoV1 / AutoV2 / AutoV3（单个同步、全部为后台任务） |
+| `POST /api/sd-models/{id}/civitai`、`/civitai-all` | 按 SHA256 查询 Civitai，可写回名称、底模、触发词并下载预览图 |
+| `POST /api/prompt-snippets/compose` | 拼接基准提示词与片段（权重、去重） |
+| `GET /api/generate/status`、`POST /api/generate` | SD 后端状态（模型、采样器、LoRA）；提交出图任务（多模型、LoRA、XY 轴，最多 100 张） |
+| `GET /api/jobs`、`/api/jobs/{id}`、`POST /api/jobs/{id}/cancel` | 后台任务进度与取消（任务保存在内存中，重启后清空） |
 | `POST /api/cards/import` | 导入 JSON / PNG 角色卡 |
 | `GET /api/cards/{id}/export.json`、`export.png` | 导出 V2 角色卡 |
 | `POST /api/cards/from-character/{id}` | 从百科角色生成角色卡 |
@@ -106,6 +114,15 @@ DELETE /api/<资源>/{id}
 ## 小说章节（`chapters.py`）
 
 按行识别“第X章/节/回/卷”、`Chapter N`、Markdown `#` 标题、序章 / 楔子 / 尾声 / 番外等；第一个标题前的内容归为“前言”。字数：中日文按字、英文按词。
+
+## AI 绘画工作流（v0.4）
+
+- **模型扫描**（`modelscan.py`）：遍历 `.safetensors / .ckpt / .pt / .pth / .bin / .gguf`，按所在文件夹（`Stable-diffusion`、`checkpoints`、`Lora`、`loras`、`VAE`、`embeddings`、`ESRGAN`、`upscale_models`、`ControlNet` …）判断类型，读取 safetensors 头部元数据推断底模，查找同名预览图和 `.civitai.info` / `.json` 说明。哈希一次读完文件同时算出：SHA256（整个文件）、AutoV1（偏移 1 MiB 起 64 KiB 的 SHA256 前 8 位）、AutoV2（SHA256 前 10 位）、AutoV3（safetensors 去掉头部后的张量数据 SHA256）。
+- **Civitai**（`civitai.py`）：`GET /api/v1/model-versions/by-hash/<sha256>`，只取模型 / 版本名、类型、底模、触发词、链接与预览图地址；预览图只允许从 `image.civitai.com` / `imagecache.civitai.com` 下载，最大 20 MB。
+- **出图**（`sdgen.py`）：WebUI 走 `/sdapi/v1/txt2img`（`override_settings` 切换模型，LoRA 写成 `<lora:名称:权重>`），返回的 PNG 补写 A1111 格式的 `parameters`；ComfyUI 走 `/prompt` → 轮询 `/history` → `/view` 取图，内置 Checkpoint → LoRA 链 → KSampler → VAEDecode 模板，也接受用户的 API 格式工作流（`{{prompt}}` `{{negative}}` `{{seed}}` `{{steps}}` `{{cfg}}` `{{width}}` `{{height}}` `{{sampler}}` `{{scheduler}}` `{{model}}` 占位符）。每张图都走 `ingest()` 入库，因而和手动上传的 AI 图一样能被解析、检索。
+- **后台任务**（`jobs.py`）：线程 + 内存登记表，支持进度与取消；前端轮询。
+- **参数归一化**（`sdparams.py`）：把 WebUI / ComfyUI / 手填的参数名统一（`Sampler`→`sampler`、`width`+`height`→`size` …），对比视图和 XY 网格都基于它。
+- **模拟后端**（`mock_sd.py`）：实现上述 WebUI / ComfyUI 接口的子集，返回带“模拟出图”角标的占位图，用于测试、示例数据与截图。
 
 ## 数据库迁移（`migrate.py`）
 
@@ -148,13 +165,19 @@ backend/
     cg.py          CG 差分分组
     chapters.py    小说章节与字数
     migrate.py     启动时补齐新列
+    modelscan.py   模型目录扫描与哈希
+    civitai.py     Civitai 按哈希查询
+    sdgen.py       WebUI / ComfyUI 出图客户端、XY 轴
+    sdparams.py    出图参数归一化与差异
+    jobs.py        后台任务
+    mock_sd.py     模拟 SD 后端（测试 / 演示）
     seed.py        【示例】数据
     ai/            Provider 与提示词构建
-    routers/       library assets importer collections characters sd cards ai system
+    routers/       library assets importer collections characters sd sdtools cards ai system
   tests/
 frontend/
   src/views/       每个页面一个组件
-  src/components/  Modal、TagPicker、TagChips
+  src/components/  Modal、TagPicker、TagChips、TagTree、JobProgress
 docs/
   screenshots/     README 截图（仓库中唯一允许放图片的目录之一）
 ```

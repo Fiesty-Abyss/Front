@@ -11,7 +11,7 @@ from . import __version__
 from .config import Settings, get_settings
 from .db import Base, init_engine
 from .migrate import upgrade
-from .routers import ai, assets, cards, characters, collections, importer, library, sd, system
+from .routers import ai, assets, cards, characters, collections, encyclopedia, importer, library, sd, system
 from .search import ensure_fts
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -44,7 +44,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     for r in (
         system.router,
-        library.tags, library.works, library.worlds,
+        library.tag_extra, library.tags, library.works, library.worlds,
+        encyclopedia.extra, encyclopedia.entries, encyclopedia.appearances,
         collections.extra, collections.crud,
         importer.router,
         assets.files, assets.router,

@@ -22,12 +22,16 @@ class TagCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     category: str = Field(default="custom", max_length=40)
     color: str | None = None
+    aliases: list[str] = []
+    parent_id: int | None = None
 
 
 class TagUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     category: str | None = None
     color: str | None = None
+    aliases: list[str] | None = None
+    parent_id: int | None = None
 
 
 class TagRead(ORM):
@@ -35,6 +39,8 @@ class TagRead(ORM):
     name: str
     category: str
     color: str | None = None
+    aliases: list[str] = []
+    parent_id: int | None = None
 
 
 class Timestamps(ORM):
@@ -397,6 +403,77 @@ class ChatSessionRead(Timestamps):
 
 class ChatSend(BaseModel):
     content: str = Field(min_length=1)
+
+
+# ---------- v0.3 世界观条目 / 出场作品 ----------
+EntryKind = Literal["location", "organization", "event", "item", "concept"]
+
+
+class EntryCharacterIn(BaseModel):
+    character_id: int
+    role: str | None = None
+
+
+class EntryCharacterRead(ORM):
+    character_id: int
+    role: str | None = None
+
+
+class WorldEntryBase(BaseModel):
+    world_id: int
+    kind: EntryKind = "location"
+    name: str = Field(min_length=1, max_length=200)
+    summary: str | None = None
+    content: str | None = None
+    parent_id: int | None = None
+    date_label: str | None = None
+    sort_key: float | None = None
+    image_asset_id: int | None = None
+
+
+class WorldEntryCreate(WorldEntryBase):
+    tag_ids: list[int] = []
+    characters: list[EntryCharacterIn] = []
+
+
+class WorldEntryUpdate(BaseModel):
+    world_id: int | None = None
+    kind: EntryKind | None = None
+    name: str | None = None
+    summary: str | None = None
+    content: str | None = None
+    parent_id: int | None = None
+    date_label: str | None = None
+    sort_key: float | None = None
+    image_asset_id: int | None = None
+    tag_ids: list[int] | None = None
+    characters: list[EntryCharacterIn] | None = None
+
+
+class WorldEntryRead(WorldEntryBase, Timestamps):
+    id: int
+    tags: list[TagRead] = []
+    links: list[EntryCharacterRead] = []
+
+
+class AppearanceBase(BaseModel):
+    character_id: int
+    work_id: int
+    role: str | None = None
+    note: str | None = None
+
+
+class AppearanceCreate(AppearanceBase):
+    pass
+
+
+class AppearanceUpdate(BaseModel):
+    role: str | None = None
+    note: str | None = None
+
+
+class AppearanceRead(AppearanceBase, Timestamps):
+    id: int
 
 
 class Page(BaseModel):

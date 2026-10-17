@@ -12,6 +12,9 @@ COLUMNS: list[tuple[str, str, str]] = [
     ("collection_assets", "position", "INTEGER NOT NULL DEFAULT 0"),
     ("collections", "cover_asset_id", "INTEGER REFERENCES assets(id) ON DELETE SET NULL"),
     ("collections", "position", "INTEGER NOT NULL DEFAULT 0"),
+    # v0.3.0
+    ("tags", "aliases", "JSON NOT NULL DEFAULT '[]'"),
+    ("tags", "parent_id", "INTEGER REFERENCES tags(id) ON DELETE SET NULL"),
 ]
 
 

@@ -53,6 +53,7 @@ sd_model_tags = _tag_link("sd_model_tags", "sd_model")
 prompt_snippet_tags = _tag_link("prompt_snippet_tags", "prompt_snippet")
 work_tags = _tag_link("work_tags", "work")
 note_tags = _tag_link("note_tags", "note")
+diagram_tags = _tag_link("diagram_tags", "diagram")
 
 collection_assets = Table(
     "collection_assets",
@@ -488,3 +489,27 @@ class Note(TimestampMixin, Base):
     world_id: Mapped[int | None] = mapped_column(ForeignKey("worlds.id", ondelete="SET NULL"))
     cover_asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"))
     tags: Mapped[list[Tag]] = relationship(secondary=note_tags, lazy="selectin")
+
+
+class Diagram(TimestampMixin, Base):
+    """图表画布：流程图 / 节点工作流 / 关系草图。节点与连线按 Vue Flow 的结构存成 JSON。"""
+
+    __tablename__ = "diagrams"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), index=True, default="未命名图表")
+    kind: Mapped[str] = mapped_column(String(32), default="flowchart")  # flowchart / workflow / mindmap / other
+    description: Mapped[str | None] = mapped_column(Text)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # {"nodes": [...], "edges": [...], "viewport": {...}}
+    pinned: Mapped[bool] = mapped_column(default=False)
+    work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
+    world_id: Mapped[int | None] = mapped_column(ForeignKey("worlds.id", ondelete="SET NULL"))
+    tags: Mapped[list[Tag]] = relationship(secondary=diagram_tags, lazy="selectin")
+
+    @property
+    def nodes(self) -> int:
+        return len((self.data or {}).get("nodes") or [])
+
+    @property
+    def edges(self) -> int:
+        return len((self.data or {}).get("edges") or [])

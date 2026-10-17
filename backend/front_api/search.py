@@ -31,6 +31,18 @@ def _join(*parts: Any) -> str:
     return "\n".join(str(p) for p in parts if p)
 
 
+def _diagram_text(data: Any) -> str:
+    """图表里每个节点的标题与说明、每条连线的文字都可以搜到。"""
+    data = data or {}
+    parts = []
+    for n in data.get("nodes") or []:
+        d = n.get("data") or {}
+        parts += [d.get("label"), d.get("text")]
+        parts += [f.get("label") for f in d.get("fields") or [] if isinstance(f, dict)]
+    parts += [e.get("label") for e in data.get("edges") or []]
+    return " ".join(str(p) for p in parts if p)
+
+
 # 实体名 -> (标题, 正文)
 SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.Asset: ("asset", lambda o: o.title, lambda o: _join(o.description, o.content, o.source, o.original_name, _tags(o), (o.meta or {}).get("prompt"))),
@@ -44,6 +56,7 @@ SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.PromptSnippet: ("snippet", lambda o: o.title, lambda o: _join(o.positive, o.negative, o.notes, _tags(o))),
     m.LoreEntry: ("lore", lambda o: o.title or "、".join(o.keys or []), lambda o: _join(" ".join(o.keys or []), " ".join(o.secondary_keys or []), o.content)),
     m.Note: ("note", lambda o: o.title, lambda o: _join(o.content, _tags(o))),
+    m.Diagram: ("diagram", lambda o: o.title, lambda o: _join(o.description, _diagram_text(o.data), _tags(o))),
     m.WorldEntry: ("world_entry", lambda o: o.name, lambda o: _join(o.summary, o.content, o.date_label, _tags(o))),
 }
 

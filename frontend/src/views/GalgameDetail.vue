@@ -2,7 +2,7 @@
 // galgame 详情：游玩记录（状态、评分、时长、日期、笔记）、多来源元数据、角色导入、关联作品的 CG 档案
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, RefreshCw, Link2, PenLine, Trash2, Pin, PinOff, ExternalLink, ImageDown, ImageUp, ImageOff, Users, Images, Database, BookOpen, Play, UserPlus, Check, Clock, Undo2, Unlink, FolderPlus } from 'lucide-vue-next'
+import { ArrowLeft, RefreshCw, Link2, PenLine, Trash2, Pin, PinOff, ExternalLink, ImageDown, ImageUp, ImageOff, Users, Images, Database, BookOpen, Play, UserPlus, Check, Clock, Undo2, Unlink, FolderPlus, History } from 'lucide-vue-next'
 import { api, Galgames, thumb } from '../api'
 import { guard, toast } from '../toast'
 import Modal from '../components/Modal.vue'
@@ -11,6 +11,7 @@ import TagPicker from '../components/TagPicker.vue'
 import QuickSearch from '../components/QuickSearch.vue'
 import CGViewer from '../components/CGViewer.vue'
 import GalAddDialog from '../components/GalAddDialog.vue'
+import GalPlayLog from '../components/GalPlayLog.vue'
 import { STATUS, SOURCES, coverUrl, fmtMinutes, tint } from '../galgame/defs'
 
 const route = useRoute()
@@ -96,6 +97,7 @@ async function saveEdit() {
   await patch({ ...e, aliases: split(e.aliases, /\n|,|，/), platforms: split(e.platforms, /、|,|，|\//), release_date: e.release_date || null, title_cn: e.title_cn || null, original: e.original || null, developer: e.developer || null }, '已保存')
   editing.value = null
 }
+async function reloadGame() { g.value = await Galgames.get(g.value.id) }
 function matched(gal) { matching.value = false; g.value = gal; loadWork() }
 
 const inWiki = (name) => workChars.value.find((c) => c.name === name)
@@ -106,7 +108,7 @@ const cgTotal = computed(() => cg.value.reduce((n, x) => n + x.count, 0))
 const FIELD = { title: '标题', title_cn: '中文名', original: '原名', aliases: '别名', description: '简介', developer: '品牌', release_date: '发售日期', platforms: '平台', source_tags: '来源标签', nsfw: 'R18 标记' }
 const when = (s) => (s ? new Date(s).toLocaleString('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
 const hoursLong = (m) => (m ? `约 ${Math.round(m / 60)} 小时` : '')
-const TABS = computed(() => [['overview', '概览', BookOpen], ['chars', `角色 · ${g.value?.characters?.length || 0}`, Users], ['cg', `CG 档案 · ${cgTotal.value}`, Images], ['meta', '元数据来源', Database]])
+const TABS = computed(() => [['overview', '概览', BookOpen], ['plays', '游玩记录', History], ['chars', `角色 · ${g.value?.characters?.length || 0}`, Users], ['cg', `CG 档案 · ${cgTotal.value}`, Images], ['meta', '元数据来源', Database]])
 </script>
 
 <template>
@@ -157,6 +159,7 @@ const TABS = computed(() => [['overview', '概览', BookOpen], ['chars', `角色
             <button v-if="hasLinked" @click="matching = true"><Link2 :size="14" />重新匹配</button>
             <QuickSearch :q="g.title" kind="work" :alts="[g.original, g.title_cn, ...g.aliases].filter(Boolean)" />
             <button @click="edit"><PenLine :size="14" />编辑</button>
+            <button @click="tab = 'plays'"><History :size="14" />记一次游玩</button>
             <span class="spacer" />
             <button class="iconbtn" :title="g.pinned ? '取消置顶' : '置顶'" @click="patch({ pinned: !g.pinned })"><PinOff v-if="g.pinned" :size="15" /><Pin v-else :size="15" /></button>
             <button v-if="g.cover_url && !g.has_cover" class="iconbtn" title="把封面保存到本地" :disabled="busy === 'cover'" @click="saveCover"><ImageDown :size="15" /></button>
@@ -190,6 +193,8 @@ const TABS = computed(() => [['overview', '概览', BookOpen], ['chars', `角色
         <RouterLink v-if="g.work_id" :to="`/works?id=${g.work_id}`" class="small">在“作品 / CG”里打开关联作品 →</RouterLink>
       </div>
     </section>
+
+    <GalPlayLog v-else-if="tab === 'plays'" :key="g.id" :game="g" @changed="reloadGame" />
 
     <section v-else-if="tab === 'chars'" class="card">
       <div class="row" style="margin-bottom:12px"><h3 class="gd-h">登场角色</h3><span class="small faint">来自 {{ srcList.map((x) => SOURCES[x.s].label).join(' / ') || '—' }}</span><span class="spacer" />

@@ -1,5 +1,6 @@
 // galgame 游戏库共用的标签、颜色与小工具
 export const STATUS = {
+  unplayed: { label: '未游玩', color: '#9aa0b4' },
   wishlist: { label: '想玩', color: '#8b93ff' },
   playing: { label: '在玩', color: '#23d2e2' },
   finished: { label: '玩过', color: '#5fd38d' },
@@ -30,3 +31,9 @@ export function tint(title = '') {
 }
 
 export const year = (d) => (d ? d.slice(0, 4) : '')
+
+export const today = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+export const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

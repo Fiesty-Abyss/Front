@@ -10,6 +10,7 @@ const emit = defineEmits(['close', 'done'])
 const text = ref('')
 const status = ref('wishlist')
 const makeWork = ref(true)
+const acceptFirst = ref(false)
 const rows = ref([])
 const running = ref(false)
 const lines = computed(() => [...new Set(text.value.split('\n').map((l) => l.trim()).filter(Boolean))].slice(0, 100))
@@ -20,7 +21,7 @@ async function start() {
   for (const r of rows.value) {
     r.state = 'run'
     try {
-      const o = await api.post('/api/galgames/quick-add', { title: r.t, status: status.value, work: makeWork.value ? 'new' : null })
+      const o = await api.post('/api/galgames/quick-add', { title: r.t, status: status.value, work: makeWork.value ? 'new' : null, accept_first: acceptFirst.value })
       Object.assign(r, { state: o.status, id: o.id, title: o.title, source: o.source, score: o.score })
     } catch (e) { Object.assign(r, { state: 'error', err: e.message }) }
   }
@@ -39,7 +40,8 @@ const LABEL = { matched: '已匹配', unmatched: '未匹配 · 只建了标题',
       <div class="row" style="gap:8px"><span class="small muted">状态</span>
         <div class="seg"><button v-for="(s, k) in STATUS" :key="k" :class="{ on: status === k }" @click="status = k">{{ s.label }}</button></div></div>
       <label class="row small" style="gap:6px"><input v-model="makeWork" type="checkbox" />匹配上的游戏同时新建作品（用来挂 CG 档案）</label>
-      <p class="small faint" style="margin:0">按“设置 → 游戏库元数据”里的来源顺序逐个查询，名称相似度够高才自动关联；其余的之后可以在详情页手动匹配。</p>
+      <label class="row small" style="gap:6px"><input v-model="acceptFirst" type="checkbox" />一键模式：直接用第一条搜索结果，不核对名称相似度</label>
+      <p class="small faint" style="margin:0">按“设置 → 游戏库元数据”里的来源顺序逐个查询，默认名称相似度够高才自动关联；没匹配上的会先只建标题，之后在详情页手动匹配。</p>
       <div class="row"><span class="small faint">{{ lines.length }} 个</span><span class="spacer" /><button class="primary" :disabled="!lines.length" @click="start">开始添加</button></div>
     </div>
     <div v-else class="grid" style="gap:8px">

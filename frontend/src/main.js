@@ -7,6 +7,7 @@ const routes = [
   { path: '/', component: () => import('./views/Dashboard.vue'), meta: { title: '总览' } },
   { path: '/assets', component: () => import('./views/Assets.vue'), meta: { title: '素材库' } },
   { path: '/characters', component: () => import('./views/Characters.vue'), meta: { title: '角色百科' } },
+  { path: '/characters/:id', component: () => import('./views/CharacterDetail.vue'), meta: { title: '角色详情' } },
   { path: '/worlds', component: () => import('./views/Worlds.vue'), meta: { title: '世界观' } },
   { path: '/graph', component: () => import('./views/Graph.vue'), meta: { title: '关系网' } },
   { path: '/works', component: () => import('./views/Works.vue'), meta: { title: '作品 / CG' } },

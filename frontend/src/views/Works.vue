@@ -17,6 +17,7 @@ const collections = ref([])
 const editing = ref(null)
 const viewing = ref(null)
 const route = useRoute()
+const chars = ref([])
 
 async function load() { items.value = (await Works.list({ kind: kind.value, limit: 500 })).items }
 onMounted(async () => {
@@ -29,6 +30,7 @@ onMounted(async () => {
 async function select(w) {
   cur.value = w
   cgs.value = (await api.get(`/api/works/${w.id}/cg`)).groups
+  chars.value = await api.get(`/api/works/${w.id}/characters`)
   assets.value = (await Assets.list({ work_id: w.id, limit: 500 })).items.filter((a) => a.kind !== 'cg')
   collections.value = (await Collections.list({ limit: 500 })).items.filter((c) => c.work_id === w.id)
 }
@@ -73,6 +75,15 @@ async function newCollection() {
         <div class="row"><h2 style="margin:0">{{ cur.title }}</h2><span class="badge">{{ LABELS.workKind[cur.kind] }}</span><span class="spacer" /><button @click="edit(cur)">编辑</button></div>
         <p class="muted">{{ cur.description }}</p>
         <TagChips :tags="cur.tags" show-cat />
+      </div>
+      <div v-if="chars.length" class="card">
+        <h2 style="margin-top:0">登场角色 · {{ chars.length }}</h2>
+        <div class="row" style="gap:14px">
+          <RouterLink v-for="c in chars" :key="c.id" :to="`/characters/${c.id}`" class="row" style="gap:8px">
+            <span class="avatar" style="width:40px;height:40px;border-radius:50%" :style="c.avatar_asset_id ? { backgroundImage: `url(${thumb(c.avatar_asset_id)})` } : {}" />
+            <span><b>{{ c.name }}</b><div class="small muted">{{ c.role || '登场' }}</div></span>
+          </RouterLink>
+        </div>
       </div>
       <div class="card">
         <div class="row"><h2 style="margin:0">CG 档案 · {{ cgs.length }} 组 / {{ cgTotal() }} 张</h2><span class="spacer" />

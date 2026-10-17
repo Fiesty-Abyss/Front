@@ -1,10 +1,11 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api, Assets, Cards, thumb } from '../api'
 import { guard, toast } from '../toast'
 
 const router = useRouter()
+const route = useRoute()
 const items = ref([])
 const cur = ref(null)
 const images = ref([])
@@ -15,7 +16,8 @@ async function load() { items.value = (await Cards.list({ limit: 500 })).items }
 onMounted(async () => {
   await load()
   images.value = (await Assets.list({ kind: 'drawing,ai_image,cg,reference', limit: 500 })).items
-  if (items.value.length) select(items.value[0])
+  const want = items.value.find((c) => c.id === Number(route.query.id))
+  if (want || items.value.length) select(want ?? items.value[0])
 })
 function select(c) {
   cur.value = c

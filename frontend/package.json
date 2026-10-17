@@ -1,7 +1,7 @@
 {
   "name": "front-web",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "cytoscape": "^3.30.0",
+    "markdown-it": "^15.0.3",
     "vue": "^3.5.0",
     "vue-router": "^4.4.0"
   },

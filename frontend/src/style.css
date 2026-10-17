@@ -225,3 +225,5 @@ pre.prompt { white-space: pre-wrap; background: var(--sunken); padding: 10px 12p
 .note-prose th { background: var(--panel2); font-weight: 600; text-align: left; }
 .note-prose .selectedCell { background: var(--accent-soft); }
 .note-prose p.is-empty::before, .note-prose h1.is-empty::before, .note-prose h2.is-empty::before { content: attr(data-placeholder); float: left; height: 0; color: var(--faint); pointer-events: none; }
+
+.ellip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

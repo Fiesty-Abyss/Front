@@ -24,6 +24,7 @@
 | 🎨 **全新界面（v0.6）** | 深靛夜色 + 单一雾紫强调色的统一设计系统，悬浮侧栏（可收起）、玻璃顶栏、画廊式素材网格、创作热力图总览；深色 / 浅色两套主题；GSAP 驱动的克制动效（页面对焦进入、列表依次显现、侧栏高亮块滑动），自动遵循系统“减少动态效果”。设计说明见 [docs/DESIGN.md](docs/DESIGN.md) |
 | 📓 **超级笔记本（v0.6.1）** | 块编辑器写笔记：标题、待办、表格、引用、代码块（语法高亮）、高亮、图片；输入 `/` 唤出插入菜单，拖入 / 粘贴文件直接上传进素材库；**嵌入素材**与**链接到其他笔记**，自动列出“这页用到的素材”和**反向链接**；页面可以无限嵌套、拖成目录树，带图标、标签、置顶、关联作品；自动保存（`Ctrl/⌘ S` 立即保存），正文存为 Markdown，进入全文检索 |
 | 🧭 **图表画布（v0.6.2）** | 像 Visio 一样画**流程图**（处理 / 开始结束 / 判断 / 输入输出 / 文档 / 数据 / 准备 / 连接点八种形状）、带输入输出端口的**节点工作流**、**思维导图**，还有便签和分组框；从左侧拖入或点击添加，双击改文字，拖动连接点连线，连线可加文字、换样式（折线 / 曲线 / 直线 / 直角）、颜色、虚线、箭头与流动动画；多选后对齐与等距分布，`Tab` 快速接一个新节点，复制粘贴、撤销重做、吸附网格、小地图；节点可以链接到素材、笔记或网址。自动保存在 Front 里，列表显示缩略图，可**导出 PNG / SVG / JSON**、导入 JSON，节点和连线上的文字进入全文检索。内置三个原创示例模板 |
+| 🎮 **galgame 游戏库（v0.6.3）** | 从 **Bangumi / VNDB / 月幕 Galgame** 搜索并添加游戏：默认**混合模式**同时查询三个来源，选中一条后自动在其他来源里找到同一部作品并合并（中文名、原名、别名、品牌、发售日、平台、简介、标签、角色与声优、各来源评分 / 排名 / 时长），某个来源出错或没有结果时不影响其他来源；也可以只用一个来源并按顺序回退。记录**游玩状态**（未游玩 / 想玩 / 在玩 / 玩过 / 搁置 / 弃坑）、1–10 评分、开始 / 通关日期、游玩笔记，**手动记每一次游玩**（日期 + 时长 + 备注），有“继续游玩”横幅、游玩日历、近 8 周柱状图和时间线。改过的字段会被记住，刷新元数据时不覆盖。一键新建作品，**CG 档案**直接显示在游戏详情里；来源里的角色可导入角色百科。网格 / 列表视图、按状态 / 来源 / 品牌筛选、原名与别名可搜索、多选批量改状态或删除、随机挑一款、批量添加（逐个匹配或一键用第一条结果）、导出 JSON / CSV、R18 封面默认模糊、在本机生成**分享足迹**图片。只在你搜索 / 添加 / 刷新时联网，封面只在添加或点“保存封面”时下载 |
 | 🧊 **多格式文件预览（v0.6.1）** | 上传或批量导入时自动识别格式并读出信息：**3D 模型** glb / gltf / vrm / obj / fbx / pmx / pmd（浏览器内 three.js 预览：旋转、线框、换背景、播放动画、把当前画面**设为封面**；VRM 读出作者与使用许可）、**Live2D**（Cubism 2–5 的 `model.json` / `model3.json`、moc / moc3 版本、贴图、动作、表情）、**音频**（标签、封面、内置播放器）、**视频**（时长、编码、自动截帧做封面，需要 ffmpeg）、**PDF**（逐页渲染）、**Word / Excel / PowerPoint / ODT / EPUB**（文字与表格预览）、**压缩包**（zip / tar 目录，7z / rar 识别）、**代码 / 脚本**（语法高亮，Ren'Py / KiriKiri 标签）。模型文件夹（Live2D、PMX + 贴图、glTF + bin、OBJ + MTL）**整包存为一个 zip**，预览时只读取包内文件，不解压到硬盘。详见 [docs/FILETYPES.md](docs/FILETYPES.md) |
 | 🗂 **素材库** | 自己的画、AI 生成图、绘画素材、参考图、小说正文，以及 3D / Live2D 模型、音频、视频、文档、压缩包、代码。按类型分段筛选；按**日期（年/月）**、**类型**、**标签**、**作品**、**世界观**筛选；上传自动读取尺寸、生成缩略图、按 SHA256 去重 |
 | ⇪ **批量导入** | 输入本机文件夹路径（或在浏览器里选择文件夹），扫描预览后一键导入；可递归子文件夹、用文件修改时间作为日期、统一打标签；同内容文件自动跳过 |
@@ -54,7 +55,25 @@
 
 ## 界面截图
 
-> 以下截图均为真实运行的 Front v0.6.2（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。v0.6.1 的 3D 模型（灯塔、灯笼）、Live2D 结构演示包、音乐（五声音阶小曲）、视频、PDF 与 Office 文档全部是截图前由脚本**现场生成的原创文件**（生成方法与 [`backend/tests/samples.py`](backend/tests/samples.py) 相同，不含任何第三方模型、音乐或文档）；Live2D 演示包只有结构和贴图，不是可以运行的模型。v0.6.2 的图表（灯塔节剧情流程、AI 出图工作流、雾港世界观脑图）是内置的原创示例模板；“导出的 PNG”是在运行中的 Front 里点“导出 → PNG”得到的真实文件。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。AI 相关截图（对话、抽取角色、语义检索、自动打标签）连接的是仓库自带的**模拟 AI 服务**（`front_api.mock_ai`），回复以“【模拟回复】”开头、由模板拼出，**不是真实大模型的输出**，只用来演示界面和完整流程。
+> 以下截图均为真实运行的 Front v0.6.3（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。v0.6.1 的 3D 模型（灯塔、灯笼）、Live2D 结构演示包、音乐（五声音阶小曲）、视频、PDF 与 Office 文档全部是截图前由脚本**现场生成的原创文件**（生成方法与 [`backend/tests/samples.py`](backend/tests/samples.py) 相同，不含任何第三方模型、音乐或文档）；Live2D 演示包只有结构和贴图，不是可以运行的模型。v0.6.2 的图表（灯塔节剧情流程、AI 出图工作流、雾港世界观脑图）是内置的原创示例模板；“导出的 PNG”是在运行中的 Front 里点“导出 → PNG”得到的真实文件。v0.6.3 游戏库里的游戏（樱色回廊、雾港夜想曲、星屑邮局、夏日方程式、白夜图书馆、月下钟楼、海潮信号）、角色和声优都是虚构的【示例】数据，封面与角色图是程序生成的几何海报；元数据来自仓库自带的**模拟元数据接口**（`front_api.mock_galgame`，按 Bangumi / VNDB / 月幕的真实接口格式返回），走的是和真实来源完全相同的代码路径，截图时没有访问任何外部网站。出图相关截图连接的是仓库自带的**模拟 SD 后端**（`front_api.mock_sd`，图片角标“模拟出图”），走的是和真实 WebUI / ComfyUI 完全相同的代码路径，但画面只是占位图；扫描的模型目录是程序生成的假文件。AI 相关截图（对话、抽取角色、语义检索、自动打标签）连接的是仓库自带的**模拟 AI 服务**（`front_api.mock_ai`），回复以“【模拟回复】”开头、由模板拼出，**不是真实大模型的输出**，只用来演示界面和完整流程。
+
+| **游戏库：继续游玩横幅、游玩日历、按状态筛选** | **列表视图** |
+| --- | --- |
+| ![游戏库](docs/screenshots/galgames.png) | ![列表视图](docs/screenshots/galgames-list.png) |
+| **游戏详情：多来源评分、状态、评分、时长** | **游玩记录：手动记时长、近 8 周、时间线** |
+| ![游戏详情](docs/screenshots/galgame-detail.png) | ![游玩记录](docs/screenshots/galgame-plays.png) |
+| **添加游戏：三个来源同时搜索** | **预览混合补全：自动匹配其他来源** |
+| ![添加游戏](docs/screenshots/galgame-add.png) | ![混合补全](docs/screenshots/galgame-preview.png) |
+| **登场角色：导入角色百科** | **关联作品的 CG 档案** |
+| ![角色](docs/screenshots/galgame-chars.png) | ![CG 档案](docs/screenshots/galgame-cg.png) |
+| **元数据来源与手动修改过的字段** | **刚加入游戏库的条目** |
+| ![元数据来源](docs/screenshots/galgame-meta.png) | ![新加入](docs/screenshots/galgame-added.png) |
+| **批量添加：逐个匹配** | **多选：批量改状态 / 删除** |
+| ![批量添加](docs/screenshots/galgame-batch.png) | ![多选](docs/screenshots/galgames-bulk.png) |
+| **分享足迹（本机生成 PNG，可遮盖封面）** | **设置：来源模式与顺序** |
+| ![分享足迹](docs/screenshots/galgame-share.png) | ![游戏库设置](docs/screenshots/galgame-settings.png) |
+| **浅色主题 · 游戏详情** | **浅色主题 · 游戏库** |
+| ![浅色详情](docs/screenshots/galgame-light.png) | ![浅色游戏库](docs/screenshots/galgames-light.png) |
 
 | **图表画布 · 流程图（选中节点：形状、颜色、链接）** | **图表画布 · 选中连线：文字、样式、颜色、箭头** |
 | --- | --- |
@@ -195,6 +214,9 @@ API 交互式文档：<http://127.0.0.1:8000/docs>
 | `FRONT_SD_TIMEOUT` | `600` | 单张出图的超时秒数 |
 | `FRONT_CIVITAI` | `on` | 设为 `off` 完全关闭 Civitai 查询（只有你点“匹配 Civitai”时才联网） |
 | `FRONT_CIVITAI_API_KEY` | — | 可选，查询需要登录才能看的模型时使用 |
+| `FRONT_GALGAME` | `on` | 设为 `off` 完全关闭游戏库的联网元数据（Bangumi / VNDB / 月幕），只能手动添加 |
+| `FRONT_BANGUMI_API` / `FRONT_VNDB_API` / `FRONT_YMGAL_API` | 官方地址 | 元数据接口地址，一般不用改（测试与示例截图指向 `front_api.mock_galgame`） |
+| `FRONT_YMGAL_CLIENT_ID` / `FRONT_YMGAL_CLIENT_SECRET` | 月幕公开的公共凭证 | 换成你向月幕申请的专属凭证 |
 
 Windows PowerShell 示例：
 
@@ -229,6 +251,15 @@ python -m front_api.mock_ai --port 7862
 
 然后在 设置 › 添加服务 › 自定义，地址填 `http://127.0.0.1:7862/v1`，模型填 `mock-chat`（嵌入 `mock-embed`、视觉 `mock-vision`）。示例数据里已经带了这条配置，只需在“对话 · 抽取角色”里选中它。
 
+### 不联网也想试试游戏库
+
+**模拟元数据接口**按 Bangumi、VNDB、月幕的接口格式返回几部虚构的【示例】游戏：
+
+```bash
+python -m front_api.mock_galgame --port 7863
+FRONT_BANGUMI_API=http://127.0.0.1:7863/bangumi FRONT_VNDB_API=http://127.0.0.1:7863/vndb FRONT_YMGAL_API=http://127.0.0.1:7863/ymgal python -m front_api
+```
+
 ## 升级
 
 直接 `git pull`，重新 `pip install -e "backend[dev]"`、`npm run build` 后启动即可。数据库会在启动时自动补齐新版本增加的字段，已有数据不受影响（升级前建议备份数据目录）。
@@ -243,6 +274,7 @@ python -m front_api.mock_ai --port 7862
 - 浏览器查询只是在新标签页打开你配置的网址（关键词经过 URL 编码），Front 不会访问、抓取这些站点，也不会下载其中的任何文件；站点列表只允许 `http(s)://` 网址。
 - Civitai 只在你手动点“匹配 Civitai”时访问 `civitai.com`，只发送模型哈希；预览图只从 Civitai 官方图床下载。`FRONT_CIVITAI=off` 可彻底关闭。
 - `.gitignore` 屏蔽了 `*.safetensors`、`*.ckpt`、`*.db`、压缩包、绘画工程文件等；测试 [`test_repo_guard.py`](backend/tests/test_repo_guard.py) 会在 CI 中检查，任何模型、数据库或 `docs/screenshots/` 以外的图片被提交都会直接失败。
+- 游戏库只在你搜索、添加、刷新时访问 Bangumi（`api.bgm.tv`）、VNDB（`api.vndb.org`）、月幕（`www.ymgal.games`），发送的只有游戏名或条目 id；封面只从这三家的图床下载，并且只在添加时勾选“保存封面”或手动点“保存封面”时才下载。Bangumi 令牌（可选）只保存在本机数据库，接口不会返回它。`FRONT_GALGAME=off` 可彻底关闭。Front 不提供任何游戏下载。
 - Front 是**个人自托管**工具。你收藏的他人作品（游戏 CG、插画等）版权归原作者所有，请只用于个人收藏与学习，不要通过 Front 再分发。本仓库不包含任何第三方受版权保护的素材。
 
 ## 文档
@@ -262,6 +294,8 @@ python -m front_api.mock_ai --port 7862
 - 笔记本编辑器 [Tiptap](https://tiptap.dev)（MIT）与 [tiptap-markdown](https://github.com/aguingand/tiptap-markdown)（MIT），代码高亮 [highlight.js](https://highlightjs.org)（BSD-3-Clause）。
 - 3D 预览 [three.js](https://threejs.org)（MIT）与 [@pixiv/three-vrm](https://github.com/pixiv/three-vrm)（MIT）；PMX / PMD 读取按公开的格式说明自行实现（只读静态网格与材质）。
 - 音频标签 [tinytag](https://github.com/tinytag/tinytag)（MIT），PDF 渲染 [pypdfium2](https://github.com/pypdfium2-team/pypdfium2)（Apache-2.0 / BSD-3-Clause，内含 PDFium，BSD-3-Clause）；视频信息与截帧调用本机的 [FFmpeg](https://ffmpeg.org)（可选，不随 Front 分发）。
+- galgame 游戏库的设计参考了 [ReinaManager](https://github.com/huoshen80/ReinaManager)（AGPL-3.0）与 [恋页 KoiPage](https://github.com/morilove37/koipage)（作者 [@morilove37](https://github.com/morilove37)，仓库未指定开源许可证）：多来源元数据、用户修改优先、状态筛选、批量添加、继续游玩横幅、游玩时长日历与时间线、分享足迹等**功能思路**。Front 只参考了它们公开的功能与界面思路，**没有使用两者的任何代码、图片或素材**，界面与实现均为独立编写。
+- 元数据来自 [Bangumi 番组计划](https://bgm.tv)（[API](https://github.com/bangumi/api)）、[VNDB](https://vndb.org)（[Kana API](https://api.vndb.org/kana)，数据按 [VNDB 数据许可](https://vndb.org/d17) 使用，非商业）与 [月幕 Galgame](https://www.ymgal.games)（[开放 API](https://www.ymgal.games/developer)，使用其公开的公共客户端凭证，非商业）。资料与封面归各自权利人所有；Front 与这些网站没有合作关系。
 - Live2D：只按公开的 `model3.json` / `model.json` 结构读取信息与贴图，**不包含也不调用** Live2D Cubism Core（专有许可），因此不做实时渲染。
 
 ## 技术栈

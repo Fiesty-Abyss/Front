@@ -58,6 +58,7 @@ SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.Note: ("note", lambda o: o.title, lambda o: _join(o.content, _tags(o))),
     m.Diagram: ("diagram", lambda o: o.title, lambda o: _join(o.description, _diagram_text(o.data), _tags(o))),
     m.WorldEntry: ("world_entry", lambda o: o.name, lambda o: _join(o.summary, o.content, o.date_label, _tags(o))),
+    m.Galgame: ("galgame", lambda o: o.title, lambda o: _join(o.title_cn, o.original, " ".join(o.aliases or []), o.developer, o.description, o.notes, " ".join(o.source_tags or []), _tags(o))),
 }
 
 

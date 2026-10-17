@@ -41,6 +41,7 @@ SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.SDModel: ("sd_model", lambda o: o.name, lambda o: _join(o.base_model, o.file_name, o.trigger_words, o.notes, _tags(o))),
     m.CharacterCard: ("card", lambda o: o.name, lambda o: _join(o.description, o.personality, o.scenario, o.first_mes, " ".join(o.card_tags or []))),
     m.Collection: ("collection", lambda o: o.name, lambda o: _join(o.description)),
+    m.PromptSnippet: ("snippet", lambda o: o.title, lambda o: _join(o.positive, o.negative, o.notes, _tags(o))),
     m.WorldEntry: ("world_entry", lambda o: o.name, lambda o: _join(o.summary, o.content, o.date_label, _tags(o))),
 }
 

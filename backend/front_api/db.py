@@ -40,3 +40,9 @@ def get_session() -> Iterator[Session]:
     assert _SessionLocal is not None, "init_engine() 尚未调用"
     with _SessionLocal() as session:
         yield session
+
+
+def new_session() -> Session:
+    """后台任务（出图、批量计算哈希）在自己的线程里用独立的会话。"""
+    assert _SessionLocal is not None, "init_engine() 尚未调用"
+    return _SessionLocal()

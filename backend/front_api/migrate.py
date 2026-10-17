@@ -15,6 +15,11 @@ COLUMNS: list[tuple[str, str, str]] = [
     # v0.3.0
     ("tags", "aliases", "JSON NOT NULL DEFAULT '[]'"),
     ("tags", "parent_id", "INTEGER REFERENCES tags(id) ON DELETE SET NULL"),
+    # v0.4.0
+    ("sd_models", "hashes", "JSON NOT NULL DEFAULT '{}'"),
+    ("sd_models", "civitai", "JSON NOT NULL DEFAULT '{}'"),
+    ("generations", "batch", "VARCHAR(40)"),
+    ("generations", "xy", "JSON NOT NULL DEFAULT '{}'"),
 ]
 
 

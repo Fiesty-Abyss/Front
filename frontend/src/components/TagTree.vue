@@ -11,7 +11,7 @@ defineEmits(['open'])
       <b>{{ t.name }}</b>
       <span v-if="t.aliases.length" class="small muted" :title="'别名：' + t.aliases.join('、')">= {{ t.aliases.join(' / ') }}</span>
       <span class="spacer" />
-      <span class="badge">{{ usage[t.id] ?? 0 }}</span>
+      <span class="badge" :title="`直接使用 ${usage[t.id]?.direct ?? 0} 次，含子标签共 ${usage[t.id]?.total ?? 0} 个条目`">{{ usage[t.id]?.total ?? 0 }}<template v-if="t.children.length && (usage[t.id]?.direct ?? 0) !== (usage[t.id]?.total ?? 0)"> · 直接 {{ usage[t.id]?.direct ?? 0 }}</template></span>
     </div>
     <TagTree v-if="t.children.length" :nodes="t.children" :usage="usage" :depth="depth + 1" @open="$emit('open', $event)" />
   </div>

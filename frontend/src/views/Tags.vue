@@ -53,7 +53,7 @@ async function remove() {
   <form class="row card" style="margin-bottom:14px" @submit.prevent="add">
     <select v-model="form.category" style="width:140px"><option v-for="(l, k) in LABELS.tagCategory" :key="k" :value="k">{{ l }}</option></select>
     <input v-model="form.name" placeholder="标签名" style="max-width:240px" required /><button class="primary">添加标签</button>
-    <span class="small muted">点击标签可编辑：上级（层级）、别名（搜索时同样命中）、颜色，或把重复的标签合并。右侧数字是使用次数；按上级标签筛选时会包含所有子标签。</span>
+    <span class="small muted">点击标签可编辑：上级（层级）、别名（搜索时同样命中）、颜色，或把重复的标签合并。右侧数字是使用次数（含子标签，同一条目只算一次）；按上级标签筛选时会包含所有子标签。</span>
   </form>
   <div class="grid cols-3" style="align-items:start">
     <div v-for="(list, cat) in grouped" :key="cat" class="card">
@@ -71,7 +71,7 @@ async function remove() {
       </div>
       <label class="field">上级标签（同一分类内）<select v-model="editing.parent_id"><option :value="null">无（顶层）</option><option v-for="t in parentOptions" :key="t.id" :value="t.id">{{ t.name }}</option></select></label>
       <label class="field">别名（逗号分隔；搜索和标签筛选会把别名当成同一个标签）<input v-model="editing.aliasText" placeholder="如：gal，美少女游戏" /></label>
-      <div class="small muted">使用次数：{{ usage[editing.id] ?? 0 }}</div>
+      <div class="small muted">使用次数：直接 {{ usage[editing.id]?.direct ?? 0 }}，含子标签共 {{ usage[editing.id]?.total ?? 0 }} 个条目</div>
       <div class="row"><button class="danger" @click="remove">删除</button><span class="spacer" /><button class="primary" @click="save">保存</button></div>
       <div class="card" style="background:var(--panel2)">
         <b>合并到其他标签</b>

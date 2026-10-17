@@ -20,6 +20,11 @@ class Settings:
     ai_api_key: str | None
     ai_model: str | None
     max_upload_mb: int
+    sd_webui_url: str | None = None
+    comfyui_url: str | None = None
+    sd_timeout: float = 600.0
+    civitai_enabled: bool = True
+    civitai_api_key: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -43,4 +48,9 @@ def get_settings() -> Settings:
         ai_api_key=os.environ.get("FRONT_AI_API_KEY") or None,
         ai_model=os.environ.get("FRONT_AI_MODEL") or None,
         max_upload_mb=int(os.environ.get("FRONT_MAX_UPLOAD_MB", "200")),
+        sd_webui_url=(os.environ.get("FRONT_SD_WEBUI_URL") or "").rstrip("/") or None,
+        comfyui_url=(os.environ.get("FRONT_COMFYUI_URL") or "").rstrip("/") or None,
+        sd_timeout=float(os.environ.get("FRONT_SD_TIMEOUT", "600")),
+        civitai_enabled=os.environ.get("FRONT_CIVITAI", "on").lower() not in ("0", "off", "false", "no"),
+        civitai_api_key=os.environ.get("FRONT_CIVITAI_API_KEY") or None,
     )

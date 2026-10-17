@@ -20,3 +20,13 @@ def test_seed_builds_full_example_library(client):
     game = client.get("/api/tags", params={"name": "游戏"}).json()["items"][0]
     works = client.get("/api/works", params={"tag": game["id"]}).json()["items"]
     assert [w["kind"] for w in works] == ["galgame"]
+
+
+def test_seed_ai_drawing_examples(client):
+    out = seed(client)
+    assert len(out["batches"]) == 2
+    grid = client.get(f"/api/prompts/{out['prompt_id']}/xy", params={"batch": out["batches"][0]}).json()
+    assert grid["x"] == "model" and grid["y"] == "cfg" and len(grid["x_values"]) == 2 and grid["y_values"] == ["5", "7", "9"]
+    sr = client.get(f"/api/prompts/{out['prompt_id']}/xy", params={"batch": out["batches"][1]}).json()
+    assert sr["x_values"] == ["night", "dawn", "sunset"]
+    assert client.get("/api/prompt-snippets", params={"limit": 100}).json()["total"] >= 10

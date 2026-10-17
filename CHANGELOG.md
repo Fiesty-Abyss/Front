@@ -1,5 +1,22 @@
 # 更新日志
 
+## v0.4.0 · 2026-10-17
+
+第四轮：AI 绘画工作流。
+
+- **模型目录扫描**：输入 WebUI / Forge / ComfyUI 的 `models` 路径，按子文件夹判断类型（Checkpoint / LoRA / VAE / Embedding / 放大 / ControlNet / Hypernetwork / 文本编码器），读取 safetensors 元数据判断底模，识别同名预览图与 `.civitai.info` / `.json` 说明；预览后勾选登记（后台任务，进度条，可取消），可选择同时计算哈希、导入预览图、更新已登记项
+- **模型哈希**：SHA256 / AutoV1 / AutoV2 / AutoV3 一次读完同时计算；出图参数里的 `Model hash` 可按 AutoV1 / AutoV2 / SHA256 前缀匹配已登记模型
+- **Civitai 匹配（可选）**：按 SHA256 查询模型 / 版本名、类型、底模、触发词与预览图，可写回模型条目；单个或全部匹配；`FRONT_CIVITAI=off` 完全关闭，`FRONT_CIVITAI_API_KEY` 可选
+- **提示词片段库** `/api/prompt-snippets`：分类卡片、组合器（权重 `(片段:1.2)`、排序、去重），存为提示词或带去出图
+- **出图** `/generate`：连接 SD WebUI / Forge（`FRONT_SD_WEBUI_URL`）或 ComfyUI（`FRONT_COMFYUI_URL`，内置模板或自定义工作流占位符）；多模型、LoRA 权重、XY 轴（模型 / CFG / 步数 / 采样器 / 调度器 / 种子 / 尺寸 / Clip skip / 提示词替换 / LoRA 权重），最多 100 张；结果自动入库（PNG 内嵌参数、标签、收藏集），自动建立提示词与出图记录
+- **对比视图**：差异参数高亮、**参数差异表**（高亮与多数不同的取值）、与基准提示词相比增删的词；**XY 网格**（按出图批次或任意两个参数）
+- **后台任务** `/api/jobs`
+- **模拟 SD 后端** `python -m front_api.mock_sd`：无显卡时体验整条出图流程，图片带“模拟出图”角标
+- **修正**：标签使用次数现在是“含子标签的总数”，同一条目同时打了上下级标签只算一次；界面同时显示直接使用次数
+- 数据库自动迁移：`sd_models.hashes`、`sd_models.civitai`、`generations.batch`、`generations.xy`；新表 `prompt_snippets`、`prompt_snippet_tags`
+- 示例数据新增：14 个提示词片段、一个模拟的 WebUI 模型目录（假文件）、两次模拟出图（模型 × CFG、提示词替换 night / dawn / sunset）
+- 测试 68 → 78 项
+
 ## v0.3.0 · 2026-10-17
 
 第三轮：百科增强。

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
-import struct
 from pathlib import Path
 from typing import Any
 
@@ -14,12 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models as m
+from .. import civitai, modelscan, sdparams
 from .. import schemas as s
 from ..crud import get_or_404, make_crud_router, qp
 from ..db import get_session
-
-MODEL_EXT = {".safetensors", ".ckpt", ".pt", ".pth", ".bin", ".gguf"}
-
 
 def _model_filters(stmt, request):
     if kind := qp(request, "kind"):
@@ -57,32 +52,50 @@ extra = APIRouter(tags=["SD 模型库"])
 
 @extra.get("/api/prompts/{prompt_id}/compare")
 def compare(prompt_id: int, session: Session = Depends(get_session)) -> dict[str, Any]:
-    """同一提示词在不同模型下的出图，按模型分组。"""
+    """同一提示词在不同模型下的出图，按模型分组。
+    附带参数差异：diff_keys 是各张图之间取值不同的参数（前端高亮），common 是全部相同的参数；
+    每张图还给出相对提示词原文多出 / 缺少的词（XY 提示词替换时会用到）。"""
+    from .sdtools import gen_norm
+
     prompt = get_or_404(session, m.Prompt, prompt_id)
-    gens = session.scalars(select(m.Generation).where(m.Generation.prompt_id == prompt_id)).all()
+    gens = session.scalars(select(m.Generation).where(m.Generation.prompt_id == prompt_id).order_by(m.Generation.id)).all()
+    cache: dict[int, m.SDModel | None] = {}
+    norms = {g.id: gen_norm(session, g, cache) for g in gens}
+    diff = sdparams.diff_keys(list(norms.values()))
+    first = next(iter(norms.values()), {})
+    common = {k: v for k, v in first.items() if k not in diff and all(k in n for n in norms.values())}
+    base_tokens = sdparams.tokens(prompt.positive)
+    base_lower = {t.lower() for t in base_tokens}
     groups: dict[int | None, dict[str, Any]] = {}
     for g in gens:
-        model = session.get(m.SDModel, g.model_id) if g.model_id else None
+        model = cache.get(g.model_id) if g.model_id else None
         asset = session.get(m.Asset, g.asset_id) if g.asset_id else None
-        key = g.model_id
         group = groups.setdefault(
-            key,
-            {
-                "model": s.SDModelRead.model_validate(model).model_dump(mode="json") if model else None,
-                "items": [],
-            },
+            g.model_id,
+            {"model": s.SDModelRead.model_validate(model).model_dump(mode="json") if model else None, "items": []},
         )
+        text = (g.params or {}).get("prompt") or prompt.positive
+        toks = sdparams.tokens(text)
+        lower = {t.lower() for t in toks}
         group["items"].append(
             {
                 "generation_id": g.id,
                 "params": g.params,
+                "norm": norms[g.id],
+                "batch": g.batch,
+                "xy": g.xy,
                 "notes": g.notes,
+                "prompt_added": [t for t in toks if t.lower() not in base_lower],
+                "prompt_removed": [t for t in base_tokens if t.lower() not in lower],
                 "asset": s.AssetRead.model_validate(asset).model_dump(mode="json") if asset else None,
             }
         )
     return {
         "prompt": s.PromptRead.model_validate(prompt).model_dump(mode="json"),
         "groups": list(groups.values()),
+        "diff_keys": diff,
+        "common": common,
+        "labels": sdparams.LABELS,
     }
 
 
@@ -91,58 +104,19 @@ class InspectRequest(BaseModel):
     compute_hash: bool = False
 
 
-def read_safetensors_metadata(path: Path) -> dict[str, Any]:
-    with path.open("rb") as fh:
-        head = fh.read(8)
-        if len(head) < 8:
-            return {}
-        (length,) = struct.unpack("<Q", head)
-        if length > 100 * 1024 * 1024:
-            return {}
-        try:
-            header = json.loads(fh.read(length))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return {}
-    meta = header.get("__metadata__") or {}
-    return {k: v for k, v in meta.items() if isinstance(v, str) and len(v) < 4000}
-
-
-def sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(4 * 1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def guess_base_model(meta: dict[str, Any]) -> str | None:
-    raw = (meta.get("ss_base_model_version") or meta.get("modelspec.architecture") or "").lower()
-    if not raw:
-        return None
-    for needle, label in (("flux", "Flux"), ("sdxl", "SDXL"), ("xl", "SDXL"), ("v2", "SD2"), ("sd_v1", "SD1.5"), ("v1", "SD1.5"), ("sd3", "SD3")):
-        if needle in raw:
-            return label
-    return raw
-
-
 @extra.post("/api/sd-models/inspect")
 def inspect_model_file(req: InspectRequest) -> dict[str, Any]:
-    """读取本机模型文件的信息（文件名、大小、safetensors 元数据、可选 SHA256）。
+    """读取本机模型文件的信息（文件名、大小、类型、safetensors 元数据、说明文件，可选哈希）。
     Front 是自托管的，这里读取的是运行 Front 的这台电脑上的文件，文件不会被复制或上传。"""
     path = Path(req.path).expanduser()
-    if path.suffix.lower() not in MODEL_EXT:
-        raise HTTPException(422, f"只支持模型文件: {', '.join(sorted(MODEL_EXT))}")
+    if path.suffix.lower() not in modelscan.MODEL_EXT:
+        raise HTTPException(422, f"只支持模型文件: {', '.join(sorted(modelscan.MODEL_EXT))}")
     if not path.is_file():
         raise HTTPException(404, "文件不存在")
-    meta = read_safetensors_metadata(path) if path.suffix.lower() == ".safetensors" else {}
-    return {
-        "file_name": path.name,
-        "local_path": str(path),
-        "size": path.stat().st_size,
-        "sha256": sha256_file(path) if req.compute_hash else None,
-        "base_model": guess_base_model(meta),
-        "metadata": meta,
-    }
+    info = modelscan.describe(path, path.parent, with_hash=req.compute_hash)
+    info["sha256"] = info["hashes"]["SHA256"].lower() if info["hashes"] else None
+    info["civitai"] = civitai.summarize(info.pop("civitai_info")) if info.get("civitai_info") else None
+    return info
 
 
 class FromAsset(BaseModel):
@@ -154,12 +128,21 @@ def _stem(name: str) -> str:
     return Path(name.replace("\\", "/")).stem.lower()
 
 
-def match_model(session: Session, model_name: str | None) -> m.SDModel | None:
-    """按出图参数里的模型名（可能带路径、扩展名、或 "名字 [hash]"）匹配已登记的模型。"""
+def match_model(session: Session, model_name: str | None, model_hash: str | None = None) -> m.SDModel | None:
+    """按出图参数里的模型哈希（AutoV2 10 位 / AutoV1 8 位）或模型名（可能带路径、扩展名、或 "名字 [hash]"）匹配已登记的模型。"""
+    all_models = session.scalars(select(m.SDModel)).all()
+    if model_hash:
+        h = model_hash.strip().upper()
+        for mdl in all_models:
+            hs = {v.upper()[: len(h)] for k, v in (mdl.hashes or {}).items() if k in ("AutoV1", "AutoV2", "SHA256")}
+            if mdl.sha256:
+                hs.add(mdl.sha256.upper()[: len(h)])
+            if len(h) >= 8 and h in hs:
+                return mdl
     if not model_name:
         return None
     key = _stem(model_name.split(" [")[0])
-    for mdl in session.scalars(select(m.SDModel)).all():
+    for mdl in all_models:
         for cand in (mdl.file_name, mdl.local_path, mdl.name):
             if cand and _stem(cand) == key:
                 return mdl
@@ -191,7 +174,7 @@ def prompt_from_asset(asset_id: int, body: FromAsset | None = None, session: Ses
         )
         session.add(prompt)
         session.flush()
-    model = match_model(session, params.get("Model"))
+    model = match_model(session, params.get("Model"), params.get("Model hash"))
     existing = session.scalar(select(m.Generation).where(m.Generation.prompt_id == prompt.id, m.Generation.asset_id == asset.id))
     gen = existing or m.Generation(prompt_id=prompt.id, asset_id=asset.id)
     gen.model_id = model.id if model else gen.model_id

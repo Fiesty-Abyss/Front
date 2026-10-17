@@ -12,6 +12,7 @@ import random
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -66,6 +67,51 @@ def placeholder(label: str, palette: tuple[tuple[int, int, int], tuple[int, int,
         info.add_text(k, v)
     img.save(buf, "PNG", pnginfo=info)
     return buf.getvalue()
+
+
+def _fake_safetensors(meta: dict[str, str], payload_size: int, seed: int) -> bytes:
+    """生成一个格式合法、但不含任何真实权重的 safetensors 文件（只用于演示扫描与哈希）。"""
+    rnd = random.Random(seed)
+    body = rnd.randbytes(payload_size)
+    header = json.dumps({"__metadata__": meta, "example.weight": {"dtype": "U8", "shape": [payload_size], "data_offsets": [0, payload_size]}},
+                        ensure_ascii=False).encode()
+    header += b" " * (-len(header) % 8)
+    return len(header).to_bytes(8, "little") + header + body
+
+
+def make_sample_model_dir(root: Path) -> Path:
+    """在 root 下生成一个模仿 SD WebUI 的 models 目录：几个假的示例模型文件 + 预览图 + 说明文件。
+    文件名都带 example，内容不是真实模型，只用于演示“扫描模型目录”。返回 models 目录。"""
+    models = root / "models"
+    note = "Front 示例：假的模型文件，只用于演示扫描，不是真实模型"
+    files = {
+        "Stable-diffusion/inkline_v2_example.safetensors": ({"modelspec.architecture": "stable-diffusion-xl-v1-base", "modelspec.title": "InkLine v2 (example)", "note": note}, 1_200_000),
+        "Lora/linxi_character_example.safetensors": ({"ss_network_module": "networks.lora", "ss_base_model_version": "sdxl_base_v1-0", "ss_output_name": "linxi_character_example", "note": note}, 40_000),
+        "Lora/style/inkwash_style_example.safetensors": ({"ss_network_module": "lycoris.kohya", "ss_base_model_version": "sd_v1", "note": note}, 30_000),
+        "VAE/sdxl_vae_example.safetensors": ({"note": note}, 20_000),
+        "ESRGAN/4x_softedge_example.pth": (None, 12_000),
+        "embeddings/badhand_example.pt": (None, 4_000),
+    }
+    for i, (rel, (meta, size)) in enumerate(files.items()):
+        p = models / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(_fake_safetensors(meta, size, 900 + i) if meta is not None else random.Random(900 + i).randbytes(size))
+    ink = models / "Stable-diffusion/inkline_v2_example"
+    Path(f"{ink}.preview.png").write_bytes(placeholder("InkLine v2 · 预览图", ((30, 30, 40), (210, 210, 200)), 950, size=(384, 512)))
+    Path(f"{ink}.civitai.info").write_text(json.dumps({
+        "id": None, "modelId": None, "name": "v2.0（示例）", "baseModel": "SDXL 1.0",
+        "trainedWords": ["inkline", "lineart"], "description": "【示例】本地 .civitai.info 示例文件，并非真实 Civitai 数据",
+        "model": {"name": "【示例】InkLine 线稿模型", "type": "Checkpoint", "nsfw": False}, "images": [],
+    }, ensure_ascii=False), "utf-8")
+    lin = models / "Lora/linxi_character_example"
+    Path(f"{lin}.png").write_bytes(placeholder("林汐 LoRA · 预览", ((52, 66, 120), (190, 120, 160)), 951, size=(384, 512)))
+    Path(f"{lin}.json").write_text(json.dumps({
+        "description": "【示例】原创角色林汐的角色 LoRA（假文件）", "sd version": "SDXL", "activation text": "linxi, lighthouse keeper uniform",
+        "preferred weight": 0.8}, ensure_ascii=False), "utf-8")
+    for p in models.rglob("*"):
+        if p.suffix in (".safetensors", ".pth", ".pt") and not p.with_suffix(".json").exists():
+            p.with_suffix(".json").write_text(json.dumps({"description": "【示例】假的模型文件，只用于演示扫描"}, ensure_ascii=False), "utf-8")
+    return models
 
 
 def seed(client: TestClient) -> dict[str, int]:
@@ -322,7 +368,62 @@ def seed(client: TestClient) -> dict[str, int]:
          ai_suggested=True, confirmed=False)
     client.put("/api/graph/layout", json={"world_id": world, "kind_colors": {
         "青梅竹马": "#f472b6", "兄妹": "#34d399", "竞争对手": "#f87171", "学姐/学妹": "#a78bfa", "顾客": "#fbbf24", "旧识": "#94a3b8"}}).raise_for_status()
-    return {"world_id": world, "card_id": card_id, "prompt_id": p1}
+
+    # ---------- 第 4 轮：AI 绘画工作流 ----------
+    for i, (cat, title, pos, neg, notes) in enumerate([
+        ("quality", "通用高质量", "masterpiece, best quality, highly detailed", "lowres, worst quality, jpeg artifacts", "几乎每张都会用"),
+        ("quality", "通用负面", "", "bad hands, extra fingers, watermark, signature, text", "只有反向提示词的片段"),
+        ("style", "水彩", "watercolor, soft edges, paper texture", None, "配合水彩 LoRA 更明显"),
+        ("style", "厚涂", "impasto, thick paint, painterly", None, None),
+        ("style", "赛璐璐", "cel shading, flat color, clean lineart", None, None),
+        ("character", "林汐（原创）", "1girl, silver hair, blue eyes, lighthouse keeper uniform", None, "示例角色：原创虚构"),
+        ("clothing", "雨衣", "yellow raincoat, rain boots", None, None),
+        ("clothing", "学园制服", "school uniform, sailor collar, pleated skirt", None, None),
+        ("pose", "提灯回望", "holding lantern, looking back", None, None),
+        ("composition", "远景仰视", "wide shot, from below, dramatic angle", None, None),
+        ("composition", "半身特写", "upper body, close-up", None, None),
+        ("background", "雾夜港口", "harbor, sea fog, night, lighthouse beam", None, None),
+        ("lighting", "逆光", "backlighting, rim light, glowing", None, None),
+        ("lighting", "黄昏", "sunset, golden hour, warm light", None, None),
+    ]):
+        post("/api/prompt-snippets", title=f"【示例】{title}", category=cat, positive=pos, negative=neg, notes=notes, position=i)
+
+    # 用内置的“模拟 SD 接口”跑两次出图任务，演示 XY 网格：没有真的调用 SD，图片是占位图
+    from . import sdgen
+    from .mock_sd import create_mock_app
+
+    mock = create_mock_app()
+    saved = (sdgen.client_factory, sdgen.backend_url, sdgen.POLL_INTERVAL)
+    sdgen.client_factory = lambda url, timeout: TestClient(mock, base_url=url)
+    sdgen.backend_url = lambda backend, override=None: f"http://mock-{backend}"
+    sdgen.POLL_INTERVAL = 0.01
+    batches = []
+    try:
+        model_list = client.get("/api/sd-models", params={"limit": 50}).json()["items"]
+        ck = {x["name"]: x["id"] for x in model_list}
+        for body in (
+            {"backend": "webui", "prompt_id": p1, "model_ids": [ck["【示例】AnimeBase XL"], ck["【示例】PaintFlow 1.5"]],
+             "y": {"param": "cfg", "values": [5, 7, 9]}, "steps": 28, "sampler": "DPM++ 2M", "seed": 20261017,
+             "width": 512, "height": 640, "collection_name": "【示例】XY 网格 · 模型 × CFG", "tag_ids": [T["场景"]]},
+            {"backend": "comfyui", "prompt_id": p1, "model_ids": [ck["【示例】PaintFlow 1.5"]],
+             "loras": [{"model_id": ck["【示例】水彩笔触 LoRA"], "weight": 0.7}],
+             "x": {"param": "prompt_sr", "values": ["night", "dawn", "sunset"]}, "steps": 30, "cfg": 6,
+             "sampler": "dpmpp_2m", "scheduler": "karras", "seed": 777, "width": 512, "height": 640},
+        ):
+            r = client.post("/api/generate", json=body)
+            r.raise_for_status()
+            job = r.json()
+            for _ in range(600):
+                j = client.get(f"/api/jobs/{job['id']}").json()
+                if j["status"] not in ("queued", "running"):
+                    break
+                time.sleep(0.05)
+            if j["status"] != "done":
+                raise RuntimeError(f"示例出图失败：{j}")
+            batches.append(job["batch"])
+    finally:
+        sdgen.client_factory, sdgen.backend_url, sdgen.POLL_INTERVAL = saved
+    return {"world_id": world, "card_id": card_id, "prompt_id": p1, "batches": batches}
 
 
 def main() -> None:

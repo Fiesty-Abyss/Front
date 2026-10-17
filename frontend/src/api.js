@@ -58,6 +58,7 @@ export const Cards = resource('/api/cards')
 export const Collections = resource('/api/collections')
 export const WorldEntries = resource('/api/world-entries')
 export const Appearances = resource('/api/appearances')
+export const Snippets = resource('/api/prompt-snippets')
 
 export const thumb = (id) => `/api/assets/${id}/thumb`
 export const fileUrl = (id) => `/api/assets/${id}/file`
@@ -66,7 +67,36 @@ export const LABELS = {
   assetKind: { drawing: '我的画', ai_image: 'AI 生成', material: '绘画素材', novel: '小说', cg: 'CG', reference: '参考', other: '其他' },
   gender: { male: '男', female: '女', other: '其他', unknown: '未知' },
   workKind: { anime: '动漫', game: '游戏', galgame: 'Galgame', novel: '小说', manga: '漫画', original: '原创', other: '其他' },
-  modelKind: { checkpoint: 'Checkpoint', lora: 'LoRA', lycoris: 'LyCORIS', vae: 'VAE', embedding: 'Embedding', controlnet: 'ControlNet', upscaler: '放大', other: '其他' },
+  modelKind: { checkpoint: 'Checkpoint', lora: 'LoRA', lycoris: 'LyCORIS', vae: 'VAE', embedding: 'Embedding', controlnet: 'ControlNet', upscaler: '放大', hypernetwork: 'Hypernetwork', text_encoder: '文本编码器', other: '其他' },
+  snippetCategory: { quality: '质量', style: '画风', character: '角色', clothing: '服装', pose: '动作', composition: '构图', background: '背景', lighting: '光影', negative: '负面', other: '其他' },
+  param: { model: '模型', sampler: '采样器', scheduler: '调度器', steps: '步数', cfg: 'CFG', seed: '种子', size: '尺寸', clip_skip: 'Clip skip', denoise: '重绘幅度', vae: 'VAE', loras: 'LoRA', prompt_sr: '提示词替换', lora_weight: 'LoRA 权重' },
   entryKind: { location: '地点', organization: '组织', event: '事件', item: '物品', concept: '概念' },
   tagCategory: { gender: '性别', medium: '媒介', source: '来源作品', style: '画风', type: '类型', custom: '自定义' },
+}
+
+/** 轮询后台任务直到结束；onUpdate 每次拿到最新状态。 */
+export async function waitJob(id, onUpdate, interval = 800) {
+  for (;;) {
+    const j = await api.get(`/api/jobs/${id}`)
+    onUpdate?.(j)
+    if (!['queued', 'running'].includes(j.status)) return j
+    await new Promise((r) => setTimeout(r, interval))
+  }
+}
+
+/** 与后端 compose_prompt 相同的规则：逗号分隔、去重（不区分大小写），权重 ≠ 1 时整段包成 (片段:权重)。 */
+export function composePrompt(base, parts) {
+  const seen = new Set()
+  const out = []
+  const push = (chunk) => {
+    if (!chunk) return
+    if (chunk.startsWith('(') && chunk.endsWith(')')) { if (!seen.has(chunk.toLowerCase())) { seen.add(chunk.toLowerCase()); out.push(chunk) } return }
+    for (const t of chunk.split(/[,\n]/).map((x) => x.trim()).filter(Boolean)) if (!seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t) }
+  }
+  push(base)
+  for (const [text, w] of parts) {
+    const t = (text || '').trim().replace(/^,+|,+$/g, '').trim()
+    push(t && Math.abs((w ?? 1) - 1) > 1e-6 ? `(${t}:${+(+w).toFixed(2)})` : t)
+  }
+  return out.join(', ')
 }

@@ -9,7 +9,7 @@ const go = () => q.value.trim() && router.push({ path: '/search', query: { q: q.
 const nav = [
   ['资料库', [['/', '◎', '总览'], ['/assets', '▦', '素材库'], ['/import', '⇪', '批量导入'], ['/works', '❖', '作品 / CG'], ['/collections', '❒', '收藏集'], ['/tags', '#', '标签']]],
   ['百科', [['/characters', '☺', '角色百科'], ['/worlds', '◍', '世界观'], ['/graph', '◈', '关系网']]],
-  ['AI 绘画', [['/prompts', '✎', '提示词库'], ['/models', '⬡', 'SD 模型库']]],
+  ['AI 绘画', [['/generate', '✦', '出图'], ['/prompts', '✎', '提示词库'], ['/snippets', '❏', '提示词片段'], ['/models', '⬡', 'SD 模型库']]],
   ['AI 角色', [['/cards', '▤', '角色卡'], ['/chat', '✉', 'AI 对话']]],
 ]
 </script>

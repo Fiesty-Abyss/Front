@@ -133,7 +133,9 @@ def test_tag_hierarchy_aliases_merge(client):
     assert [t["name"] for t in client.get(f"/api/assets/{a}").json()["tags"]] == ["Galgame"]
     assert client.get(f"/api/tags/{child}").json()["parent_id"] == gal["id"]
     usage = client.get("/api/tags/usage").json()
-    assert usage[str(gal["id"])] == 4
+    assert usage[str(gal["id"])] == {"direct": 4, "total": 4}
+    # 上级标签的计数包含子标签（同一条目只算一次）
+    assert usage[str(game)] == {"direct": 1, "total": 5}  # 乙 + Galgame 的 4 个
     assert client.get("/api/search", params={"q": "恋爱ADV"}).json()  # 旧名作为别名仍可搜到
     # 不能合并进自己的子标签
     assert client.post(f"/api/tags/{game}/merge", json={"into_id": gal["id"]}).status_code == 422

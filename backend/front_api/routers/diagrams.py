@@ -93,6 +93,13 @@ crud = make_crud_router(
 extra = APIRouter(prefix="/api/diagrams", tags=["图表画布"])
 
 
+@extra.get("/templates")
+def templates() -> list[dict[str, Any]]:
+    from ..diagram_templates import get_templates
+
+    return get_templates()
+
+
 def preview_path(diagram_id: int):
     return get_settings().thumb_dir / f"diagram-{diagram_id}.webp"
 

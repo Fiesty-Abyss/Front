@@ -95,3 +95,15 @@ def test_search_and_stats(client):
     r = client.get("/api/stats/activity", params={"weeks": 1}).json()
     today = next(d for d in r["days"] if d["date"] == r["today"])
     assert today["by"].get("diagrams") == 1
+
+
+def test_templates_are_valid(client):
+    ts = client.get("/api/diagrams/templates").json()
+    assert [t["id"] for t in ts] == ["blank", "flow", "workflow", "mind"]
+    for t in ts:
+        r = client.post("/api/diagrams", json={"title": t["title"], "kind": t["kind"], "data": t["data"]})
+        assert r.status_code == 201, (t["id"], r.text)
+    wf = next(t for t in ts if t["id"] == "workflow")["data"]
+    ports = {(n["id"], f"out-{o['id']}") for n in wf["nodes"] for o in n["data"]["outputs"]} | {(n["id"], f"in-{i['id']}") for n in wf["nodes"] for i in n["data"]["inputs"]}
+    for e in wf["edges"]:  # 每条连线都接在真实存在的端口上
+        assert (e["source"], e["sourceHandle"]) in ports and (e["target"], e["targetHandle"]) in ports, e

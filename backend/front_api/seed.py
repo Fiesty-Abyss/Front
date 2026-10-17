@@ -89,11 +89,17 @@ def seed(client: TestClient) -> dict[str, int]:
     }.items():
         for n in names:
             T[n] = post("/api/tags", name=n, category=cat)
+    # 标签层级与别名：Galgame 归在「游戏」之下，筛选「游戏」时也会包含 Galgame
+    T["Galgame"] = post("/api/tags", name="Galgame", category="medium", parent_id=T["游戏"], aliases=["gal", "美少女游戏"], color="#fbbf24")
+    T["轻小说"] = post("/api/tags", name="轻小说", category="medium", parent_id=T["小说"], aliases=["ラノベ"])
+    T["场景速写"] = post("/api/tags", name="场景速写", category="type", parent_id=T["场景"])
+    client.patch(f"/api/tags/{T['女']}", json={"aliases": ["女性"], "color": "#f472b6"}).raise_for_status()
+    client.patch(f"/api/tags/{T['男']}", json={"aliases": ["男性"], "color": "#60a5fa"}).raise_for_status()
 
     work_orig = post("/api/works", title="【示例】雾港物语", kind="original", year=2026,
                      description="原创世界观企划（示例数据）", tag_ids=[T["原创"]])
     work_gal = post("/api/works", title="【示例】樱色回廊", kind="galgame", year=2025, publisher="示例工作室",
-                    description="虚构的 galgame 条目，用来演示 CG 归档（示例数据）", tag_ids=[T["游戏"]])
+                    description="虚构的 galgame 条目，用来演示 CG 归档（示例数据）", tag_ids=[T["Galgame"]])
 
     world = post(
         "/api/worlds",
@@ -138,7 +144,7 @@ def seed(client: TestClient) -> dict[str, int]:
     for i, (title, kind, tags, date) in enumerate([
         ("【示例】雾港夜景 · 场景练习", "drawing", ["场景", "水彩"], "2026-09-02"),
         ("【示例】手部结构参考", "material", ["参考"], "2026-08-15"),
-        ("【示例】灯塔速写", "drawing", ["场景"], "2026-10-01"),
+        ("【示例】灯塔速写", "drawing", ["场景速写"], "2026-10-01"),
     ]):
         upload(f"misc_{i}.png", placeholder(title.replace("【示例】", ""), pal[(i + 2) % 6], 50 + i),
                title=title, kind=kind, work_date=date, tag_ids=",".join(str(T[t]) for t in tags))
@@ -256,6 +262,66 @@ def seed(client: TestClient) -> dict[str, int]:
          work_id=work_gal, asset_ids=[cg_ids[3], cg_ids[0], cg_ids[9]], position=1)
     post("/api/collections", name="【示例】AI 出图 · 风格对比", description="同一提示词在不同模型下的出图",
          asset_ids=[a["id"] for a in assets if a["kind"] == "ai_image"], position=2)
+
+    # ---------- 第 3 轮：百科 ----------
+    def entry(kind: str, name: str, summary: str, parent: int | None = None, content: str = "", chars_: list | None = None, **kw):
+        return post("/api/world-entries", world_id=world, kind=kind, name=name, summary=summary, content=content,
+                    parent_id=parent, characters=[{"character_id": chars[c], "role": r} for c, r in (chars_ or [])], **kw)
+
+    city = entry("location", "【示例】雾港市", "建在半岛上的港口城市，雾季长达三个月",
+                 content="## 城市概况\n- 人口：约 30 万（虚构）\n- 气候：每年 9–11 月为**雾季**\n\n城市分为旧港区与新港区，以运河为界。")
+    old = entry("location", "旧港区", "石板路与老仓库，灯塔所在的街区", city)
+    lighthouse = entry("location", "灯塔", "旧港区尽头的白色灯塔，共一百零八级台阶", old,
+                       content="灯塔由**灯塔守望会**世代看守。雾季时，灯光会按约定的节奏闪烁。", chars_=[("林汐", "居住")])
+    shop = entry("location", "坡道书店", "沈既白经营的旧书店，以旧地图收藏闻名", old, chars_=[("沈既白", "店主"), ("沈小满", "常驻")])
+    new = entry("location", "新港区", "填海建成的新街区，商业与学校集中于此", city)
+    school = entry("location", "港口学园", "雾港市唯一的综合学园", new, chars_=[("林汐", "二年级"), ("沈小满", "一年级"), ("陆鸣", "三年级")])
+    entry("organization", "港口学园学生会", "负责筹办每年的灯塔节", school,
+                    content="学生会长陆鸣主张改革灯会路线，与守旧派意见相左。",
+                    chars_=[("陆鸣", "会长"), ("沈小满", "干事")])
+    watch = entry("organization", "灯塔守望会", "世代看守灯塔的民间组织", lighthouse,
+                  content="守望会的成员能分辨海雾的颜色，以此判断风暴将至与否。", chars_=[("林汐", "见习守望者")])
+    EVENT_NOTES = {"灯塔节筹备会议": (
+        "## 经过\n陆鸣带着一份**三十页**的计划书提议：今年灯会改走新港区。\n\n"
+        "- 支持：新港区街道宽、游客多\n- 反对：灯塔节的灯从来沿着旧港走\n\n"
+        "会议最终没有结论，留到 [[灯塔节前夜]] 再议。")}
+    for name, date, key, place, summary, who in [
+        ("大雾夜的约定", "灯塔历 296 年 · 冬", 296.9, lighthouse, "童年的林汐与沈既白在灯塔下约定一起守住灯光", [("林汐", "当事人"), ("沈既白", "当事人")]),
+        ("旅人初次来访", "灯塔历 299 年 · 雾季", 299.8, shop, "艾琳第一次走进坡道书店，买下全部旧地图", [("艾琳", "旅人"), ("沈既白", "店主")]),
+        ("沈小满入学", "灯塔历 302 年 · 春", 302.3, school, "沈小满进入港口学园，成为林汐的学妹", [("沈小满", "新生"), ("林汐", "学姐")]),
+        ("灯塔节筹备会议", "灯塔历 302 年 · 秋", 302.8, school, "陆鸣提议改走新港区，与林汐当场争执", [("陆鸣", "提案人"), ("林汐", "反对者"), ("沈小满", "记录")]),
+        ("灯塔节前夜", "灯塔历 302 年 · 雾季", 302.9, lighthouse, "大雾中的灯塔节前夜，示例小说的主要舞台", [("林汐", "主角"), ("沈既白", "主角"), ("艾琳", "登场")]),
+        ("没有署名的明信片", None, None, shop, "雾散后出现在书店门口的明信片，时间尚未考证", [("艾琳", "疑似寄件人")]),
+    ]:
+        entry("event", name, summary, place, date_label=date, sort_key=key, chars_=who, content=EVENT_NOTES.get(name, ""))
+    entry("item", "旧地图", "坡道书店收藏的雾港旧地图，标注着已消失的航道", shop, chars_=[("沈既白", "收藏者"), ("艾琳", "买家")])
+    entry("concept", "海雾的颜色", "守望会用来预判天气的经验：灰雾平安，青雾起风，红雾有暴风", watch)
+    entry("concept", "灯塔历", "以灯塔建成之年为元年的本地纪年", city)
+
+    # 角色图集（占位图）与详细设定
+    gallery = []
+    for j, (label, badge) in enumerate([("林汐 · 表情差分", "表情"), ("林汐 · 便服", "便服"), ("林汐 · 守望者制服", "制服")]):
+        gallery.append(upload(f"linxi_{j}.png", placeholder(label, pal[(j + 1) % 6], 200 + j, size=(480, 640), badge=badge),
+                              title=f"【示例】{label}", kind="drawing", work_date=f"2026-10-0{j + 3}", world_id=str(world),
+                              tag_ids=f"{T['立绘']},{T['赛璐璐']}"))
+    lin = client.get(f"/api/characters/{chars['林汐']}").json()
+    assets_now = {a["title"]: a["id"] for a in client.get("/api/assets", params={"limit": 200}).json()["items"]}
+    client.put(f"/api/characters/{chars['林汐']}/gallery",
+               json={"asset_ids": [lin["avatar_asset_id"], *gallery, assets_now["【示例】灯塔速写"]]}).raise_for_status()
+    client.patch(f"/api/characters/{chars['林汐']}", json={"alias": "灯塔的女儿", "profile": (
+        "## 基本资料\n| 项目 | 内容 |\n|---|---|\n| 年龄 | 17 |\n| 身份 | 港口学园二年级 · 灯塔守望会见习守望者 |\n| 生日 | 灯塔历 285 年 · 雾季 |\n\n"
+        "## 性格\n坚韧、直率，**嘴硬心软**。认定的事很少让步，但会在深夜偷偷替别人把灯擦亮。\n\n"
+        "## 经历\n1. 童年在 [[灯塔]] 下与 [[沈既白]] 立下约定\n2. 升入港口学园后，在灯塔节路线上与学生会长 [[陆鸣]] 针锋相对\n\n"
+        "> 「因为总有人在雾里找回家的路。」\n\n*示例条目：人物与设定均为原创虚构，可自由编辑或删除。*"
+    )}).raise_for_status()
+    # 出场登记：除来源作品外，再登记一个客串
+    post("/api/appearances", character_id=chars["艾琳"], work_id=work_gal, role="客串", note="第 5 章出现的神秘旅人（示例）")
+    post("/api/appearances", character_id=chars["林汐"], work_id=work_gal, role="联动角色", note="限定活动（示例）")
+    # 一条 AI 待确认的关系 + 关系类型配色
+    post("/api/relations", source_id=chars["艾琳"], target_id=chars["林汐"], kind="旧识", description="AI 推测：艾琳似乎认识童年的林汐（示例）",
+         ai_suggested=True, confirmed=False)
+    client.put("/api/graph/layout", json={"world_id": world, "kind_colors": {
+        "青梅竹马": "#f472b6", "兄妹": "#34d399", "竞争对手": "#f87171", "学姐/学妹": "#a78bfa", "顾客": "#fbbf24", "旧识": "#94a3b8"}}).raise_for_status()
     return {"world_id": world, "card_id": card_id, "prompt_id": p1}
 
 

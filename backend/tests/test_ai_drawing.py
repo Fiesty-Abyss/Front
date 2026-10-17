@@ -112,7 +112,7 @@ def test_civitai_match(client, monkeypatch, tmp_path):
                                              "model": {"name": "Remote Model", "type": "LORA"},
                                              "images": [{"url": "https://image.civitai.com/a.png", "nsfwLevel": 1}]})
         if req.url.host == "image.civitai.com":
-            from tests.conftest import png_bytes
+            from conftest import png_bytes
             return httpx.Response(200, content=png_bytes())
         return httpx.Response(404, json={"error": "not found"})
 

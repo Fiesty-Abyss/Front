@@ -8,7 +8,7 @@ const q = ref('')
 const go = () => q.value.trim() && router.push({ path: '/search', query: { q: q.value.trim() } })
 const nav = [
   ['资料库', [['/', '◎', '总览'], ['/assets', '▦', '素材库'], ['/import', '⇪', '批量导入'], ['/works', '❖', '作品 / CG'], ['/collections', '❒', '收藏集'], ['/tags', '#', '标签']]],
-  ['百科', [['/characters', '☺', '角色百科'], ['/worlds', '◍', '世界观'], ['/graph', '⟡', '关系网']]],
+  ['百科', [['/characters', '☺', '角色百科'], ['/worlds', '◍', '世界观'], ['/graph', '◈', '关系网']]],
   ['AI 绘画', [['/prompts', '✎', '提示词库'], ['/models', '⬡', 'SD 模型库']]],
   ['AI 角色', [['/cards', '▤', '角色卡'], ['/chat', '✉', 'AI 对话']]],
 ]

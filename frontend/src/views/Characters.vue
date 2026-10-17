@@ -1,13 +1,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api, Assets, Characters, LABELS, Relations, thumb, Works, Worlds } from '../api'
+import Markdown from '../components/Markdown.vue'
 import Modal from '../components/Modal.vue'
 import TagChips from '../components/TagChips.vue'
 import TagPicker from '../components/TagPicker.vue'
 import { guard } from '../toast'
 
 const router = useRouter()
+const route = useRoute()
 const f = reactive({ q: '', gender: '', tag: [], world_id: '', work_id: '' })
 const items = ref([])
 const worlds = ref([])
@@ -22,7 +24,8 @@ async function load() { items.value = (await Characters.list({ ...f, limit: 500 
 onMounted(async () => {
   worlds.value = (await Worlds.list({ limit: 500 })).items
   works.value = (await Works.list({ limit: 500 })).items
-  load()
+  await load()
+  if (route.query.edit) open(await Characters.get(Number(route.query.edit)))
 })
 let t
 watch(f, () => { clearTimeout(t); t = setTimeout(load, 200) }, { deep: true })
@@ -40,8 +43,8 @@ async function save() {
   const e = editing.value
   const body = { name: e.name, alias: e.alias, gender: e.gender, summary: e.summary, profile: e.profile, world_id: e.world_id || null, work_id: e.work_id || null, avatar_asset_id: e.avatar_asset_id || null, tag_ids: e.tag_ids }
   const saved = await guard(() => (e.id ? Characters.update(e.id, body) : Characters.create(body)), '已保存')
-  await load()
-  open(saved)
+  editing.value = null
+  router.push(`/characters/${saved.id}`)
 }
 async function remove() {
   if (!confirm(`删除角色「${editing.value.name}」？其关系也会删除。`)) return
@@ -84,7 +87,7 @@ const genders = computed(() => Object.entries(LABELS.gender))
       <div class="row" style="margin-bottom:12px"><span class="muted">共 {{ items.length }} 位角色</span><span class="spacer" /><button class="primary" @click="open(null)">＋ 新建角色</button></div>
       <div v-if="!items.length" class="empty card">没有符合条件的角色</div>
       <div class="grid cols-2">
-        <div v-for="c in items" :key="c.id" class="card row" style="cursor:pointer;flex-wrap:nowrap;align-items:flex-start" @click="open(c)">
+        <div v-for="c in items" :key="c.id" class="card row" style="cursor:pointer;flex-wrap:nowrap;align-items:flex-start" @click="router.push(`/characters/${c.id}`)">
           <div class="avatar" :style="c.avatar_asset_id ? { backgroundImage: `url(${thumb(c.avatar_asset_id)})` } : {}" />
           <div style="min-width:0">
             <div class="row" style="gap:8px"><b>{{ c.name }}</b><span class="badge">{{ LABELS.gender[c.gender] }}</span><span v-if="c.world_id" class="small muted">{{ worldName(c.world_id) }}</span></div>
@@ -107,7 +110,10 @@ const genders = computed(() => Object.entries(LABELS.gender))
         <label class="field">头像<select v-model="editing.avatar_asset_id"><option :value="null">无</option><option v-for="a in images" :key="a.id" :value="a.id">{{ a.title }}</option></select></label>
       </div>
       <label class="field">简介<textarea v-model="editing.summary" /></label>
-      <label class="field">详细设定（Markdown）<textarea v-model="editing.profile" style="min-height:140px" /></label>
+      <div class="grid cols-2">
+        <label class="field">详细设定（Markdown，[[名称]] 可链接到站内搜索）<textarea v-model="editing.profile" style="min-height:200px" class="mono" /></label>
+        <div class="field">预览<div class="card" style="background:var(--panel2);min-height:200px;max-height:300px;overflow:auto;padding:10px 14px"><Markdown :source="editing.profile || ''" /></div></div>
+      </div>
       <TagPicker v-model="editing.tag_ids" />
       <div v-if="editing.id" class="card" style="background:var(--panel2)">
         <b>关系</b>

@@ -9,13 +9,13 @@
 画作、AI 出图、绘画素材、小说、galgame CG、世界观与角色关系网、SD 模型与提示词、AI 角色卡与对话，全部放进一个属于自己的数据库。
 
 [![CI](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.2.0-8b7cf6)
+![version](https://img.shields.io/badge/version-0.3.0-8b7cf6)
 ![license](https://img.shields.io/badge/license-MIT-f472b6)
 ![stack](https://img.shields.io/badge/FastAPI%20%2B%20SQLite%20%2B%20Vue%203-1f2340)
 
 </div>
 
-> Front 是一个长期持续开发的项目，当前为 **v0.2.0**（第二轮）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+> Front 是一个长期持续开发的项目，当前为 **v0.3.0**（第三轮）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ## 能做什么
 
@@ -25,8 +25,10 @@
 | ⇪ **批量导入** | 输入本机文件夹路径（或在浏览器里选择文件夹），扫描预览后一键导入；可递归子文件夹、用文件修改时间作为日期、统一打标签；同内容文件自动跳过 |
 | ✦ **AI 出图参数识别** | 自动识别 **SD WebUI / Forge** 的 `parameters` 与 **ComfyUI** 的 `prompt` / `workflow`：沿节点连线找出正/反向提示词，提取采样器、步数、CFG、种子、尺寸、Checkpoint、LoRA；可下载原始工作流拖回 ComfyUI，一键存入提示词库 |
 | 📖 **角色百科** | 角色条目 + 分面标签：性别（男/女）、媒介（动漫/游戏）、来源作品、画风、类型……多个标签取交集，像百科一样检索 |
-| 🌏 **世界观** | Markdown 设定正文，挂接角色与素材 |
-| ⟡ **关系网** | 可视化角色关系图，点两个角色即可连线；AI 识别出的关系以虚线显示，人工确认后转为正式关系 |
+| ☺ **角色详情页** | Markdown 设定（表格、引用、`[[名称]]` 站内链接），编辑时实时预览；**图集**（从素材库挑图、设为头像、大图浏览）；**出场作品**（来源作品 + 客串 / 联动登记）；关系列表；所属组织、参与事件、相关地点 |
+| 🌏 **世界观百科** | 设定正文之外，世界观下可建 **地点**（层级：城市 › 街区 › 建筑）、**组织**（成员与职务）、**事件**（时间、发生地点、参与角色）、**物品 / 概念** 条目，正文都支持 Markdown；事件自动排成**时间线** |
+| ◈ **关系网** | 可视化角色关系图，点两个角色即可连线；**按关系类型着色**（颜色可改、自动保存）、点击类型筛选、隐藏 AI 待确认；**保存布局**（拖好的位置下次照样显示）；**导出 PNG / JSON**。AI 识别出的关系以虚线显示，人工确认后转为正式关系 |
+| # **标签管理** | **层级标签**（如「游戏 › Galgame」，按上级筛选时自动包含子标签）、**别名**（搜「gal」也能找到 Galgame）、颜色、使用次数统计，重复标签一键**合并**（原名自动变成别名） |
 | 🎮 **galgame CG 档案** | CG 模式导入时自动识别**差分**（`ev01a/ev01b`、`ev03_01/ev03_02`、`ev0401/ev0402`、`ev04_diff2`……，并要求分辨率一致），按作品归档；**鉴赏模式**全屏浏览：← → 切换 CG、↑ ↓ 切换差分、自动播放 |
 | ❒ **收藏集** | 拖拽排序、自定义封面（默认第一项）、收藏集之间也可拖拽排序，可关联作品 |
 | 📖 **小说阅读** | 自动拆分章节（第X章 / Chapter N / Markdown 标题 / 序章 尾声…），字数统计，阅读模式支持目录、翻章、字号、行距、四种主题，进度自动记住 |
@@ -39,27 +41,37 @@
 
 ## 界面截图
 
-> 以下截图均为真实运行的 Front v0.2.0（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。
+> 以下截图均为真实运行的 Front v0.3.0（无头浏览器截取）。截图里的内容是内置的 **【示例】数据**：雾港市、林汐、灯塔守望会、“灯塔历”时间线、“樱色回廊”“星之回响”等均为原创虚构，图片（包括 CG 与差分角标）是程序生成的几何占位图，模型条目和 ComfyUI 工作流只是演示字段，并非真实模型或真实出图。
 
 | 总览 | 素材库 |
 | --- | --- |
 | ![总览](docs/screenshots/dashboard.png) | ![素材库](docs/screenshots/assets.png) |
-| **角色百科（分面标签筛选）** | **角色详情 / 关系编辑** |
+| **角色百科（分面标签筛选）** | **角色详情页：Markdown 设定 / 关系 / 出场作品** |
 | ![角色百科](docs/screenshots/characters.png) | ![角色详情](docs/screenshots/character-detail.png) |
-| **角色关系网** | **世界观** |
-| ![关系网](docs/screenshots/graph.png) | ![世界观](docs/screenshots/worlds.png) |
-| **批量导入 · CG 模式扫描预览（差分分组）** | **galgame CG 档案（按差分分组）** |
-| ![批量导入](docs/screenshots/import-preview.png) | ![CG 档案](docs/screenshots/works-cg.png) |
-| **CG 鉴赏模式（差分 2 / 3）** | **收藏集：拖拽排序与封面** |
-| ![鉴赏模式](docs/screenshots/cg-viewer.png) | ![收藏集](docs/screenshots/collections.png) |
-| **小说阅读模式（夜间）** | **小说阅读模式（羊皮纸）** |
-| ![阅读模式](docs/screenshots/reader.png) | ![阅读模式 羊皮纸](docs/screenshots/reader-paper.png) |
-| **ComfyUI 工作流解析（含 LoRA）** | **SD WebUI 出图参数** |
-| ![ComfyUI](docs/screenshots/asset-comfyui.png) | ![出图参数](docs/screenshots/asset-ai-params.png) |
-| **SD 模型库** | **角色卡编辑器** |
-| ![SD 模型库](docs/screenshots/models.png) | ![角色卡](docs/screenshots/cards.png) |
-| **AI 对话（未配置 AI 时的提示）** | **全文搜索** |
-| ![AI 对话](docs/screenshots/chat.png) | ![搜索](docs/screenshots/search.png) |
+| **角色详情页：图集 / 参与事件 / 所属组织** | **编辑角色：Markdown 实时预览** |
+| ![角色图集](docs/screenshots/character-gallery.png) | ![编辑角色](docs/screenshots/character-edit.png) |
+| **世界观 · 地点（层级）** | **世界观 · 组织** |
+| ![地点](docs/screenshots/world-locations.png) | ![组织](docs/screenshots/world-organizations.png) |
+| **世界观 · 时间线** | **编辑事件：时间、地点、参与角色** |
+| ![时间线](docs/screenshots/world-timeline.png) | ![编辑事件](docs/screenshots/world-entry-edit.png) |
+| **关系网：按类型着色** | **关系网：按类型筛选（隐藏了两类）** |
+| ![关系网](docs/screenshots/graph.png) | ![关系网筛选](docs/screenshots/graph-filter.png) |
+| **标签：层级 / 别名 / 使用次数** | **编辑标签：上级、别名、合并** |
+| ![标签](docs/screenshots/tags.png) | ![编辑标签](docs/screenshots/tag-edit.png) |
+| **世界观设定** | **作品：登场角色 + galgame CG 档案** |
+| ![世界观](docs/screenshots/worlds.png) | ![CG 档案](docs/screenshots/works-cg.png) |
+| **批量导入 · CG 模式扫描预览（差分分组）** | **CG 鉴赏模式（差分 2 / 3）** |
+| ![批量导入](docs/screenshots/import-preview.png) | ![鉴赏模式](docs/screenshots/cg-viewer.png) |
+| **收藏集：拖拽排序与封面** | **小说阅读模式（夜间）** |
+| ![收藏集](docs/screenshots/collections.png) | ![阅读模式](docs/screenshots/reader.png) |
+| **小说阅读模式（羊皮纸）** | **ComfyUI 工作流解析（含 LoRA）** |
+| ![阅读模式 羊皮纸](docs/screenshots/reader-paper.png) | ![ComfyUI](docs/screenshots/asset-comfyui.png) |
+| **SD WebUI 出图参数** | **SD 模型库** |
+| ![出图参数](docs/screenshots/asset-ai-params.png) | ![SD 模型库](docs/screenshots/models.png) |
+| **角色卡编辑器** | **AI 对话（未配置 AI 时的提示）** |
+| ![角色卡](docs/screenshots/cards.png) | ![AI 对话](docs/screenshots/chat.png) |
+| **全文搜索（含百科条目）** | |
+| ![搜索](docs/screenshots/search.png) | |
 
 **提示词库：同一提示词 × 不同模型的风格对比**
 
@@ -136,7 +148,7 @@ python -m front_api
 
 ## 技术栈
 
-FastAPI · SQLAlchemy 2 · SQLite（FTS5 trigram）· Pillow · httpx ｜ Vue 3 · Vite · Vue Router · Cytoscape.js
+FastAPI · SQLAlchemy 2 · SQLite（FTS5 trigram）· Pillow · httpx ｜ Vue 3 · Vite · Vue Router · Cytoscape.js · markdown-it
 
 ## 许可证
 

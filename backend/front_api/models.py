@@ -70,6 +70,9 @@ class Tag(Base):
     name: Mapped[str] = mapped_column(String(80))
     category: Mapped[str] = mapped_column(String(40), default="custom", index=True)
     color: Mapped[str | None] = mapped_column(String(16))
+    # v0.3：别名（搜索与筛选时视同本名）与层级（父标签筛选时包含全部子标签）
+    aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("tags.id", ondelete="SET NULL"))
 
 
 class Work(TimestampMixin, Base):
@@ -272,3 +275,78 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(20))  # user / assistant / system
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ---------------- v0.3 百科增强 ----------------
+world_entry_tags = Table(
+    "world_entry_tags",
+    Base.metadata,
+    Column("world_entry_id", ForeignKey("world_entries.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
+
+character_assets = Table(
+    "character_assets",
+    Base.metadata,
+    Column("character_id", ForeignKey("characters.id", ondelete="CASCADE"), primary_key=True),
+    Column("asset_id", ForeignKey("assets.id", ondelete="CASCADE"), primary_key=True),
+    Column("position", Integer, nullable=False, default=0, server_default="0"),
+)
+
+
+class WorldEntry(TimestampMixin, Base):
+    """世界观条目：地点 / 组织 / 事件 / 物品 / 概念。
+    parent_id 组成层级（例如 城市 > 街区 > 建筑）；事件用 date_label 显示、sort_key 排序生成时间线。"""
+
+    __tablename__ = "world_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    world_id: Mapped[int] = mapped_column(ForeignKey("worlds.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(30), default="location", index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    summary: Mapped[str | None] = mapped_column(Text)
+    content: Mapped[str | None] = mapped_column(Text)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("world_entries.id", ondelete="SET NULL"))
+    date_label: Mapped[str | None] = mapped_column(String(100))
+    sort_key: Mapped[float | None] = mapped_column()
+    image_asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"))
+    tags: Mapped[list[Tag]] = relationship(secondary=world_entry_tags, lazy="selectin")
+    links: Mapped[list["EntryCharacter"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin", order_by="EntryCharacter.id"
+    )
+
+
+class EntryCharacter(Base):
+    """角色与世界观条目的关联：所属组织、参与事件、常驻地点……role 写具体身份。"""
+
+    __tablename__ = "entry_characters"
+    __table_args__ = (UniqueConstraint("entry_id", "character_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entry_id: Mapped[int] = mapped_column(ForeignKey("world_entries.id", ondelete="CASCADE"))
+    character_id: Mapped[int] = mapped_column(ForeignKey("characters.id", ondelete="CASCADE"))
+    role: Mapped[str | None] = mapped_column(String(100))
+
+
+class Appearance(TimestampMixin, Base):
+    """角色的出场作品（一个角色可以出现在多部作品里）。"""
+
+    __tablename__ = "appearances"
+    __table_args__ = (UniqueConstraint("character_id", "work_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    character_id: Mapped[int] = mapped_column(ForeignKey("characters.id", ondelete="CASCADE"), index=True)
+    work_id: Mapped[int] = mapped_column(ForeignKey("works.id", ondelete="CASCADE"))
+    role: Mapped[str | None] = mapped_column(String(100))  # 主角 / 配角 / 客串……
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+class GraphLayout(TimestampMixin, Base):
+    """关系网保存的布局：scope 为 "world:<id>" 或 "all"。positions = {角色id: {x, y}}。"""
+
+    __tablename__ = "graph_layouts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scope: Mapped[str] = mapped_column(String(60), unique=True)
+    positions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    kind_colors: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)

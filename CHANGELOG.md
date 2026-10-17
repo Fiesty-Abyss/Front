@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.3.0 · 2026-10-17
+
+第三轮：百科增强。
+
+- **角色详情页** `/characters/:id`：Markdown 设定渲染（markdown-it，禁用原始 HTML；表格、引用、`[[名称]]` 站内搜索链接）；图集（排序、追加、移出、设为头像、大图）；出场作品（来源作品 + 出场登记，可增删）；关系列表（方向、AI 待确认标记）；所属组织 / 参与事件 / 相关地点；编辑角色时 Markdown 实时预览
+- **世界观百科条目** `/api/world-entries`：地点 / 组织 / 事件 / 物品 / 概念五类，层级（同一世界观内、禁止成环）、Markdown 正文、标签、关联角色及其身份；世界观页按类型分页签：地点树、组织卡片、时间线、物品 / 概念
+- **时间线** `/api/worlds/{id}/timeline`：事件按排序值从早到晚（未填排最后），带显示用时间、发生地点与参与角色
+- **出场登记** `/api/appearances`：角色 × 作品（身份、备注），作品页显示登场角色 `/api/works/{id}/characters`
+- **角色详情聚合接口** `/api/characters/{id}/detail`，图集接口 `/api/characters/{id}/gallery`
+- **关系网**：按关系类型着色（颜色可改并保存）、点击类型显示 / 隐藏、隐藏 AI 待确认、保存 / 重置布局（`PUT` / `DELETE /api/graph/layout`，按世界观分别保存）、导出 PNG 与 JSON（`/api/graph/export`）、从角色详情页跳转时高亮该角色；`/api/graph` 增加 `kinds` 筛选与类型统计
+- **标签**：层级（`parent_id`，按上级标签筛选自动包含所有子标签）、别名（标签搜索与全文检索都会命中别名）、颜色、使用次数 `/api/tags/usage`、标签树 `/api/tags/tree`、合并 `POST /api/tags/{id}/merge`（使用处去重改挂、子标签迁移、原名变别名）
+- 全文检索加入百科条目，搜索结果可直接跳到对应角色 / 世界观 / 条目 / 作品 / 提示词 / 角色卡
+- 数据库自动迁移：`tags.aliases`、`tags.parent_id`；新表 `world_entries`、`world_entry_tags`、`entry_characters`、`appearances`、`character_assets`、`graph_layouts`
+- 示例数据新增：雾港市地点树、两个组织、6 个事件的时间线、物品与概念、林汐的图集与 Markdown 设定、客串登记、一条 AI 待确认关系、关系类型配色、层级标签与别名
+- 测试 61 → 68 项
+
 ## v0.2.0 · 2026-10-17
 
 第二轮：素材与 CG。

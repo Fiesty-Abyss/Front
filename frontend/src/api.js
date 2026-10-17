@@ -30,6 +30,7 @@ export const api = {
   get: (url, params) => request('GET', url + qs(params)),
   post: (url, body) => request('POST', url, body),
   patch: (url, body) => request('PATCH', url, body),
+  put: (url, body) => request('PUT', url, body),
   del: (url) => request('DELETE', url),
   upload: (url, form) => request('POST', url, form, true),
 }
@@ -55,6 +56,8 @@ export const SDModels = resource('/api/sd-models')
 export const Generations = resource('/api/generations')
 export const Cards = resource('/api/cards')
 export const Collections = resource('/api/collections')
+export const WorldEntries = resource('/api/world-entries')
+export const Appearances = resource('/api/appearances')
 
 export const thumb = (id) => `/api/assets/${id}/thumb`
 export const fileUrl = (id) => `/api/assets/${id}/file`
@@ -64,5 +67,6 @@ export const LABELS = {
   gender: { male: '男', female: '女', other: '其他', unknown: '未知' },
   workKind: { anime: '动漫', game: '游戏', galgame: 'Galgame', novel: '小说', manga: '漫画', original: '原创', other: '其他' },
   modelKind: { checkpoint: 'Checkpoint', lora: 'LoRA', lycoris: 'LyCORIS', vae: 'VAE', embedding: 'Embedding', controlnet: 'ControlNet', upscaler: '放大', other: '其他' },
+  entryKind: { location: '地点', organization: '组织', event: '事件', item: '物品', concept: '概念' },
   tagCategory: { gender: '性别', medium: '媒介', source: '来源作品', style: '画风', type: '类型', custom: '自定义' },
 }

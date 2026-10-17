@@ -48,14 +48,44 @@ def set_collection_items(session: Session, collection_id: int, asset_ids: list[i
         )
 
 
+def tag_descendants(session: Session, tag_id: int) -> set[int]:
+    """标签及其全部子孙标签的 id（层级标签筛选用）。"""
+    rows = session.execute(select(m.Tag.id, m.Tag.parent_id)).all()
+    children: dict[int, list[int]] = {}
+    for tid, pid in rows:
+        if pid is not None:
+            children.setdefault(pid, []).append(tid)
+    out, stack = set(), [tag_id]
+    while stack:
+        cur = stack.pop()
+        if cur in out:
+            continue
+        out.add(cur)
+        stack.extend(children.get(cur, []))
+    return out
+
+
 def apply_payload(session: Session, obj: Any, data: dict[str, Any]) -> list[int] | None:
     """写入字段与标签；返回待写入的 asset_ids（需要在 flush 之后处理）。"""
     tag_ids = data.pop("tag_ids", None)
     asset_ids = data.pop("asset_ids", None)
+    characters = data.pop("characters", None)
     for key, value in data.items():
         setattr(obj, key, value)
     if tag_ids is not None:
         obj.tags = resolve_tags(session, tag_ids)
+    if characters is not None:
+        seen: dict[int, str | None] = {}
+        for c in characters:
+            if session.get(m.Character, c["character_id"]) is None:
+                raise HTTPException(422, f"角色 {c['character_id']} 不存在")
+            seen[c["character_id"]] = c.get("role")
+        keep = {link.character_id: link for link in obj.links}
+        obj.links = [
+            keep.get(cid) or m.EntryCharacter(character_id=cid, role=role) for cid, role in seen.items()
+        ]
+        for link in obj.links:
+            link.role = seen[link.character_id]
     return asset_ids
 
 
@@ -79,7 +109,8 @@ def make_crud_router(
     tag_name: str,
     filters: FilterFn | None = None,
     order_by: Any = None,
-    validate: Callable[[Session, dict[str, Any]], None] | None = None,
+    validate: Callable[..., None] | None = None,
+    validate_with_id: bool = False,
 ) -> APIRouter:
     router = APIRouter(prefix=prefix, tags=[tag_name])
     entity = SPEC[model][0] if model in SPEC else None
@@ -100,7 +131,8 @@ def make_crud_router(
         if tag and has_tags:
             # 多个标签取交集：必须同时拥有全部所选标签
             for tag_id in tag:
-                stmt = stmt.where(model.tags.any(m.Tag.id == tag_id))
+                family = tag_descendants(session, tag_id)
+                stmt = stmt.where(model.tags.any(m.Tag.id.in_(family)))
         if filters:
             stmt = filters(stmt, request)
         total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
@@ -136,7 +168,7 @@ def make_crud_router(
         obj = get_or_404(session, model, obj_id)
         data = payload.model_dump(exclude_unset=True)  # type: ignore[attr-defined]
         if validate:
-            validate(session, data)
+            validate(session, data, obj_id) if validate_with_id else validate(session, data)
         asset_ids = apply_payload(session, obj, data)
         _finish(session, obj, asset_ids)
         return obj

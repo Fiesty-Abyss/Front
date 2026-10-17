@@ -22,7 +22,9 @@ FTS_DDL = (
 
 
 def _tags(obj: Any) -> str:
-    return " ".join(f"{t.category}:{t.name} {t.name}" for t in (getattr(obj, "tags", None) or []))
+    return " ".join(
+        f"{t.category}:{t.name} {t.name} " + " ".join(t.aliases or []) for t in (getattr(obj, "tags", None) or [])
+    )
 
 
 def _join(*parts: Any) -> str:
@@ -39,6 +41,7 @@ SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.SDModel: ("sd_model", lambda o: o.name, lambda o: _join(o.base_model, o.file_name, o.trigger_words, o.notes, _tags(o))),
     m.CharacterCard: ("card", lambda o: o.name, lambda o: _join(o.description, o.personality, o.scenario, o.first_mes, " ".join(o.card_tags or []))),
     m.Collection: ("collection", lambda o: o.name, lambda o: _join(o.description)),
+    m.WorldEntry: ("world_entry", lambda o: o.name, lambda o: _join(o.summary, o.content, o.date_label, _tags(o))),
 }
 
 

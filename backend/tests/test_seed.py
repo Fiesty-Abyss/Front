@@ -30,3 +30,20 @@ def test_seed_ai_drawing_examples(client):
     sr = client.get(f"/api/prompts/{out['prompt_id']}/xy", params={"batch": out["batches"][1]}).json()
     assert sr["x_values"] == ["night", "dawn", "sunset"]
     assert client.get("/api/prompt-snippets", params={"limit": 100}).json()["total"] >= 10
+
+
+def test_seed_ai_character_examples(client):
+    out = seed(client)
+    chat = client.get(f"/api/ai/sessions/{out['chat_id']}").json()
+    roles = [m["role"] for m in chat["messages"]]
+    assert roles == ["assistant", "user", "assistant", "user", "assistant", "user", "assistant"]
+    assert len(chat["messages"][0]["sibling_ids"]) == 2  # 两个开场白
+    assert len(chat["messages"][2]["sibling_ids"]) == 2  # 重新生成过一次
+    assert len(chat["messages"][5]["sibling_ids"]) == 2  # 编辑过一次
+    assert any(m["meta"].get("lore") for m in chat["messages"])
+    assert chat["total_messages"] == 11
+    book = client.get(f"/api/lorebooks/{out['lorebook_id']}").json()
+    assert book["world_id"] == out["world_id"] and len(book["entries"]) >= 8
+    assert client.get("/api/settings").json()["chat_provider_id"] is None  # 示例不会接管对话服务
+    providers = client.get("/api/ai/providers").json()["items"]
+    assert all(p["name"].startswith(("【示例】", "本机 Ollama")) for p in providers)

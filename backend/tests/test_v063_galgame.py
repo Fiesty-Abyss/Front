@@ -133,7 +133,7 @@ def test_overrides_survive_refresh(client, mock):
 def test_cover_host_guard(client, mock):
     g = client.post("/api/galgames", json={"title": "手动条目"}).json()
     assert client.post(f"/api/galgames/{g['id']}/cover").status_code == 502  # 没有封面地址
-    from tests.conftest import png_bytes
+    from conftest import png_bytes
 
     r = client.put(f"/api/galgames/{g['id']}/cover", files={"file": ("c.png", png_bytes(), "image/png")})
     assert r.status_code == 200 and r.json()["has_cover"]

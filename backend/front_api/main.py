@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from . import __version__
+from .config import Settings, get_settings
+from .db import Base, init_engine
+from .routers import ai, assets, cards, characters, library, sd, system
+from .search import ensure_fts
+
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_hooks_installed = False
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    global _hooks_installed
+    settings = settings or get_settings()
+    for d in (settings.data_dir, settings.media_dir, settings.thumb_dir):
+        d.mkdir(parents=True, exist_ok=True)
+    engine = init_engine(f"sqlite:///{settings.db_path}")
+    Base.metadata.create_all(engine)
+    ensure_fts(engine)
+    if not _hooks_installed:
+        assets.install_delete_hook()
+        _hooks_installed = True
+
+    app = FastAPI(
+        title="Front API",
+        version=__version__,
+        description="Front · 自托管的创作素材库与百科数据库",
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    for r in (
+        system.router,
+        library.tags, library.works, library.worlds, library.collections,
+        assets.files, assets.router,
+        characters.characters, characters.relations, characters.graph,
+        sd.extra, sd.models, sd.prompts, sd.generations,
+        cards.io_router, cards.router,
+        ai.router,
+    ):
+        app.include_router(r)
+
+    if FRONTEND_DIST.is_dir():
+        app.mount("/static", StaticFiles(directory=FRONTEND_DIST / "static"), name="static")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        def spa(full_path: str) -> FileResponse:
+            candidate = FRONTEND_DIST / full_path
+            if full_path and candidate.is_file():
+                return FileResponse(candidate)
+            return FileResponse(FRONTEND_DIST / "index.html")
+
+    return app

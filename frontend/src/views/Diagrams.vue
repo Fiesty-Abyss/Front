@@ -106,7 +106,7 @@ const TPL_ART = { blank: Plus, flow: GitFork, workflow: Workflow, mind: Network 
 .dgl-card { display: grid; gap: 10px; color: inherit; text-decoration: none; }
 .dgl-thumb { position: relative; aspect-ratio: 16 / 10; border-radius: 14px; overflow: hidden; display: grid; place-items: center;
   background: var(--sunken); border: 1px solid var(--line); transition: border-color .15s var(--ease-out), transform .2s var(--ease-out); }
-.dgl-thumb img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+.dgl-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 10px; }
 .dgl-card:hover .dgl-thumb { border-color: var(--accent); }
 .dgl-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s var(--ease-out); }
 .dgl-card:hover .dgl-actions, .dgl-card:focus-visible .dgl-actions { opacity: 1; }

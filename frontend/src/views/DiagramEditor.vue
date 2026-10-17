@@ -105,6 +105,7 @@ function record() {
   if (history.length > 120) history.shift()
   hIndex = history.length - 1; syncHistory()
 }
+const recordSoon = () => nextTick(() => setTimeout(record, 0)) // 离散操作（添加、连线、删除……）各占一步撤销
 function undo() { record(); if (hIndex > 0) { hIndex--; applyState(JSON.parse(history[hIndex])); syncHistory() } }
 function redo() { if (hIndex < history.length - 1) { hIndex++; applyState(JSON.parse(history[hIndex])); syncHistory() } }
 async function save(force = false) {
@@ -152,9 +153,12 @@ function addFromPalette(item, pos) {
   const p = pos || center()
   const w = item.node.style?.width || 200
   const h = item.node.style?.height || 90
-  const n = makeNode(item.node, { x: Math.round(p.x - w / 2), y: Math.round(p.y - h / 2) })
+  const at = { x: Math.round(p.x - w / 2), y: Math.round(p.y - h / 2) }
+  if (!pos) while (getNodes.value.some((o) => Math.abs(o.position.x - at.x) < 12 && Math.abs(o.position.y - at.y) < 12)) { at.x += 32; at.y += 32 } // 连点几次不叠在一起
+  const n = makeNode(item.node, at)
   addNodes([n])
   select([n.id])
+  recordSoon()
 }
 function onDragStart(e, item) { e.dataTransfer.setData('application/front-node', item.key); e.dataTransfer.effectAllowed = 'move' }
 const allItems = PALETTE.flatMap((g) => g.items)
@@ -168,6 +172,7 @@ onConnect((c) => {
   const color = kind.value === 'workflow' ? src?.data?.color : undefined
   const type = kind.value === 'flowchart' ? 'smoothstep' : 'default'
   addEdges([hydrateEdge({ id: uid('e'), ...c, type, data: color ? { color } : {} }, kind.value, edgeColor())])
+  recordSoon()
 })
 function select(ids) { for (const n of getNodes.value) n.selected = ids.includes(n.id); for (const e of getEdges.value) e.selected = false }
 
@@ -186,6 +191,7 @@ function addChild() {
   const isWf = n.type === 'workflow'
   addEdges([hydrateEdge({ id: uid('e'), source: n.id, target: c.id, sourceHandle: isWf ? `out-${n.data.outputs?.[0]?.id}` : sh, targetHandle: isWf ? `in-${c.data.inputs?.[0]?.id}` : th, type: kind.value === 'flowchart' ? 'smoothstep' : 'default', data: {} }, kind.value, edgeColor())])
   select([c.id])
+  recordSoon()
 }
 
 // ── 复制粘贴 ──
@@ -204,9 +210,10 @@ function paste(offset = 40) {
   addNodes(ns); addEdges(es)
   clipboard = { nodes: ns.map((n) => ({ ...n })), edges: es.map(serializeEdge) }
   select(ns.map((n) => n.id))
+  recordSoon()
 }
 function duplicateSel() { copySel(); paste(32) }
-function deleteSel() { removeEdges(getSelectedEdges.value); removeNodes(getSelectedNodes.value) }
+function deleteSel() { removeEdges(getSelectedEdges.value); removeNodes(getSelectedNodes.value); recordSoon() }
 
 function onKey(e) {
   const t = e.target

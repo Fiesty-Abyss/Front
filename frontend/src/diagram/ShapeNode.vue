@@ -1,13 +1,15 @@
 <script setup>
 // 流程图形状节点：矩形 / 胶囊 / 菱形 / 平行四边形 / 文档 / 圆柱 / 六边形 / 圆；四边都能连线
 import { computed, inject } from 'vue'
-import { Handle, Position } from '@vue-flow/core'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { NodeResizer } from '@vue-flow/node-resizer'
 import { Link2 } from 'lucide-vue-next'
 import { tint } from './defs'
 import { useEdit } from './useEdit'
 
 const props = defineProps(['id', 'data', 'selected'])
+const { getSelectedNodes } = useVueFlow()
+const single = computed(() => getSelectedNodes.value.length === 1) // 多选时不显示缩放手柄
 const openLink = inject('openLink', () => {})
 const { editing, draft, input, start, commit, onKey } = useEdit(props)
 const color = computed(() => props.data.color || '#9a6ad0')
@@ -23,7 +25,7 @@ const PATHS = {
 </script>
 <template>
   <div class="dn-shape" :class="[shape, { selected, svg: svgShape }]" :style="{ '--c': color, '--fill': tint(color, 18) }" @dblclick.stop="start">
-    <NodeResizer v-if="selected && !data.locked" :min-width="48" :min-height="36" color="var(--accent)" :handle-style="{ width: '8px', height: '8px', borderRadius: '2px' }" :line-style="{ borderColor: 'transparent' }" />
+    <NodeResizer v-if="single && selected && !data.locked" :min-width="48" :min-height="36" color="var(--accent)" :handle-style="{ width: '8px', height: '8px', borderRadius: '2px' }" :line-style="{ borderColor: 'transparent' }" />
     <svg v-if="svgShape" class="dn-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <path :d="PATHS[shape]" vector-effect="non-scaling-stroke" />
       <path v-if="shape === 'cylinder'" d="M1,12 C1,27 99,27 99,12" fill="none" vector-effect="non-scaling-stroke" />

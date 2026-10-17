@@ -5,7 +5,9 @@ import { getRectOfNodes, getTransformForBounds } from '@vue-flow/core'
 export async function renderDiagram(root, nodes, { format = 'png', scale = 2, maxWidth = 4096, padding = 48 } = {}) {
   const viewport = root.querySelector('.vue-flow__transformationpane') || root.querySelector('.vue-flow__viewport') // 视图变换在这一层
   if (!viewport || !nodes.length) throw new Error('画布是空的')
-  const b = getRectOfNodes(nodes)
+  const r = getRectOfNodes(nodes)
+  const top = nodes.some((n) => n.type === 'group') ? 30 : 0 // 分组框的标题画在框外上方
+  const b = { x: r.x, y: r.y - top, width: r.width, height: r.height + top }
   const width = Math.min(maxWidth, Math.ceil(b.width + padding * 2))
   const height = Math.ceil((b.height + padding * 2) * (width / (b.width + padding * 2)))
   const t = getTransformForBounds(b, width, height, 0.05, 2, 0)

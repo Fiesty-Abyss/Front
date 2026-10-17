@@ -16,6 +16,7 @@ const NAMES = {
   sd_model: ['SD 模型', () => '/models'], snippet: ['提示词片段', () => '/snippets'], card: ['角色卡', (id) => `/cards?id=${id}`], collection: ['收藏集', (id) => `/collections?id=${id}`],
   lore: ['世界书条目', () => '/lorebooks'],
   note: ['笔记', (id) => `/notes/${id}`],
+  diagram: ['图表', (id) => `/diagrams/${id}`],
 }
 const MODES = [['keyword', '关键词', '精确子串匹配（FTS5）'], ['semantic', '语义', '按意思相近排序'], ['hybrid', '混合', '关键词 + 语义融合排序']]
 const mode = computed(() => route.query.mode || 'keyword')

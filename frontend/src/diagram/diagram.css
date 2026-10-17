@@ -1,0 +1,68 @@
+/* 图表画布：Vue Flow 主题与节点样式，颜色全部走设计令牌 */
+.dg-flow { --edge: var(--faint); background: var(--sunken); }
+.dg-flow .vue-flow__edge-path { stroke: var(--edge); stroke-width: 1.6; }
+.dg-flow .vue-flow__edge.selected .vue-flow__edge-path, .dg-flow .vue-flow__edge:focus .vue-flow__edge-path { stroke: var(--accent) !important; }
+.dg-flow .vue-flow__edge.animated .vue-flow__edge-path { stroke-dasharray: 6 5; animation: dg-dash 0.9s linear infinite; }
+@keyframes dg-dash { to { stroke-dashoffset: -11; } }
+@media (prefers-reduced-motion: reduce) { .dg-flow .vue-flow__edge.animated .vue-flow__edge-path { animation: none; } }
+.dg-flow .vue-flow__edge-textbg { fill: var(--panel); }
+.dg-flow .vue-flow__edge-text { fill: var(--muted); font-size: 11.5px; font-family: var(--font); }
+.dg-flow .vue-flow__connection-path { stroke: var(--accent); stroke-width: 1.8; }
+.dg-flow .vue-flow__selection, .dg-flow .vue-flow__nodesselection-rect { background: var(--accent-soft); border: 1px dashed var(--accent); }
+.dg-flow .vue-flow__minimap { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.dg-flow .vue-flow__minimap-mask { fill: color-mix(in srgb, var(--sunken) 70%, transparent); }
+.dg-flow .vue-flow__minimap-node { fill: var(--raised); stroke: none; }
+.dg-flow .vue-flow__node { font-family: var(--font); color: var(--text); }
+.dg-flow .vue-flow__resize-control.handle { background: var(--panel); border: 1.5px solid var(--accent); }
+
+/* 连接点：平时隐藏，悬停节点或正在连线时出现 */
+.dn-h { width: 9px !important; height: 9px !important; background: var(--panel) !important; border: 1.5px solid var(--accent) !important; opacity: 0; transition: opacity .12s var(--ease-out); }
+.vue-flow__node:hover .dn-h, .vue-flow__node.selected .dn-h, .dg-flow.connecting .dn-h { opacity: 1; }
+
+.dn-shape { position: relative; width: 100%; height: 100%; display: grid; place-items: center; padding: 8px 12px; text-align: center;
+  background: var(--fill); border: 1.5px solid var(--c); border-radius: 10px; box-shadow: 0 6px 18px -12px rgba(0, 0, 0, .5); transition: box-shadow .15s var(--ease-out); }
+.dn-shape.pill { border-radius: 999px; }
+.dn-shape.circle { border-radius: 50%; padding: 4px; }
+.dn-shape.svg { background: none; border: 0; box-shadow: none; }
+.dn-shape.selected { box-shadow: 0 0 0 3px var(--accent-soft), 0 6px 18px -12px rgba(0, 0, 0, .5); }
+.dn-shape.svg.selected { box-shadow: none; filter: drop-shadow(0 0 4px var(--accent-soft)); }
+.dn-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.dn-svg path { fill: var(--fill); stroke: var(--c); stroke-width: 1.5; }
+.dn-shape.parallelogram .dn-label, .dn-shape.hexagon .dn-label { padding: 0 10px; }
+.dn-shape.document .dn-label { margin-top: -8px; }
+.dn-shape.cylinder .dn-label { margin-top: 10px; }
+.dn-label { position: relative; font-size: 13px; font-weight: 500; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
+.dn-edit { position: relative; width: 100%; min-height: 0; height: 100%; resize: none; background: transparent; border: 0; box-shadow: none !important; padding: 0;
+  color: var(--text); text-align: center; font: 500 13px/1.35 var(--font); outline: none; }
+.dn-link { position: absolute; top: -9px; right: -9px; width: 20px; height: 20px; padding: 0; justify-content: center; border-radius: 50%;
+  background: var(--panel); border: 1px solid var(--c); color: var(--c); z-index: 2; }
+
+.dn-note { position: relative; width: 100%; height: 100%; padding: 12px 14px; background: var(--fill); border-radius: 4px 4px 14px 4px;
+  border-top: 3px solid var(--c); box-shadow: 0 10px 22px -14px rgba(0, 0, 0, .6); }
+.dn-note.selected { box-shadow: 0 0 0 3px var(--accent-soft), 0 10px 22px -14px rgba(0, 0, 0, .6); }
+.dn-note-text { font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+.dn-note .dn-edit { text-align: left; font-size: 12.5px; font-weight: 400; line-height: 1.6; }
+
+.dn-group { width: 100%; height: 100%; border: 1.5px dashed color-mix(in srgb, var(--c) 70%, transparent); border-radius: 16px;
+  background: color-mix(in srgb, var(--c) 6%, transparent); }
+.dn-group.selected { border-color: var(--accent); }
+.dn-group-title { position: absolute; top: -26px; left: 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+.dn-group-edit { width: 160px; padding: 2px 6px; font-size: 12px; }
+.dg-flow .vue-flow__node-group { background: none; border: 0; padding: 0; }
+
+.dn-wf { min-width: 210px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 12px 28px -16px rgba(0, 0, 0, .7); font-size: 12px; }
+.dn-wf.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 12px 28px -16px rgba(0, 0, 0, .7); }
+.dn-wf-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-weight: 600; font-size: 12.5px; border-radius: 11px 11px 0 0;
+  background: var(--fill); border-bottom: 1px solid var(--line); }
+.dn-wf-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent); }
+.dn-wf-ports { display: flex; justify-content: space-between; gap: 18px; padding: 8px 0 6px; }
+.dn-wf-col { display: grid; gap: 6px; align-content: start; }
+.dn-wf-col.right { justify-items: end; }
+.dn-wf-port { position: relative; display: flex; align-items: center; gap: 6px; padding: 0 12px; color: var(--muted); }
+.dn-port { position: absolute !important; width: 10px !important; height: 10px !important; background: var(--c) !important; border: 2px solid var(--panel) !important; }
+.dn-wf-port.in .dn-port { left: -5px !important; }
+.dn-wf-port.out .dn-port { right: -5px !important; left: auto !important; }
+.dn-wf-fields { display: grid; gap: 4px; padding: 6px 12px 10px; border-top: 1px dashed var(--line); }
+.dn-wf-field { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+.dn-wf-field .mono { text-align: right; color: var(--text); max-width: 190px; }
+.dg-flow .vue-flow__node-workflow, .dg-flow .vue-flow__node-shape, .dg-flow .vue-flow__node-note { background: none; border: 0; padding: 0; border-radius: 0; }

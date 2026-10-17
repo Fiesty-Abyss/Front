@@ -430,6 +430,13 @@ def seed(client: TestClient) -> dict[str, int]:
     client.patch(f"/api/cards/{card_id}", json={"lorebook_id": secret,
                                                 "alternate_greetings": ["（坐在灯塔门口数台阶）……一百零七，一百零八。啊，{{user}}，你来得正好。"]}).raise_for_status()
 
+    # 图表画布示例（与内置模板同源）
+    from .diagram_templates import get_templates
+
+    for t in get_templates()[1:]:
+        post("/api/diagrams", title=t["title"], kind=t["kind"], description=t["description"], data=t["data"], world_id=world,
+             pinned=t["id"] == "flow")
+
     from .ai import registry
     from .mock_ai import create_mock_app as create_mock_ai
 

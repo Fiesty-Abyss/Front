@@ -759,3 +759,39 @@ class NoteUpdate(BaseModel):
 class NoteRead(NoteBase, Timestamps):
     id: int
     tags: list[TagRead] = []
+
+
+DiagramKind = Literal["flowchart", "workflow", "mindmap", "other"]
+
+
+class DiagramBase(BaseModel):
+    title: str = Field(default="未命名图表", min_length=1, max_length=200)
+    kind: DiagramKind = "flowchart"
+    description: str | None = None
+    data: dict[str, Any] = Field(default_factory=lambda: {"nodes": [], "edges": []})
+    pinned: bool = False
+    work_id: int | None = None
+    world_id: int | None = None
+
+
+class DiagramCreate(DiagramBase):
+    tag_ids: list[int] = []
+
+
+class DiagramUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    kind: DiagramKind | None = None
+    description: str | None = None
+    data: dict[str, Any] | None = None
+    pinned: bool | None = None
+    work_id: int | None = None
+    world_id: int | None = None
+    tag_ids: list[int] | None = None
+
+
+class DiagramRead(DiagramBase, Timestamps):
+    id: int
+    data: dict[str, Any] | None = None  # 列表里省略，详情里返回
+    nodes: int = 0
+    edges: int = 0
+    tags: list[TagRead] = []

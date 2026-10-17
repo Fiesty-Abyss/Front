@@ -29,6 +29,7 @@
 | `works` | 作品（动漫、游戏、galgame、小说、原创企划） | `kind`、`year`、`publisher` |
 | `worlds` | 世界观 | `summary`、`content`（Markdown，AI 关系识别的语料） |
 | `assets` | 素材 | `kind`（drawing / ai_image / material / novel / cg / reference / other，v0.6.1 起加 model3d / live2d / audio / video / pdf / document / archive / code）、`work_date`、`file_path`、`sha256`、`meta`（SD 参数；`meta.file` 为文件识别结果）、`content`（小说正文或识别出的文字）、`work_id`、`world_id` |
+| `diagrams` | 图表画布 | `title`、`kind`（flowchart / workflow / mindmap / other）、`description`、`data`（`{nodes, edges, viewport}`，与 Vue Flow 结构一致）、`pinned`、`work_id`、`world_id`；标签表 `diagram_tags`；缩略图存在 `thumbs/diagram-<id>.webp` |
 | `notes` | 笔记本页面 | `title`、`icon`、`content`（Markdown）、`pinned`、`position`、`parent_id`（层级，删除时级联删除子页面）、`work_id`、`world_id`、`cover_asset_id`；标签表 `note_tags` |
 | `collections` | 收藏集 | 与 `assets` 多对多，可挂 `work_id` |
 | `characters` | 角色百科条目 | `gender`、`world_id`、`work_id`、`avatar_asset_id`、`profile` |
@@ -90,6 +91,9 @@ DELETE /api/<资源>/{id}
 | `POST /api/assets/{id}/reanalyze`、`POST /api/assets/reanalyze` | 按最新规则重新识别单个 / 全部文件素材（保留自定义封面） |
 | `/api/notes`（CRUD）、`GET /api/notes/tree` | 笔记本页面；目录树（不含正文） |
 | `POST /api/notes/{id}/move` | 移动到新的上级 / 位置（拒绝移到自己的子页面下） |
+| `/api/diagrams`（CRUD，`?kind=`）、`GET /api/diagrams/templates` | 图表画布；内置模板。保存时校验：节点 id 唯一、连线两端存在、链接只能是站内页面或 http(s)，最多 5000 节点 / 10000 连线 / 8 MB |
+| `GET /api/diagrams/{id}/export`、`POST /api/diagrams/import` | 导出 / 导入图表 JSON（`format: front-diagram`，也接受 Vue Flow `toObject()`） |
+| `POST /api/diagrams/{id}/duplicate`、`PUT|GET|DELETE /api/diagrams/{id}/preview` | 复制图表；前端渲染的缩略图 |
 | `GET /api/notes/{id}/refs` | 这页引用的素材与反向链接（从正文里的 `/assets?open=ID`、`/notes/ID` 链接解析） |
 | `GET /api/graph?world_id=&kinds=&include_unconfirmed=` | 关系网节点与边、关系类型统计、已保存的布局与配色 |
 | `PUT /api/graph/layout`、`DELETE /api/graph/layout?world_id=` | 保存节点位置 / 关系类型颜色（只更新传入的字段）、恢复自动布局 |
@@ -215,15 +219,17 @@ backend/
     mock_sd.py     模拟 SD 后端（测试 / 演示）
     mock_ai.py     模拟 OpenAI 兼容 AI 服务（测试 / 演示）
     seed.py        【示例】数据
+    diagram_templates.py  图表画布内置模板（也用作示例数据）
     filetypes/     文件识别：model3d live2d audio video docs archive code
     ai/            provider registry prompts lore extract embed tagger
-    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools quicksearch notes system
+    routers/       library assets importer collections characters sd sdtools cards ai aisettings lorebooks aitools quicksearch notes diagrams system
   tests/
 frontend/
   src/views/       每个页面一个组件
   src/style.css    设计令牌与全局样式（深色 / 浅色），说明见 DESIGN.md
   src/motion.js    GSAP 动效与 v-reveal 指令
   src/components/  Modal、TagPicker、TagChips、TagTree、JobProgress、QuickSearch、QuickSites、Ico、NoteEditor（Tiptap）、AssetPicker、AssetThumb、KindIcon
+  src/diagram/     图表画布：ShapeNode / WorkflowNode / NoteNode / GroupNode、defs、exporter（PNG / SVG）、diagram.css
   src/viewers/     文件预览：FilePreview（分发）、ModelViewer（three.js）、pmx.js、AudioPlayer、PdfViewer、DocPreview、CodeView
 docs/
   screenshots/     README 截图（仓库中唯一允许放图片的目录之一）

@@ -4,6 +4,7 @@ import { api, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
 import Modal from '../components/Modal.vue'
 import QuickSites from '../components/QuickSites.vue'
+import GalSettings from '../components/GalSettings.vue'
 import { guard, toast } from '../toast'
 
 const data = ref({ items: [], presets: [], env: null })
@@ -163,6 +164,7 @@ const role = (p) => [settings.value?.chat_provider_id === p.id && '对话', sett
   </div>
 
   <QuickSites id="quick-search" style="margin-top:14px" />
+  <GalSettings style="margin-top:14px" />
 
   <Modal v-if="editing" :title="editing.id ? '编辑 AI 服务' : '添加 AI 服务'" @close="editing = null">
     <form class="grid" style="gap:10px" @submit.prevent="save">

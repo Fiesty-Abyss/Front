@@ -2,7 +2,7 @@
 import AssetThumb from '../components/AssetThumb.vue'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Images, BookUser, Globe, NotebookPen, Box, IdCard, Gamepad2, Upload, FolderInput, WandSparkles, MessageCircle, ScanSearch, ArrowRight, NotebookText, Workflow } from 'lucide-vue-next'
+import { Images, BookUser, Globe, NotebookPen, Box, IdCard, Gamepad2, Upload, FolderInput, WandSparkles, MessageCircle, ScanSearch, ArrowRight, NotebookText, Workflow, SquareLibrary } from 'lucide-vue-next'
 import { api, Assets, LABELS, thumb } from '../api'
 import { countUp, gsap, reduced } from '../motion'
 
@@ -23,7 +23,7 @@ const cards = [
   ['cards', '角色卡', '/cards', IdCard], ['works', '作品', '/works', Gamepad2],
 ]
 const actions = [
-  ['写笔记', '/notes', NotebookText], ['画图表', '/diagrams?new=1', Workflow], ['上传素材', '/assets', Upload], ['批量导入', '/import', FolderInput], ['出图', '/generate', WandSparkles],
+  ['写笔记', '/notes', NotebookText], ['画图表', '/diagrams?new=1', Workflow], ['添加游戏', '/galgames?add=1', SquareLibrary], ['上传素材', '/assets', Upload], ['批量导入', '/import', FolderInput], ['出图', '/generate', WandSparkles],
   ['AI 对话', '/chat', MessageCircle], ['抽取角色', '/extract', ScanSearch],
 ]
 

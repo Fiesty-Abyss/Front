@@ -64,6 +64,23 @@ GAMES: list[dict[str, Any]] = [
      "desc_cn": "【示例】标记为限制级的示例条目，用来演示 NSFW 封面模糊。（虚构的示例简介）",
      "desc_en": "[Sample] Marked as adult-only to demonstrate cover blurring. (fictional)",
      "chars": [("夜宫 澄", "Yamiya Sumi", "main", "示例声优 H", (220, 120, 140))]},
+    {"key": "bell", "cn": "【示例】月下钟楼", "jp": "【示例】月下の鐘楼", "en": "Bell Tower under the Moon (sample)",
+     "aliases": ["钟楼", "Moonbell"], "dev": "纸灯社", "date": "2026-02-14", "nsfw": False,
+     "palette": ((230, 190, 120), (40, 30, 70)), "bgm": 900006, "vndb": "v90006", "ymgal": 80006,
+     "score": 7.6, "rank": 1104, "votes": 980, "vn_rating": 77.3, "length": 1300,
+     "tags": ["奇幻", "钟楼", "月夜"], "platforms": ["PC", "Nintendo Switch"],
+     "desc_cn": "【示例】每到满月，钟楼会多敲一下——那一声只有修钟的少女听得见。（虚构的示例简介）",
+     "desc_en": "[Sample] On full moon nights the bell tower rings one extra time. (fictional)",
+     "chars": [("月见 铃", "Tsukimi Suzu", "main", "示例声优 I", (240, 210, 150)),
+               ("钟守", None, "side", "示例声优 J", (160, 150, 200))]},
+    {"key": "tide", "cn": "【示例】海潮信号", "jp": "【示例】潮騒シグナル", "en": "Tide Signal (sample)",
+     "aliases": ["潮信"], "dev": "示例工作室", "date": "2021-09-10", "nsfw": False,
+     "palette": ((70, 170, 200), (20, 40, 70)), "bgm": 900007, "vndb": "v90007", "ymgal": 80007,
+     "score": 7.0, "rank": 3100, "votes": 410, "vn_rating": 71.5, "length": 700,
+     "tags": ["海边", "无线电", "短篇"], "platforms": ["PC"],
+     "desc_cn": "【示例】废弃灯塔里的旧电台，每晚都会收到来自十年前的信号。（虚构的示例简介）",
+     "desc_en": "[Sample] An old radio in an abandoned lighthouse receives signals from ten years ago. (fictional)",
+     "chars": [("潮見 汐里", "Shiomi Shiori", "main", "示例声优 K", (130, 200, 220))]},
 ]
 
 

@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api, Assets, Generations, Prompts, SDModels, thumb } from '../api'
 import Modal from '../components/Modal.vue'
 import TagPicker from '../components/TagPicker.vue'
@@ -15,7 +16,12 @@ const gen = reactive({ model_id: '', asset_id: '' })
 const adding = ref(false)
 
 async function load() { items.value = (await Prompts.list({ ...f, limit: 500 })).items }
-onMounted(async () => { await load(); if (items.value.length) select(items.value[items.value.length - 1]) })
+const route = useRoute()
+onMounted(async () => {
+  await load()
+  const want = items.value.find((p) => p.id === Number(route.query.id))
+  if (want || items.value.length) select(want ?? items.value[items.value.length - 1])
+})
 let t
 watch(f, () => { clearTimeout(t); t = setTimeout(load, 200) }, { deep: true })
 

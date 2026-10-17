@@ -1,10 +1,12 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { Assets, Collections, fileUrl, LABELS, thumb, Works } from '../api'
+import { useRoute } from 'vue-router'
+import { api, Assets, Collections, LABELS, thumb, Works } from '../api'
+import CGViewer from '../components/CGViewer.vue'
 import Modal from '../components/Modal.vue'
 import TagChips from '../components/TagChips.vue'
 import TagPicker from '../components/TagPicker.vue'
-import { guard } from '../toast'
+import { guard, toast } from '../toast'
 
 const kind = ref('')
 const items = ref([])
@@ -14,12 +16,19 @@ const assets = ref([])
 const collections = ref([])
 const editing = ref(null)
 const viewing = ref(null)
+const route = useRoute()
 
 async function load() { items.value = (await Works.list({ kind: kind.value, limit: 500 })).items }
-onMounted(async () => { await load(); if (items.value.length) select(items.value.find((w) => w.kind === 'galgame') ?? items.value[0]) })
+onMounted(async () => {
+  await load()
+  const want = Number(route.query.id)
+  const w = items.value.find((x) => x.id === want) ?? items.value.find((x) => x.kind === 'galgame') ?? items.value[0]
+  if (w) select(w)
+  if (route.query.view !== undefined) viewing.value = Number(route.query.view) || 0
+})
 async function select(w) {
   cur.value = w
-  cgs.value = (await Assets.list({ work_id: w.id, kind: 'cg', limit: 500 })).items
+  cgs.value = (await api.get(`/api/works/${w.id}/cg`)).groups
   assets.value = (await Assets.list({ work_id: w.id, limit: 500 })).items.filter((a) => a.kind !== 'cg')
   collections.value = (await Collections.list({ limit: 500 })).items.filter((c) => c.work_id === w.id)
 }
@@ -37,6 +46,12 @@ async function remove() {
   await guard(() => Works.remove(editing.value.id), '已删除')
   editing.value = null; cur.value = null; load()
 }
+async function regroup() {
+  const r = await guard(() => api.post(`/api/works/${cur.value.id}/cg/regroup`))
+  toast(`重新识别：${r.groups} 组 / ${r.items} 张`)
+  select(cur.value)
+}
+const cgTotal = () => cgs.value.reduce((n, g) => n + g.count, 0)
 async function newCollection() {
   const name = prompt('收藏集名称')
   if (!name) return
@@ -60,24 +75,27 @@ async function newCollection() {
         <TagChips :tags="cur.tags" show-cat />
       </div>
       <div class="card">
-        <div class="row"><h2 style="margin:0">CG 档案 · {{ cgs.length }} 张</h2><span class="spacer" /><RouterLink class="btn" :to="{ path: '/assets', query: { work_id: cur.id } }">到素材库上传 / 管理</RouterLink></div>
-        <p class="small muted">上传时把“类型”选为 CG、“作品”选为本作，即会归档到这里。</p>
+        <div class="row"><h2 style="margin:0">CG 档案 · {{ cgs.length }} 组 / {{ cgTotal() }} 张</h2><span class="spacer" />
+          <button v-if="cgs.length" class="primary" @click="viewing = 0">▶ 鉴赏模式</button>
+          <button v-if="cgs.length" @click="regroup">重新识别差分</button>
+          <RouterLink class="btn" to="/import">批量导入 CG</RouterLink></div>
+        <p class="small muted">同一张 CG 的差分会自动归为一组（如 ev01a / ev01b、ev03_01 / ev03_02、ev0101 / ev0102），点击进入鉴赏模式。</p>
         <div class="thumbgrid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr))">
-          <div v-for="a in cgs" :key="a.id" class="tile" @click="viewing = a">
-            <div class="img" style="aspect-ratio:16/9" :style="{ backgroundImage: `url(${thumb(a.id)})` }" />
-            <div class="meta"><div class="title">{{ a.title }}</div></div>
+          <div v-for="(g, i) in cgs" :key="g.key" class="tile" @click="viewing = i">
+            <div class="img" style="aspect-ratio:16/9;position:relative" :style="{ backgroundImage: `url(${thumb(g.cover_id)})` }"><span v-if="g.count > 1" class="badge" style="position:absolute;right:8px;top:8px;background:#000a;color:#fff">差分 × {{ g.count }}</span></div>
+            <div class="meta"><div class="title">{{ g.key }}</div><div class="small muted">{{ g.size }}</div></div>
           </div>
         </div>
         <div v-if="!cgs.length" class="empty">还没有 CG</div>
       </div>
       <div class="card">
         <div class="row"><h2 style="margin:0">收藏集</h2><span class="spacer" /><button @click="newCollection">＋ 新建收藏集</button></div>
-        <div v-for="c in collections" :key="c.id" class="row" style="margin-top:8px"><b>{{ c.name }}</b><span class="small muted">{{ c.assets.length }} 项 · {{ c.description }}</span></div>
+        <RouterLink v-for="c in collections" :key="c.id" :to="{ path: '/collections', query: { id: c.id } }" class="row" style="margin-top:8px"><b>{{ c.name }}</b><span class="small muted">{{ c.assets.length }} 项 · {{ c.description }}</span></RouterLink>
         <div v-if="assets.length" class="small muted" style="margin-top:10px">关联素材：{{ assets.map((a) => a.title).join('、') }}</div>
       </div>
     </section>
   </div>
-  <Modal v-if="viewing" :title="viewing.title" @close="viewing = null"><img :src="fileUrl(viewing.id)" style="width:100%;border-radius:10px" /></Modal>
+  <CGViewer v-if="viewing !== null && cgs.length" :groups="cgs" :start="viewing" :title="cur.title" @close="viewing = null" />
   <Modal v-if="editing" :title="editing.id ? '编辑作品' : '新建作品'" @close="editing = null">
     <div class="grid">
       <div class="grid cols-3">

@@ -16,6 +16,7 @@ from .migrate import upgrade
 from .routers import ai, aisettings, aitools, assets, cards, characters, collections, diagrams, encyclopedia, galgames, importer, library, lorebooks, notes, quicksearch, sd, sdtools, system
 from .search import ensure_fts
 from .routers import exports
+from .routers import live2d
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _hooks_installed = False
@@ -59,6 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         encyclopedia.extra, encyclopedia.entries, encyclopedia.appearances,
         collections.extra, collections.crud,
         importer.router,
+        live2d.router,
         assets.files, assets.router,
         characters.characters, characters.relations, characters.graph,
         sdtools.router, sdtools.snippets, sd.extra, sd.models, sd.prompts, sd.generations,

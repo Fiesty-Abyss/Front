@@ -17,6 +17,7 @@ const go = () => q.value.trim() && router.push({ path: '/search', query: { q: q.
 const nav = [
   ['资料库', 'LIBRARY', [['/', LayoutDashboard, '总览'], ['/assets', Images, '素材库'], ['/notes', NotebookText, '笔记本'], ['/diagrams', Workflow, '图表画布'], ['/import', FolderInput, '批量导入'], ['/galgames', SquareLibrary, '游戏库'], ['/works', Gamepad2, '作品 / CG'], ['/collections', LibraryBig, '收藏集'], ['/tags', Tags, '标签']]],
   ['百科', 'WIKI', [['/characters', BookUser, '角色百科'], ['/worlds', Globe, '世界观'], ['/graph', Waypoints, '关系网']]],
+  ['创作工作区', 'STUDIO', [['/live2d', ScanSearch, 'Live2D Studio']]],
   ['AI 绘画', 'DRAW', [['/generate', WandSparkles, '出图'], ['/prompts', NotebookPen, '提示词库'], ['/snippets', Puzzle, '提示词片段'], ['/models', Box, 'SD 模型库']]],
   ['AI 角色', 'ROLEPLAY', [['/chat', MessageCircle, 'AI 对话'], ['/cards', IdCard, '角色卡'], ['/lorebooks', BookMarked, '世界书'], ['/extract', ScanSearch, '抽取角色']]],
   ['系统', 'SYSTEM', [['/settings', Settings, '设置']]],

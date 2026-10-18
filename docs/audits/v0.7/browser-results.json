@@ -1,0 +1,567 @@
+{
+  "desktop": [
+    {
+      "name": "notes",
+      "path": "/notes/1",
+      "phase": "loaded",
+      "bodyCharacters": 336,
+      "scrollWidth": 1430,
+      "title": "笔记本 · Front",
+      "width": 1440
+    },
+    {
+      "name": "diagrams",
+      "path": "/diagrams",
+      "phase": "loaded",
+      "bodyCharacters": 374,
+      "scrollWidth": 1440,
+      "title": "图表画布 · Front",
+      "width": 1440
+    },
+    {
+      "name": "diagram-editor",
+      "path": "/diagrams/1",
+      "phase": "loaded",
+      "bodyCharacters": 531,
+      "scrollWidth": 1430,
+      "title": "图表画布 · Front",
+      "width": 1440
+    },
+    {
+      "name": "import",
+      "path": "/import",
+      "phase": "loaded",
+      "bodyCharacters": 735,
+      "scrollWidth": 1440,
+      "title": "批量导入 · Front",
+      "width": 1440
+    },
+    {
+      "name": "galgames",
+      "path": "/galgames",
+      "phase": "loaded",
+      "bodyCharacters": 716,
+      "scrollWidth": 1440,
+      "title": "游戏库 · Front",
+      "width": 1440
+    },
+    {
+      "name": "galgame-detail",
+      "path": "/galgames/1",
+      "phase": "loaded",
+      "bodyCharacters": 718,
+      "scrollWidth": 1430,
+      "title": "游戏库 · Front",
+      "width": 1440
+    },
+    {
+      "name": "works",
+      "path": "/works",
+      "phase": "loaded",
+      "bodyCharacters": 577,
+      "scrollWidth": 1440,
+      "title": "作品 / CG · Front",
+      "width": 1440
+    },
+    {
+      "name": "collections",
+      "path": "/collections",
+      "phase": "loaded",
+      "bodyCharacters": 582,
+      "scrollWidth": 1430,
+      "title": "收藏集 · Front",
+      "width": 1440
+    },
+    {
+      "name": "tags",
+      "path": "/tags",
+      "phase": "loaded",
+      "bodyCharacters": 585,
+      "scrollWidth": 1440,
+      "title": "标签 · Front",
+      "width": 1440
+    },
+    {
+      "name": "characters",
+      "path": "/characters",
+      "phase": "loaded",
+      "bodyCharacters": 612,
+      "scrollWidth": 1440,
+      "title": "角色百科 · Front",
+      "width": 1440
+    },
+    {
+      "name": "character-detail",
+      "path": "/characters/1",
+      "phase": "loaded",
+      "bodyCharacters": 1064,
+      "scrollWidth": 1430,
+      "title": "林汐 · 角色百科 · Front",
+      "width": 1440
+    },
+    {
+      "name": "worlds",
+      "path": "/worlds",
+      "phase": "loaded",
+      "bodyCharacters": 510,
+      "scrollWidth": 1430,
+      "title": "世界观 · Front",
+      "width": 1440
+    },
+    {
+      "name": "graph",
+      "path": "/graph",
+      "phase": "loaded",
+      "bodyCharacters": 374,
+      "scrollWidth": 1430,
+      "title": "关系网 · Front",
+      "width": 1440
+    },
+    {
+      "name": "reader",
+      "path": "/read/45",
+      "phase": "loaded",
+      "bodyCharacters": 138,
+      "scrollWidth": 1440,
+      "title": "第一章 雾港 · novel",
+      "width": 1440
+    },
+    {
+      "name": "prompts",
+      "path": "/prompts",
+      "phase": "loaded",
+      "bodyCharacters": 1298,
+      "scrollWidth": 1430,
+      "title": "提示词库 · Front",
+      "width": 1440
+    },
+    {
+      "name": "models",
+      "path": "/models",
+      "phase": "loaded",
+      "bodyCharacters": 893,
+      "scrollWidth": 1440,
+      "title": "SD 模型库 · Front",
+      "width": 1440
+    },
+    {
+      "name": "snippets",
+      "path": "/snippets",
+      "phase": "loaded",
+      "bodyCharacters": 1078,
+      "scrollWidth": 1430,
+      "title": "提示词片段 · Front",
+      "width": 1440
+    },
+    {
+      "name": "generate",
+      "path": "/generate",
+      "phase": "loaded",
+      "bodyCharacters": 1244,
+      "scrollWidth": 1430,
+      "title": "出图 · Front",
+      "width": 1440
+    },
+    {
+      "name": "cards",
+      "path": "/cards",
+      "phase": "loaded",
+      "bodyCharacters": 5967,
+      "scrollWidth": 1430,
+      "title": "角色卡 · Front",
+      "width": 1440
+    },
+    {
+      "name": "chat",
+      "path": "/chat",
+      "phase": "loaded",
+      "bodyCharacters": 1019,
+      "scrollWidth": 1430,
+      "title": "AI 对话 · Front",
+      "width": 1440
+    },
+    {
+      "name": "lorebooks",
+      "path": "/lorebooks",
+      "phase": "loaded",
+      "bodyCharacters": 554,
+      "scrollWidth": 1440,
+      "title": "世界书 · Front",
+      "width": 1440
+    },
+    {
+      "name": "extract",
+      "path": "/extract",
+      "phase": "loaded",
+      "bodyCharacters": 2546,
+      "scrollWidth": 1440,
+      "title": "从小说抽取角色 · Front",
+      "width": 1440
+    },
+    {
+      "name": "settings",
+      "path": "/settings",
+      "phase": "loaded",
+      "bodyCharacters": 2431,
+      "scrollWidth": 1430,
+      "title": "设置 · Front",
+      "width": 1440
+    },
+    {
+      "name": "search",
+      "path": "/search?q=林汐",
+      "phase": "loaded",
+      "bodyCharacters": 1730,
+      "scrollWidth": 1430,
+      "title": "搜索 · Front",
+      "width": 1440
+    },
+    {
+      "name": "dashboard",
+      "path": "/",
+      "phase": "loaded",
+      "bodyCharacters": 732,
+      "scrollWidth": 1430,
+      "title": "总览 · Front",
+      "width": 1440
+    },
+    {
+      "name": "assets",
+      "path": "/assets",
+      "phase": "loaded",
+      "bodyCharacters": 3576,
+      "scrollWidth": 1430,
+      "title": "素材库 · Front",
+      "width": 1440
+    }
+  ],
+  "mobile": [
+    {
+      "name": "dashboard",
+      "path": "/",
+      "readyError": null,
+      "bodyCharacters": 550,
+      "scrollWidth": 380,
+      "width": 390
+    },
+    {
+      "name": "assets",
+      "path": "/assets",
+      "readyError": null,
+      "bodyCharacters": 3422,
+      "scrollWidth": 639,
+      "width": 390
+    },
+    {
+      "name": "notes",
+      "path": "/notes/1",
+      "readyError": null,
+      "bodyCharacters": 160,
+      "scrollWidth": 982,
+      "width": 390
+    },
+    {
+      "name": "diagrams",
+      "path": "/diagrams",
+      "readyError": null,
+      "bodyCharacters": 192,
+      "scrollWidth": 469,
+      "width": 390
+    },
+    {
+      "name": "diagram-editor",
+      "path": "/diagrams/1",
+      "readyError": null,
+      "bodyCharacters": 349,
+      "scrollWidth": 879,
+      "width": 390
+    },
+    {
+      "name": "import",
+      "path": "/import",
+      "readyError": null,
+      "bodyCharacters": 553,
+      "scrollWidth": 624,
+      "width": 390
+    },
+    {
+      "name": "galgames",
+      "path": "/galgames",
+      "readyError": null,
+      "bodyCharacters": 534,
+      "scrollWidth": 397,
+      "width": 390
+    },
+    {
+      "name": "galgame-detail",
+      "path": "/galgames/1",
+      "readyError": null,
+      "bodyCharacters": 536,
+      "scrollWidth": 653,
+      "width": 390
+    },
+    {
+      "name": "works",
+      "path": "/works",
+      "readyError": null,
+      "bodyCharacters": 395,
+      "scrollWidth": 641,
+      "width": 390
+    },
+    {
+      "name": "collections",
+      "path": "/collections",
+      "readyError": null,
+      "bodyCharacters": 360,
+      "scrollWidth": 703,
+      "width": 390
+    },
+    {
+      "name": "tags",
+      "path": "/tags",
+      "readyError": null,
+      "bodyCharacters": 403,
+      "scrollWidth": 436,
+      "width": 390
+    },
+    {
+      "name": "characters",
+      "path": "/characters",
+      "readyError": null,
+      "bodyCharacters": 418,
+      "scrollWidth": 380,
+      "width": 390
+    },
+    {
+      "name": "character-detail",
+      "path": "/characters/1",
+      "readyError": null,
+      "bodyCharacters": 882,
+      "scrollWidth": 774,
+      "width": 390
+    },
+    {
+      "name": "worlds",
+      "path": "/worlds",
+      "readyError": null,
+      "bodyCharacters": 328,
+      "scrollWidth": 568,
+      "width": 390
+    },
+    {
+      "name": "graph",
+      "path": "/graph",
+      "readyError": null,
+      "bodyCharacters": 192,
+      "scrollWidth": 380,
+      "width": 390
+    },
+    {
+      "name": "reader",
+      "path": "/read/45",
+      "readyError": null,
+      "bodyCharacters": 138,
+      "scrollWidth": 743,
+      "width": 390
+    },
+    {
+      "name": "prompts",
+      "path": "/prompts",
+      "readyError": null,
+      "bodyCharacters": 1116,
+      "scrollWidth": 661,
+      "width": 390
+    },
+    {
+      "name": "models",
+      "path": "/models",
+      "readyError": null,
+      "bodyCharacters": 711,
+      "scrollWidth": 839,
+      "width": 390
+    },
+    {
+      "name": "snippets",
+      "path": "/snippets",
+      "readyError": null,
+      "bodyCharacters": 896,
+      "scrollWidth": 667,
+      "width": 390
+    },
+    {
+      "name": "generate",
+      "path": "/generate",
+      "readyError": null,
+      "bodyCharacters": 1062,
+      "scrollWidth": 817,
+      "width": 390
+    },
+    {
+      "name": "cards",
+      "path": "/cards",
+      "readyError": null,
+      "bodyCharacters": 5785,
+      "scrollWidth": 601,
+      "width": 390
+    },
+    {
+      "name": "chat",
+      "path": "/chat",
+      "readyError": null,
+      "bodyCharacters": 837,
+      "scrollWidth": 535,
+      "width": 390
+    },
+    {
+      "name": "lorebooks",
+      "path": "/lorebooks",
+      "readyError": null,
+      "bodyCharacters": 372,
+      "scrollWidth": 867,
+      "width": 390
+    },
+    {
+      "name": "extract",
+      "path": "/extract",
+      "readyError": null,
+      "bodyCharacters": 304,
+      "scrollWidth": 613,
+      "width": 390
+    },
+    {
+      "name": "settings",
+      "path": "/settings",
+      "readyError": null,
+      "bodyCharacters": 2249,
+      "scrollWidth": 776,
+      "width": 390
+    },
+    {
+      "name": "search",
+      "path": "/search?q=林汐",
+      "readyError": null,
+      "bodyCharacters": 1548,
+      "scrollWidth": 380,
+      "width": 390
+    }
+  ],
+  "preview": [
+    {
+      "name": "glb",
+      "id": 37,
+      "error": null,
+      "canvasCount": 1,
+      "previewText": "设为封面\n288 三角面 · 1.10 × 3.15 × 1.10\n文件信息\n重新识别\n下载原文件\n格式\nglTF 二进制\n导出工具\nFront 示例生成器\nglTF 版本\n2.0\n顶点\n300\n三角面\n288\n网格\n1\n材质\n6\n节点\n1\n文件\nlighthouse.glb · 13.1 KB"
+    },
+    {
+      "name": "vrm",
+      "id": 38,
+      "error": null,
+      "canvasCount": 1,
+      "previewText": "设为封面\nVRM 人形骨骼不完整，按普通 glTF 模型显示\n288 三角面 · 1.10 × 3.15 × 1.10\n文件信息\n重新识别\n下载原文件\n格式\nVRM 1.0\n导出工具\nFront 示例生成器\nglTF 版本\n2.0\n顶点\n300\n三角面\n288\n网格\n1\n材质\n6\n节点\n1\nglTF 扩展\nVRMC_vrm\n文件\nkeeper.vrm · 13.6 KB\nVRM 使用条件（模型作者写在文件里的许可，使用前请确认）\n名称\n【示例】灯塔守望者（VRM 元数据演示）\n版本\n1.0\n作者\nFront 示例生成器\n许可链接\nhttps://vrm.dev/licenses/1.0/\n谁可以使用\n所有人\n商用\n个人非营利\n再分发\n否\n修改\n禁止\n署名\n需要署名"
+    },
+    {
+      "name": "obj",
+      "id": 39,
+      "error": null,
+      "canvasCount": 1,
+      "previewText": "设为封面\n192 三角面 · 1.10 × 3.15 × 1.10\n文件信息\n重新识别\n下载原文件\n格式\nWavefront OBJ\n顶点\n204\n面\n192\n材质\n6\n分组\n6\n文件\nlighthouse.obj · 7.3 KB\n材质文件（.mtl）和贴图不在一起时只显示白模；打包成 zip 可以带上材质"
+    },
+    {
+      "name": "pmx",
+      "id": 40,
+      "error": null,
+      "canvasCount": 1,
+      "previewText": "设为封面\n8 三角面 · 1.20 × 1.60 × 1.20\n文件信息\n重新识别\n下载原文件\n格式\nMMD PMX\n模型名\n【示例】灯笼\n英文名\nSample Lantern\nPMX 版本\n2\n顶点\n6\n三角面\n8\n材质\n1\n骨骼\n1\n包内文件\n3\n文件\nlantern.zip · 2.2 KB\nFront 示例生成器制作的演示模型。"
+    },
+    {
+      "name": "live2d",
+      "id": 41,
+      "error": null,
+      "canvasCount": 0,
+      "previewText": "texture_00.png · 256×256\ntexture_01.png · 256×256\n动作\nIdle\n2\nidle_01\nidle_02\nTapBody\n1\ntap\n表情\n微笑\n惊讶\n\n 网页内实时预览需要 Live2D 官方的 Cubism Core（专有许可，Front 不附带）。这里展示贴图、动作和表情信息。\n\n文件信息\n重新识别\n下载原文件\nCubism 版本\nCubism 4.0（moc3 v3）\n分组\nEyeBlink（2）、LipSync（1）\n物理\n是\n姿势\n否\n点击区域\n头、身体\n包内文件\n11\n文件\nlive2d.zip · 7.1 KB"
+    },
+    {
+      "name": "docx",
+      "id": 42,
+      "error": null,
+      "canvasCount": 0,
+      "previewText": "Generated document\n\n文件信息\n重新识别\n下载原文件\n格式\nWord 文档\n标题\nAudit\n作者\nFront 示例生成器\n创建时间\n2026-10-17 08:00:00\n文件\nnote.docx · 2.2 KB"
+    },
+    {
+      "name": "pdf",
+      "id": 43,
+      "error": null,
+      "canvasCount": 0,
+      "previewText": "1 / 1\n用浏览器打开\n文件信息\n重新识别\n下载原文件\n标题\nAudit\n作者\nFront sample generator\n创建时间\n2026-10-17\n页数\n1\n页面尺寸\n210×297 mm\n文件\nreading.pdf · 0.7 KB"
+    },
+    {
+      "name": "audio",
+      "id": 44,
+      "error": null,
+      "canvasCount": 0,
+      "previewText": "WAV\n音频\nmusic\n未知艺术家\n0:00\n0:01\n文件信息\n重新识别\n下载原文件\n时长\n0:01\n码率\n353 kbps\n采样率\n22.1 kHz\n声道\n1\n位深\n16 bit\n文件\nmusic.wav · 43.1 KB",
+      "audioState": {
+        "duration": 1,
+        "error": null,
+        "muted": true,
+        "paused": false,
+        "readyState": 4
+      }
+    },
+    {
+      "name": "broken-glb",
+      "id": 48,
+      "error": null,
+      "canvasCount": 0,
+      "previewText": "文件无法解析\n文件信息\n重新识别\n下载原文件\n格式\nglTF 二进制\n文件\nbroken.glb · 0.0 KB\n读取失败：ValueError: 不是 GLB 文件"
+    }
+  ],
+  "interactions": [
+    "note content persisted after reload",
+    "Ctrl+K focused search",
+    "search result opened matching asset",
+    "invalid mode fell back to keyword",
+    "light and dark themes",
+    "sidebar collapse and expand",
+    "muted audio playback"
+  ],
+  "console": [
+    {
+      "level": "warn",
+      "message": "You have set a custom wheel sensitivity.  This will make your app zoom unnaturally when using mainstream mice.  You should change this value from the default only if you can guarantee that all your users will use the same hardware and OS configuration as your current machine.",
+      "timestamp": "2026-10-18T08:05:37.820Z",
+      "url": "http://127.0.0.1:8000/static/Graph-BhB0irHz.js"
+    },
+    {
+      "level": "warn",
+      "message": "You have set a custom wheel sensitivity.  This will make your app zoom unnaturally when using mainstream mice.  You should change this value from the default only if you can guarantee that all your users will use the same hardware and OS configuration as your current machine.",
+      "timestamp": "2026-10-18T08:06:58.334Z",
+      "url": "http://127.0.0.1:8000/static/Graph-BhB0irHz.js"
+    },
+    {
+      "level": "warn",
+      "message": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+      "timestamp": "2026-10-18T08:07:54.807Z",
+      "url": "http://127.0.0.1:8000/static/ModelViewer-DHpXvpZm.js"
+    },
+    {
+      "level": "warn",
+      "message": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+      "timestamp": "2026-10-18T08:07:55.407Z",
+      "url": "http://127.0.0.1:8000/static/ModelViewer-DHpXvpZm.js"
+    },
+    {
+      "level": "warn",
+      "message": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+      "timestamp": "2026-10-18T08:07:55.972Z",
+      "url": "http://127.0.0.1:8000/static/ModelViewer-DHpXvpZm.js"
+    },
+    {
+      "level": "warn",
+      "message": "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+      "timestamp": "2026-10-18T08:07:56.580Z",
+      "url": "http://127.0.0.1:8000/static/ModelViewer-DHpXvpZm.js"
+    }
+  ]
+}

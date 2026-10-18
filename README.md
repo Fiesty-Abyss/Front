@@ -9,13 +9,15 @@
 画作、AI 出图、绘画素材、小说、galgame CG、世界观与角色关系网、SD 模型与提示词、AI 角色卡与对话，全部放进一个属于自己的数据库。
 
 [![CI](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiesty-Abyss/Front/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.6.0-9a6ad0)
+![version](https://img.shields.io/badge/version-0.6.4-9a6ad0)
 ![license](https://img.shields.io/badge/license-MIT-f472b6)
 ![stack](https://img.shields.io/badge/FastAPI%20%2B%20SQLite%20%2B%20Vue%203-1f2340)
 
 </div>
 
-> Front 是一个长期持续开发的项目，当前为 **v0.6.0**（第六轮第一部分：界面焕新）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+> Front 是一个长期持续开发的项目，当前为 **v0.6.4**（百科 Markdown 导出）。路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+
+在**设置 → 数据导出**下载全部百科，或在世界观页点击**导出当前百科 · Markdown ZIP**。解压后打开 `README.md`，可沿相对链接阅读世界观、角色、地点、组织、事件、物品和概念，以及角色关系的方向与确认状态。只导出已保存的百科文字，正文中的站内链接和素材引用保留原样；不包含媒体、模型、笔记、角色卡、对话与 API Key，不能代替整库备份，也不能用于还原数据库。
 
 ## 能做什么
 

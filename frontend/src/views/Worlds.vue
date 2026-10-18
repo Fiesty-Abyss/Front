@@ -123,6 +123,7 @@ const parentOptions = computed(() => {
       <div v-if="cur.id" class="row">
         <span v-for="[k, l] in TABS" :key="k" class="chip click" :class="{ on: tab === k }" style="padding:5px 14px;font-size:13px" @click="tab = k">{{ l }}<template v-if="k !== 'setting'"> · {{ counts[k] }}</template></span>
         <span class="spacer" />
+        <a class="btn" :href="`/api/exports/encyclopedia?world_id=${cur.id}`" download title="只导出已保存的百科文字，不包含媒体文件，也不是整库备份">导出当前百科 · Markdown ZIP</a>
         <span class="small muted">角色 {{ chars.length }}</span>
       </div>
 

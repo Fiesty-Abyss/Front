@@ -74,6 +74,11 @@ const role = (p) => [settings.value?.chat_provider_id === p.id && '对话', sett
   settings.value?.tagger_backend === 'vision' && settings.value?.vision_provider_id === p.id && '看图打标签'].filter(Boolean)
 </script>
 <template>
+  <section class="card grid" style="margin-bottom:14px">
+    <h2 style="margin:0">数据导出</h2>
+    <p class="small muted" style="margin:0">将全部世界观、角色、地点、组织、事件、物品、概念与关系说明导出为 Markdown ZIP，解压后打开 README.md 阅读。只导出已保存内容；图片、模型、笔记、角色卡和 API Key 不包含在内。这不是可还原的整库备份。</p>
+    <a class="btn" href="/api/exports/encyclopedia" download style="width:max-content">导出全部百科 · Markdown ZIP</a>
+  </section>
   <div class="notice" style="margin-bottom:14px">
     AI 服务的 API Key 只保存在本机数据目录的数据库里，接口不会返回原文（只显示末尾几位）；请不要把 Front 暴露到公网。
     所有 AI 功能都是可选的：不配置时其余功能完全可用。

@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { api, LABELS, Works, Worlds } from '../api'
 import TagPicker from '../components/TagPicker.vue'
 import { guard, toast } from '../toast'
+import JobProgress from '../components/JobProgress.vue'
 
 const mode = ref('local')
 const form = reactive({ path: '', recursive: true, cg_mode: false, kind: '', work_id: '', new_work_title: '', world_id: '', tag_ids: [], use_mtime: true })
@@ -11,9 +12,25 @@ const result = ref(null)
 const busy = ref(false)
 const works = ref([])
 const worlds = ref([])
+const job = ref(null)
+let pollTimer, disposed = false
+onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer) })
+async function poll(id) {
+  if (disposed) return
+  try {
+    const current = await api.get(`/api/jobs/${id}`)
+    if (disposed) return
+    job.value = current
+    busy.value = ['queued', 'running'].includes(current.status)
+    if (busy.value) pollTimer = setTimeout(() => poll(id), 600)
+    else if (current.result?.created != null) result.value = current.result
+  } catch (e) { if (!disposed) { busy.value = false; toast(e.message, true) } }
+}
 onMounted(async () => {
   works.value = (await Works.list({ limit: 500 })).items
   worlds.value = (await Worlds.list({ limit: 500 })).items
+  const history = await api.get('/api/jobs?kind=import')
+  if (history.length) await poll(history[0].id)
 })
 const fmtSize = (n) => (n > 1024 ** 3 ? (n / 1024 ** 3).toFixed(2) + ' GB' : (n / 1024 ** 2).toFixed(1) + ' MB')
 
@@ -32,8 +49,8 @@ function payload() {
 }
 async function run() {
   busy.value = true
-  try { result.value = await api.post('/api/import/run', payload()); toast(`导入完成：新增 ${result.value.created} 个`) }
-  catch (e) { toast(e.message, true) } finally { busy.value = false }
+  try { result.value = null; job.value = await api.post('/api/import/jobs', payload()); await poll(job.value.id) }
+  catch (e) { toast(e.message, true); busy.value = false }
 }
 
 // ---- 浏览器选择文件夹（文件从浏览器上传） ----
@@ -72,7 +89,7 @@ const pct = computed(() => (picked.value.length ? Math.round((progress.done / pi
 </script>
 
 <template>
-  <div class="grid" style="grid-template-columns: 420px 1fr; align-items:start">
+  <div class="grid import-layout">
     <div class="card grid">
       <div class="row"><span class="chip click" :class="{ on: mode === 'local' }" @click="mode = 'local'">本机文件夹路径</span><span class="chip click" :class="{ on: mode === 'browser' }" @click="mode = 'browser'">从浏览器选择文件夹</span></div>
       <template v-if="mode === 'local'">
@@ -100,6 +117,8 @@ const pct = computed(() => (picked.value.length ? Math.round((progress.done / pi
     </div>
 
     <div class="grid">
+      <JobProgress :job="job" />
+      <p v-if="job && ['interrupted', 'cancelled', 'error'].includes(job.status)" class="notice">已提交的素材保留。检查结果后重新选择原文件夹并导入，重复内容会跳过。不会自动重放任务。</p>
       <div v-if="result" class="card">
         <h2 style="margin-top:0">导入结果</h2>
         <div class="row"><span class="badge">新增 {{ result.created }}</span><span class="badge">重复跳过 {{ result.duplicates.length }}</span><span class="badge">失败 {{ result.errors.length }}</span><span v-if="result.cg_groups" class="badge">CG 分组 {{ result.cg_groups }}</span>
@@ -123,3 +142,9 @@ const pct = computed(() => (picked.value.length ? Math.round((progress.done / pi
     </div>
   </div>
 </template>
+
+<style scoped>
+.import-layout { grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); align-items: start; }
+.import-layout > * { min-width: 0; }
+@media (max-width: 1000px) { .import-layout { grid-template-columns: minmax(0, 1fr); } }
+</style>

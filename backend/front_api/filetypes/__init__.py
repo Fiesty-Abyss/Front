@@ -49,6 +49,9 @@ def analyze(path: Path, name: str) -> Analysis:
     ext = Path(name).suffix.lower()
     kind = KIND_BY_EXT.get(ext)
     out = Analysis(kind=kind)
+    if path.stat().st_size > 32 * 1024 * 1024 and kind in {'model3d', 'live2d', 'document', 'code', 'archive'}:
+        out.meta.update(analysis_deferred=True, note='文件超过 32 MiB，跳过整文件解析；原文件完整保留')
+        return _finish(out, ext)
     try:
         if ext == ".zip":
             bundle = archive.detect_bundle(path)

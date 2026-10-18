@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
+from . import jobs
 from .config import Settings, get_settings
 from .db import Base, init_engine
 from .migrate import upgrade
@@ -24,6 +26,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     for d in (settings.data_dir, settings.media_dir, settings.thumb_dir):
         d.mkdir(parents=True, exist_ok=True)
+    job_manager = jobs.configure(settings.data_dir / "jobs.sqlite3")
     engine = init_engine(f"sqlite:///{settings.db_path}")
     Base.metadata.create_all(engine)
     upgrade(engine)
@@ -32,7 +35,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         assets.install_delete_hook()
         _hooks_installed = True
 
+    @asynccontextmanager
+    async def lifespan(app):
+        yield
+        job_manager.shutdown()
+
     app = FastAPI(
+        lifespan=lifespan,
         title="Front API",
         version=__version__,
         description="Front · 自托管的创作素材库与百科数据库",

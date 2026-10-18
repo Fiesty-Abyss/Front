@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import mimetypes
 from datetime import date
 from pathlib import Path
@@ -24,7 +23,7 @@ from ..filetypes import FILE_KINDS, KIND_BY_EXT, analyze
 from ..filetypes.archive import read_entry
 from ..filetypes.docs import render_pdf_page
 from ..filetypes.util import is_image
-from ..ingest import find_duplicate, ingest, make_thumb, thumb_path, write_thumb
+from ..ingest import ingest_stream, make_thumb, thumb_path, write_thumb
 from ..pngmeta import read_png_text
 from ..file_cleanup import schedule_delete
 
@@ -51,6 +50,7 @@ def _filters(stmt, request):
 
 def _trim(d: dict[str, Any]) -> dict[str, Any]:
     """列表里不带大段的文件正文 / 预览（PDF、代码、压缩包目录），打开详情时再取。"""
+    d['content'] = None
     f = (d.get("meta") or {}).get("file")
     if f:
         d["content"] = None
@@ -59,6 +59,7 @@ def _trim(d: dict[str, Any]) -> dict[str, Any]:
 
 
 router = make_crud_router(
+    list_omit_fields=('content',),
     list_trim=_trim,
     prefix="/api/assets", model=m.Asset, create_schema=s.AssetCreate, update_schema=s.AssetUpdate,
     read_schema=s.AssetRead, tag_name="素材库", filters=_filters,
@@ -87,7 +88,7 @@ def timeline(session: Session = Depends(get_session)) -> list[dict[str, Any]]:
 
 
 @files.post("/upload", response_model=s.AssetRead, status_code=201)
-async def upload(
+def upload(
     file: UploadFile = File(...),
     title: str | None = Form(None),
     kind: str | None = Form(None),
@@ -100,21 +101,26 @@ async def upload(
     session: Session = Depends(get_session),
 ) -> Any:
     settings = get_settings()
-    data = await file.read()
-    if len(data) > settings.max_upload_mb * 1024 * 1024:
+    if file.size is not None and file.size > settings.max_upload_mb * 1024 * 1024:
         raise HTTPException(413, f"文件超过 {settings.max_upload_mb} MB")
-    dup = find_duplicate(session, hashlib.sha256(data).hexdigest())
-    if dup:
-        raise HTTPException(409, {"message": "相同文件已存在", "asset_id": dup.id})
-    tags = resolve_tags(session, [int(x) for x in tag_ids.split(",") if x.strip()]) if tag_ids else None
-    asset, _ = ingest(
-        session, data, file.filename or "upload", mime=file.content_type, kind=kind or None, title=title,
+    try:
+        tags = resolve_tags(session, [int(x) for x in tag_ids.split(",") if x.strip()]) if tag_ids else None
+    except ValueError:
+        raise HTTPException(422, "标签编号格式不正确") from None
+    if work_id is not None:
+        get_or_404(session, m.Work, work_id)
+    if world_id is not None:
+        get_or_404(session, m.World, world_id)
+    asset, created = ingest_stream(
+        session, file.file, file.filename or "upload", mime=file.content_type, kind=kind or None, title=title,
         description=description, source=source, work_date=work_date, work_id=work_id, world_id=world_id, tags=tags,
     )
+    if not created:
+        raise HTTPException(409, {"message": "相同文件已存在", "asset_id": asset.id})
     session.commit()
     session.refresh(asset)
     if asset.width:
-        make_thumb(asset.id, data)
+        make_thumb(asset.id, settings.data_dir / asset.file_path)
     return asset
 
 
@@ -228,7 +234,7 @@ def get_thumb(asset_id: int, session: Session = Depends(get_session)) -> FileRes
     if not thumb.is_file():
         path = _file_of(asset)
         if asset.width:
-            _make_thumb(asset_id, path.read_bytes())
+            _make_thumb(asset_id, path)
         elif ((asset.meta or {}).get("file") or {}).get("thumb"):
             name = asset.original_name or path.name
             write_thumb(asset_id, analyze(path, name).thumb)

@@ -11,6 +11,8 @@ const toc = ref(null)
 const ch = ref(null)
 const showToc = ref(true)
 const page = ref(null)
+const error = ref('')
+let request = 0, disposed = false
 const PREF_KEY = 'front.reader.prefs'
 const prefs = reactive({ size: 19, line: 1.9, theme: 'night', width: 760, ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') })
 watch(prefs, () => localStorage.setItem(PREF_KEY, JSON.stringify(prefs)))
@@ -19,20 +21,27 @@ const theme = computed(() => THEMES[prefs.theme])
 const progressKey = `front.reader.progress.${id}`
 
 async function open(index) {
-  ch.value = await api.get(`/api/assets/${id}/chapters/${index}`)
+  const sequence = ++request
+  try {
+  const data = await api.get(`/api/assets/${id}/chapters/${index}`)
+  if (disposed || sequence !== request) return
+  ch.value = data; error.value = ''
   localStorage.setItem(progressKey, String(index))
   page.value?.scrollTo(0, 0)
   document.title = `${ch.value.title} · ${ch.value.book_title}`
+  } catch (e) { if (!disposed && sequence === request) error.value = e.message }
 }
 onMounted(async () => {
+  try {
   toc.value = await api.get(`/api/assets/${id}/chapters`)
   const saved = Number(route.query.ch ?? localStorage.getItem(progressKey) ?? 0)
-  open(saved < toc.value.chapters.length ? saved : 0)
+  await open(Number.isInteger(saved) && saved >= 0 && saved < toc.value.chapters.length ? saved : 0)
   window.addEventListener('keydown', onKey)
+  } catch (e) { error.value = e.message }
 })
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+onBeforeUnmount(() => { disposed = true; request++; window.removeEventListener('keydown', onKey) })
 function onKey(e) {
-  if (e.target.tagName === 'INPUT') return
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable) return
   if (e.key === 'ArrowRight' && ch.value?.next != null) open(ch.value.next)
   if (e.key === 'ArrowLeft' && ch.value?.prev != null) open(ch.value.prev)
 }
@@ -44,6 +53,7 @@ const pct = computed(() => (toc.value && ch.value ? Math.round(((ch.value.index 
     <header class="reader-bar">
       <button class="ghost" @click="router.back()">← 返回</button>
       <button class="ghost" @click="showToc = !showToc">☰ 目录</button>
+      <RouterLink class="btn" :to="`/chapters/${id}`">整理章节</RouterLink>
       <button class="ghost" title="用 AI 从这篇小说里抽取角色" @click="router.push(`/extract?asset=${route.params.id}`)"><Ico g="⌕" />抽取角色</button>
       <b v-if="toc">{{ toc.title }}</b><span v-if="toc" class="small" style="opacity:.6">共 {{ toc.chapters.length }} 章 · {{ toc.words.toLocaleString() }} 字</span>
       <span class="spacer" />
@@ -51,6 +61,8 @@ const pct = computed(() => (toc.value && ch.value ? Math.round(((ch.value.index 
       <span class="small" style="opacity:.6">行距</span><select v-model.number="prefs.line" style="width:70px"><option v-for="l in [1.6, 1.8, 1.9, 2.1, 2.4]" :key="l" :value="l">{{ l }}</option></select>
       <span v-for="(t, k) in THEMES" :key="k" class="swatch" :class="{ on: prefs.theme === k }" :style="{ background: t[0], color: t[1] }" :title="t[2]" @click="prefs.theme = k">文</span>
     </header>
+    <p v-if="error" role="alert" style="padding:12px">{{ error }}</p>
+    <p v-if="toc?.stale" role="alert" style="padding:12px">正文已变化，旧目录未自动套用。请到“整理章节”确认新目录。</p>
     <div class="reader-body">
       <aside v-if="showToc && toc" class="reader-toc">
         <a v-for="c in toc.chapters" :key="c.index" :class="{ on: ch?.index === c.index }" @click="open(c.index)">{{ c.title }}<span>{{ c.words }}</span></a>
@@ -71,7 +83,7 @@ const pct = computed(() => (toc.value && ch.value ? Math.round(((ch.value.index 
 </template>
 <style scoped>
 .reader { height: 100vh; display: flex; flex-direction: column; font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif; }
-.reader-bar { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid #8884; font-family: "Noto Sans SC", system-ui, sans-serif; }
+.reader-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid #8884; font-family: "Noto Sans SC", system-ui, sans-serif; }
 .reader-bar button, .reader-bar select { color: inherit; border-color: #8886; background: transparent; }
 .reader-body { flex: 1; display: flex; min-height: 0; }
 .reader-toc { width: 260px; overflow: auto; border-right: 1px solid #8884; padding: 10px; font-family: "Noto Sans SC", system-ui, sans-serif; }
@@ -86,4 +98,5 @@ const pct = computed(() => (toc.value && ch.value ? Math.round(((ch.value.index 
 .reader-nav button { color: inherit; background: transparent; border-color: #8886; }
 .swatch { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; border: 2px solid #8886; }
 .swatch.on { border-color: var(--accent2); }
+@media (max-width: 700px) { .reader-toc { width: 150px; flex-shrink: 0; } .reader-page { padding: 20px 16px; min-width: 0; } .reader-nav { flex-wrap: wrap; gap: 8px; } }
 </style>

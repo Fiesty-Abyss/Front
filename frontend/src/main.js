@@ -22,6 +22,7 @@ const routes = [
   { path: '/import', component: () => import('./views/Import.vue'), meta: { title: '批量导入' } },
   { path: '/collections', component: () => import('./views/Collections.vue'), meta: { title: '收藏集' } },
   { path: '/read/:id', component: () => import('./views/Reader.vue'), meta: { title: '阅读', bare: true } },
+  { path: '/chapters/:id', component: () => import('./views/ChapterEditor.vue'), meta: { title: '章节整理' } },
   { path: '/prompts', component: () => import('./views/Prompts.vue'), meta: { title: '提示词库' } },
   { path: '/models', component: () => import('./views/Models.vue'), meta: { title: 'SD 模型库' } },
   { path: '/snippets', component: () => import('./views/Snippets.vue'), meta: { title: '提示词片段' } },

@@ -56,7 +56,8 @@ def make_thumb(asset_id: int, data: bytes | Path) -> None:
 
 
 def decode_text(data: bytes, *, truncated: bool = False) -> str:
-    for enc in ("utf-8-sig", "gb18030", "shift_jis", "utf-16"):
+    encodings = ('utf-16',) if data.startswith((b'\xff\xfe', b'\xfe\xff')) else ("utf-8-sig", "gb18030", "shift_jis", "utf-16")
+    for enc in encodings:
         try:
             return codecs.getincrementaldecoder(enc)().decode(data, final=not truncated)
         except UnicodeDecodeError:

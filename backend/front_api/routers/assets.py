@@ -19,6 +19,7 @@ from ..config import get_settings
 from ..crud import get_or_404, make_crud_router, qp, resolve_tags
 from ..db import get_session
 from ..chapters import chapter_text, split_chapters
+from .. import chapterplans
 from ..filetypes import FILE_KINDS, KIND_BY_EXT, analyze
 from ..filetypes.archive import read_entry
 from ..filetypes.docs import render_pdf_page
@@ -280,28 +281,27 @@ def install_delete_hook() -> None:
 # ---------------- 小说：章节与阅读 ----------------
 def _novel_text(session: Session, asset_id: int) -> tuple[m.Asset, str]:
     asset = get_or_404(session, m.Asset, asset_id)
-    if not asset.content:
-        raise HTTPException(422, "该素材没有正文")
-    return asset, asset.content
+    return asset, chapterplans.source_text(asset)
 
 
 @files.get("/{asset_id}/chapters")
 def chapters(asset_id: int, session: Session = Depends(get_session)) -> dict[str, Any]:
     """目录：自动识别“第X章 / Chapter N / Markdown 标题 / 序章 尾声”等。"""
     asset, text = _novel_text(session, asset_id)
-    toc = split_chapters(text)
+    toc, revision, digest = chapterplans.plan(session, asset_id, text)
     return {
         "asset_id": asset.id,
         "title": asset.title,
         "words": sum(c["words"] for c in toc),
         "chapters": [{k: c[k] for k in ("index", "title", "words")} for c in toc],
+        "stale": bool(revision and revision.text_hash != digest),
     }
 
 
 @files.get("/{asset_id}/chapters/{index}")
 def chapter(asset_id: int, index: int, session: Session = Depends(get_session)) -> dict[str, Any]:
     asset, text = _novel_text(session, asset_id)
-    toc = split_chapters(text)
+    toc, _, _ = chapterplans.plan(session, asset_id, text)
     if not 0 <= index < len(toc):
         raise HTTPException(404, "章节不存在")
     ch = toc[index]

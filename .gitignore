@@ -48,3 +48,4 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 .env
+.cache/

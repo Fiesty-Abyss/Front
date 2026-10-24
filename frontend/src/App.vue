@@ -48,9 +48,10 @@ function onKey(e) {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable
   if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing)) { e.preventDefault(); searchEl.value?.focus() }
 }
-onMounted(() => { window.addEventListener('keydown', onKey); window.addEventListener('resize', onResize); setTimeout(() => placePill(true), 50) })
+let pillTimer
+onMounted(() => { window.addEventListener('keydown', onKey); window.addEventListener('resize', onResize); pillTimer = setTimeout(() => placePill(true), 50) })
 const onResize = () => placePill(true)
-onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize) })
+onBeforeUnmount(() => { clearTimeout(pillTimer); window.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize) })
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
 const version = __APP_VERSION__
 </script>

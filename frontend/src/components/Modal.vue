@@ -1,12 +1,13 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { X } from 'lucide-vue-next'
-import { enterModal } from '../motion'
+import { enterModal, gsap } from '../motion'
 defineProps({ title: String, wide: Boolean })
 const emit = defineEmits(['close'])
 const mask = ref(null)
 const panel = ref(null)
 onMounted(() => { enterModal(mask.value, panel.value); panel.value?.focus() })
+onBeforeUnmount(() => gsap.killTweensOf([mask.value, panel.value]))
 </script>
 <template>
   <div ref="mask" class="modal-mask" @mousedown.self="emit('close')" @keydown.esc="emit('close')">

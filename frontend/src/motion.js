@@ -39,7 +39,7 @@ export function countUp(el, value) {
   if (!el) return
   if (reduced() || !value) { el.textContent = String(value ?? 0); return }
   const o = { v: 0 }
-  gsap.to(o, { v: value, duration: 0.7, ease: 'power2.out', onUpdate: () => { el.textContent = Math.round(o.v).toLocaleString() } })
+  return gsap.to(o, { v: value, duration: 0.7, ease: 'power2.out', onUpdate: () => { el.textContent = Math.round(o.v).toLocaleString() } })
 }
 
 /**
@@ -57,8 +57,16 @@ function revealNew(el, sel) {
     { autoAlpha: 1, y: 0, duration: 0.36, stagger: { each: 0.025, from: 'start' }, clearProps: 'transform,opacity,visibility' })
 }
 export const vReveal = {
-  mounted(el, b) { el.__rvSel = b.value; requestAnimationFrame(() => revealNew(el, b.value)) },
-  updated(el, b) { requestAnimationFrame(() => revealNew(el, b.value || el.__rvSel)) },
+  mounted(el, b) { el.__rvSel = b.value; queueReveal(el, b.value) },
+  updated(el, b) { queueReveal(el, b.value || el.__rvSel) },
+  beforeUnmount(el) {
+    cancelAnimationFrame(el.__rvFrame)
+    gsap.killTweensOf([el, ...el.querySelectorAll('*')])
+  },
+}
+function queueReveal(el, sel) {
+  cancelAnimationFrame(el.__rvFrame)
+  el.__rvFrame = requestAnimationFrame(() => { if (el.isConnected) revealNew(el, sel) })
 }
 
 /** 侧栏高亮块：在导航项之间滑动（同一个形状贯穿整个导航，而不是每项各自闪烁）。 */

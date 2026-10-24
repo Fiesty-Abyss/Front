@@ -11,6 +11,7 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm'
 import { RotateCw, Grid3x3, Camera, Scan, SunMoon, Play, Pause } from 'lucide-vue-next'
 import { entryUrl, fileUrl } from '../api'
 import { parsePMX, buildPMX } from './pmx'
+import { disposeTree, previewLifetime } from './resources'
 
 const props = defineProps({ asset: { type: Object, required: true } })
 const emit = defineEmits(['snapshot'])
@@ -24,7 +25,11 @@ const light = ref(document.documentElement.dataset.theme === 'light') // 舞台�
 const clips = shallowRef([])
 const clip = ref('')
 const playing = ref(true)
-let renderer, scene, camera, controls, mixer, vrm, root, raf, ro
+let renderer, scene, camera, controls, mixer, vrm, root, raf, ro, visibilityObserver
+let manager, materials
+const lifetime = previewLifetime()
+const abort = new AbortController()
+let visible = true
 const clock = new THREE.Clock()
 
 const f = props.asset.meta?.file || {}
@@ -37,7 +42,7 @@ const rel = (p) => entryUrl(props.asset.id, normalize(baseDir + p.replace(/\\/g,
 function normalize(p) { const out = []; for (const s of p.split('/')) { if (s === '..') out.pop(); else if (s && s !== '.') out.push(s) } return out.join('/') }
 
 function setup() {
-  renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true })
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -48,24 +53,41 @@ function setup() {
   controls.enableDamping = true
   controls.autoRotate = spin.value
   controls.autoRotateSpeed = 1.2
-  controls.addEventListener('start', () => { spin.value = false; controls.autoRotate = false })
+  controls.addEventListener('start', () => { spin.value = false; controls.autoRotate = false; invalidate() })
+  controls.addEventListener('change', invalidate)
   scene.add(new THREE.HemisphereLight(0xeef0ff, 0x302a40, 1.6))
   const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(3, 5, 4); scene.add(key)
   const rim = new THREE.DirectionalLight(0xb48ce6, 1.2); rim.position.set(-4, 2, -3); scene.add(rim)
   ro = new ResizeObserver(resize); ro.observe(host.value); resize()
-  loop()
+  visibilityObserver = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; syncLoop() })
+  visibilityObserver.observe(host.value)
+  document.addEventListener('visibilitychange', syncLoop)
 }
 function resize() {
+  if (lifetime.closed || !host.value) return
   const w = host.value.clientWidth, h = host.value.clientHeight
+  if (!w || !h) return
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix()
+  invalidate()
+}
+function invalidate() {
+  if (!raf && !lifetime.closed && root && visible && !document.hidden && !status.value) raf = requestAnimationFrame(loop)
+}
+function syncLoop() {
+  cancelAnimationFrame(raf); raf = null
+  clock.stop()
+  if (!lifetime.closed && root && visible && !document.hidden && !status.value) { clock.start(); invalidate() }
 }
 function loop() {
-  raf = requestAnimationFrame(loop)
+  raf = null
+  if (lifetime.closed) return
   const dt = clock.getDelta()
   if (mixer && playing.value) mixer.update(dt)
   vrm?.update(dt)
   controls.update()
   renderer.render(scene, camera)
+  // OrbitControls emits change during damping. Static previews need no idle RAF.
+  if (spin.value || vrm || (mixer && playing.value)) invalidate()
 }
 
 function frame(obj) {
@@ -85,13 +107,14 @@ function frame(obj) {
 }
 
 async function load() {
-  const manager = new THREE.LoadingManager()
+  manager = new THREE.LoadingManager()
   let obj
   if (['glb', 'gltf', 'vrm'].includes(ext)) {
     const loader = new GLTFLoader(manager)
     loader.register((p) => new VRMLoaderPlugin(p))
     let gltf
     try { gltf = await loader.loadAsync(url) } catch (e) {
+      if (lifetime.closed) return
       if (!/humanoid|VRM/i.test(String(e?.message))) throw e
       gltf = await new GLTFLoader(manager).loadAsync(url) // 人形骨骼不完整：按普通 glTF 显示
       note.value = 'VRM 人形骨骼不完整，按普通 glTF 模型显示'
@@ -99,54 +122,79 @@ async function load() {
     vrm = gltf.userData.vrm || null
     if (vrm) { VRMUtils.removeUnnecessaryVertices(gltf.scene); VRMUtils.rotateVRM0(vrm) }
     obj = vrm ? vrm.scene : gltf.scene
+    if (!lifetime.accept(obj)) { vrm = null; return }
     clips.value = gltf.animations
   } else if (ext === 'obj') {
     const loader = new OBJLoader(manager)
     const mtl = bundle && f.mtllib?.[0]
     if (mtl) {
-      try { const mats = await new MTLLoader(manager).setResourcePath(rel('')).loadAsync(rel(mtl)); mats.preload(); loader.setMaterials(mats) } catch { /* 没有材质就用白模 */ }
+      try {
+        const mats = await new MTLLoader(manager).setResourcePath(rel('')).loadAsync(rel(mtl))
+        if (lifetime.closed) return
+        materials = mats
+        mats.preload(); loader.setMaterials(mats)
+      } catch (e) { if (lifetime.closed) return /* 没有材质就用白模 */ }
     }
     obj = await loader.loadAsync(url)
-    if (!mtl) obj.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ color: 0xd8d6e8, roughness: 0.6 }) })
+    if (!mtl) obj.traverse((o) => { if (o.isMesh) {
+      disposeTree({ traverse: (visit) => visit({ material: o.material }) })
+      o.material = new THREE.MeshStandardMaterial({ color: 0xd8d6e8, roughness: 0.6 })
+    } })
   } else if (ext === 'fbx') {
     obj = await new FBXLoader(manager).loadAsync(url)
     clips.value = obj.animations || []
   } else if (ext === 'pmx') {
-    const buf = await (await fetch(url)).arrayBuffer()
+    const response = await fetch(url, { signal: abort.signal })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const buf = await response.arrayBuffer()
+    if (lifetime.closed) return
     obj = buildPMX(parsePMX(buf), rel)
   } else {
     throw new Error('这个格式不能在浏览器里预览')
   }
+  if (!lifetime.accept(obj)) return
   root = obj
   scene.add(obj)
   frame(obj)
   if (clips.value.length) { mixer = new THREE.AnimationMixer(obj); clip.value = clips.value[0].name; playClip() }
   status.value = ''
+  syncLoop()
 }
 function playClip() {
   if (!mixer) return
   mixer.stopAllAction()
   const c = clips.value.find((x) => x.name === clip.value)
   if (c) mixer.clipAction(c).play()
+  invalidate()
 }
-function toggleSpin() { spin.value = !spin.value; controls.autoRotate = spin.value }
-function toggleWire() { wire.value = !wire.value; root?.traverse((o) => { if (o.isMesh) [].concat(o.material).forEach((m) => { m.wireframe = wire.value }) }) }
+function togglePlaying() { playing.value = !playing.value; clock.getDelta(); invalidate() }
+function toggleSpin() { spin.value = !spin.value; controls.autoRotate = spin.value; clock.getDelta(); invalidate() }
+function toggleWire() { wire.value = !wire.value; root?.traverse((o) => { if (o.isMesh) [].concat(o.material).forEach((m) => { m.wireframe = wire.value }) }); invalidate() }
 function toggleBg() { light.value = !light.value }
 function reset() { controls.reset() }
 function snapshot() {
   const g = scene.getObjectByName('grid'); if (g) g.visible = false
   renderer.render(scene, camera)
-  renderer.domElement.toBlob((b) => { if (g) g.visible = true; emit('snapshot', b) }, 'image/png')
+  renderer.domElement.toBlob((b) => { if (g) g.visible = true; if (b && !lifetime.closed) { emit('snapshot', b); invalidate() } }, 'image/png')
 }
 
 onMounted(async () => {
-  setup()
-  try { await load() } catch (e) { status.value = `无法预览：${e.message || e}` }
+  try { setup(); await load() } catch (e) {
+    if (!lifetime.closed) { status.value = `无法预览：${e.message || e}`; syncLoop() }
+  }
 })
 onBeforeUnmount(() => {
-  cancelAnimationFrame(raf); ro?.disconnect(); controls?.dispose()
-  scene?.traverse((o) => { o.geometry?.dispose?.(); [].concat(o.material || []).forEach((m) => { m.map?.dispose?.(); m.dispose?.() }) })
-  renderer?.dispose(); renderer?.domElement.remove()
+  lifetime.close(); abort.abort(); manager?.abort?.()
+  cancelAnimationFrame(raf); clock.stop(); ro?.disconnect(); visibilityObserver?.disconnect()
+  document.removeEventListener('visibilitychange', syncLoop)
+  controls?.dispose(); mixer?.stopAllAction(); if (root) mixer?.uncacheRoot(root)
+  // MTL files may contain unused materials which never entered the scene.
+  disposeTree({ traverse: (visit) => {
+    scene?.traverse(visit)
+    if (materials) visit({ material: Object.values(materials.materials) })
+  } })
+  renderer?.renderLists.dispose(); renderer?.dispose(); renderer?.forceContextLoss(); renderer?.domElement.remove()
+  root = vrm = mixer = scene = controls = renderer = materials = null
 })
 </script>
 
@@ -161,7 +209,7 @@ onBeforeUnmount(() => {
       <button class="ghost iconbtn" title="重置视角" @click="reset"><Scan :size="15" /></button>
       <template v-if="clips.length">
         <span class="sep" />
-        <button class="ghost iconbtn" :title="playing ? '暂停动画' : '播放动画'" @click="playing = !playing"><component :is="playing ? Pause : Play" :size="15" /></button>
+        <button class="ghost iconbtn" :title="playing ? '暂停动画' : '播放动画'" @click="togglePlaying"><component :is="playing ? Pause : Play" :size="15" /></button>
         <select v-model="clip" class="mv-clip" @change="playClip"><option v-for="c in clips" :key="c.name" :value="c.name">{{ c.name || '动画' }}</option></select>
       </template>
       <span class="sep" />

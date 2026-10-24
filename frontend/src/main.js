@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, nextTick } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import './style.css'
@@ -49,4 +49,8 @@ const router = createRouter({
 router.afterEach((to) => { document.title = `${to.meta.title ?? ''} · Front` })
 
 const app = createApp(App).use(router).directive('reveal', vReveal).component('Ico', Ico)
-router.isReady().then(() => app.mount('#app'))
+router.isReady().then(async () => {
+  app.mount('#app')
+  await nextTick()
+  requestAnimationFrame(() => requestAnimationFrame(() => performance.mark('front:shell-interactive')))
+})

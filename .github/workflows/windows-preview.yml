@@ -44,7 +44,9 @@ jobs:
         timeout-minutes: 15
         run: python -m pytest backend/tests -q
       - name: Build shared frontend
-        run: npm --prefix frontend run build
+        run: |
+          npm --prefix frontend test
+          npm --prefix frontend run build
       - name: Build frozen Python sidecar
         run: python desktop/build_sidecar.py
       - name: Test frozen sidecar in isolated directory

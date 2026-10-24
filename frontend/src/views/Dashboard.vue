@@ -1,6 +1,6 @@
 <script setup>
 import AssetThumb from '../components/AssetThumb.vue'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Images, BookUser, Globe, NotebookPen, Box, IdCard, Gamepad2, Upload, FolderInput, WandSparkles, MessageCircle, ScanSearch, ArrowRight, NotebookText, Workflow, SquareLibrary } from 'lucide-vue-next'
 import { api, Assets, LABELS, thumb } from '../api'
@@ -41,11 +41,15 @@ const months = computed(() => weeks.value.map((w, i) => {
 }))
 const tip = (d) => `${d.date}：${d.count} 条${Object.keys(d.by).length ? '（' + Object.entries(d.by).map(([k, v]) => `${LABELS.activity?.[k] ?? k} ${v}`).join('、') + '）' : ''}`
 const heat = ref(null)
+let disposed = false
+const animations = []
+onBeforeUnmount(() => { disposed = true; animations.forEach((animation) => animation?.kill()) })
 
 onMounted(async () => {
   const [s, r, rows, a] = await Promise.all([
     api.get('/api/stats'), Assets.list({ limit: 8 }), api.get('/api/assets/stats/timeline'), api.get('/api/stats/activity?weeks=53'),
   ])
+  if (disposed) return
   stats.value = s
   recent.value = r.items
   const byMonth = {}
@@ -53,8 +57,9 @@ onMounted(async () => {
   timeline.value = Object.entries(byMonth).slice(0, 8)
   act.value = a
   await nextTick()
-  for (const [k] of cards) countUp(numEls.value[k], s[k])
-  if (heat.value && !reduced()) gsap.from(heat.value.querySelectorAll('.wk'), { autoAlpha: 0, duration: 0.3, stagger: 0.012, clearProps: 'opacity,visibility' })
+  if (disposed) return
+  for (const [k] of cards) animations.push(countUp(numEls.value[k], s[k]))
+  if (heat.value && !reduced()) animations.push(gsap.from(heat.value.querySelectorAll('.wk'), { autoAlpha: 0, duration: 0.3, stagger: 0.012, clearProps: 'opacity,visibility' }))
 })
 const search = () => q.value.trim() && router.push({ path: '/search', query: { q: q.value.trim(), mode: 'hybrid' } })
 </script>

@@ -26,6 +26,14 @@ def recover(engine):
         conn.execute(update(m.ProjectImport).where(m.ProjectImport.status.in_(['queued','running'])).values(status='interrupted'))
 
 
+def reconcile(run):
+    job=jobs.get(run.job_id) if run.job_id else None
+    if run.status in ('queued','running') and job and job.status not in ('queued','running'):
+        run.status='cancelled' if job.status=='cancelled' else 'interrupted'
+        return True
+    return False
+
+
 def process(import_id,job):
     while not _IMPORT_LOCK.acquire(timeout=.25):
         job.check()
@@ -59,6 +67,9 @@ def _process(import_id,job):
                     existing=session.scalar(select(m.WorldResource).where(m.WorldResource.world_id==run.world_id,m.WorldResource.source_key==source_key(path)))
                     if existing:
                         old=session.get(m.Asset,existing.entity_id)
+                        from .archiveidentity import valid
+                        if not valid(existing,old):
+                            raise HTTPException(409,'原档案记录已删除或失效；请先移除旧引用，再明确导入原件')
                         if old and old.sha256!=data['sha256']:
                             raise HTTPException(409,'此路径已有不同版本；请使用版本管理，不能覆盖原档案')
                     if run.mode=='managed':
@@ -77,6 +88,9 @@ def _process(import_id,job):
                         session.add(resource);session.flush()
                         item.status='done'
                     else:
+                        from .archiveidentity import valid
+                        if not valid(resource,asset):
+                            raise HTTPException(409,'原引用已失效，请先移除旧引用，不自动继承旧偏好')
                         item.status='duplicate'
                         if run.mode=='managed':resource.storage_mode='managed'
                     item.resource_id=resource.id;item.message=''

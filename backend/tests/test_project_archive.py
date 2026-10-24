@@ -56,6 +56,7 @@ def test_index_managed_dedup_and_local_preferences(client,tmp_path,data_dir):
     assert client.patch(f'/api/worlds/{second["world_id"]}/archive',json={'ids':[foreign['id']],'label_ids':[label]}).status_code==422
     assert client.delete(f'/api/worlds/{first["world_id"]}/archive/{resource["id"]}').status_code==204
     assert source.read_bytes()==original
+
     global_one=client.post('/api/tags',json={'name':'global-one'}).json()['id']
     global_two=client.post('/api/tags',json={'name':'global-two'}).json()['id']
     client.patch(f'/api/worlds/{second["world_id"]}/archive',json={'ids':[foreign['id']],'global_tag_ids':[global_one]})
@@ -64,6 +65,65 @@ def test_index_managed_dedup_and_local_preferences(client,tmp_path,data_dir):
     assert client.get(f'/api/worlds/{second["world_id"]}/archive?tag_id={global_two}').json()['total']==1
     client.delete(f'/api/tags/{global_two}')
     assert client.get(f'/api/worlds/{second["world_id"]}/archive').json()['items'][0]['global_tag_ids']==[]
+
+
+def test_deleted_reference_cannot_follow_reused_id_or_preferences(client):
+    one=client.post('/api/worlds',json={'name':'原世界'}).json()['id']
+    two=client.post('/api/worlds',json={'name':'另一世界'}).json()['id']
+    char=client.post('/api/characters',json={'name':'原人物','world_id':one}).json()['id']
+    root=f'/api/worlds/{one}/archive'
+    ref=client.post(root+'/references',json={'entity_kind':'character','entity_id':char}).json()['id']
+    client.patch(root,json={'ids':[ref],'favorite':True,'notes':'旧偏好'})
+    client.delete(f'/api/characters/{char}')
+    reused=client.post('/api/characters',json={'name':'新私有记录','profile':'禁止泄漏的新正文','world_id':two}).json()['id'];assert reused==char
+    old=client.get(root+f'/{ref}').json()
+    assert old['missing_record'] and not old.get('content') and old['entity_id']<0
+    assert client.get(root,params={'q':'禁止泄漏'}).json()['total']==0
+    assert client.post(root+'/references',json={'entity_kind':'character','entity_id':reused}).status_code==422
+    client.patch(f'/api/characters/{reused}',json={'world_id':one})
+    new=client.post(root+'/references',json={'entity_kind':'character','entity_id':reused}).json()['id']
+    assert new!=ref
+    assert client.get(root+f'/{new}').json()['favorite'] is False
+
+
+def test_cascade_and_legacy_reference_reuse_is_not_exposed(client):
+    from sqlalchemy import delete
+    world=client.post('/api/worlds',json={'name':'世界'}).json()['id']
+    a=client.post('/api/characters',json={'name':'甲','world_id':world}).json()['id']
+    b=client.post('/api/characters',json={'name':'乙','world_id':world}).json()['id']
+    rel=client.post('/api/relations',json={'source_id':a,'target_id':b,'kind':'朋友'}).json()['id']
+    root=f'/api/worlds/{world}/archive'
+    ref=client.post(root+'/references',json={'entity_kind':'relation','entity_id':rel}).json()['id']
+    client.delete(f'/api/characters/{a}')
+    c=client.post('/api/characters',json={'name':'丙','world_id':world}).json()['id']
+    replacement=client.post('/api/relations',json={'source_id':c,'target_id':b,'kind':'新关系'}).json()['id'];assert replacement==rel
+    assert client.get(root+f'/{ref}').json()['missing_record'] is True
+    legacy=client.post(root+'/references',json={'entity_kind':'character','entity_id':c}).json()['id']
+    # Simulate an old direct-SQL delete predating the new tombstone hook.
+    with new_session() as s:s.execute(delete(m.Character).where(m.Character.id==c));s.commit()
+    recreated=client.post('/api/characters',json={'name':'后创建人物','world_id':world}).json()['id'];assert recreated==c
+    assert client.get(root+f'/{legacy}').json()['missing_record'] is True
+    assert client.post(root+'/references',json={'entity_kind':'character','entity_id':c}).status_code==409
+
+
+def test_queued_import_cancel_is_resumable_without_restart(client,tmp_path):
+    from threading import Event
+    from front_api import jobs
+    root=tmp_path/'queued';root.mkdir();source=root/'test.txt';source.write_text('生成样本，保留原件',encoding='utf-8')
+    pid=preview(client,root)
+    gate=Event();blockers=[jobs.start('test','blocker',1,lambda job:gate.wait(3)) for _ in range(2)]
+    try:
+        response=client.post('/api/project-imports',json={'report_id':pid,'new_world_name':'取消验收','mode':'index','files':[{'index':0}]}).json()
+        jid=response['job']['id'];client.post('/api/jobs/'+jid+'/cancel')
+    finally:gate.set()
+    assert wait(client,jid)['status']=='cancelled'
+    url='/api/project-imports/'+response['import_id']
+    assert client.get(url).json()['status']=='cancelled'
+    resumed=client.post(url+'/resume');assert resumed.status_code==202,resumed.text
+    assert wait(client,resumed.json()['job']['id'])['status']=='done'
+    assert client.get(url).json()['counts']=={'done':1}
+    assert source.read_text(encoding='utf-8')=='生成样本，保留原件'
+
 
 
 def test_partial_import_resume_and_missing_source(client,tmp_path,monkeypatch):

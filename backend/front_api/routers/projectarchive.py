@@ -72,12 +72,16 @@ def start(req:ImportRequest,session:Session=Depends(get_session)):
 def imports(world_id:int|None=None,session:Session=Depends(get_session)):
     stmt=select(m.ProjectImport)
     if world_id is not None:stmt=stmt.where(m.ProjectImport.world_id==world_id)
-    return [{'id':r.id,'world_id':r.world_id,'mode':r.mode,'status':r.status,'job_id':r.job_id} for r in session.scalars(stmt.order_by(m.ProjectImport.created_at.desc()).limit(100))]
+    rows=list(session.scalars(stmt.order_by(m.ProjectImport.created_at.desc()).limit(100)))
+    for run in rows:archive.reconcile(run)
+    session.commit()
+    return [{'id':r.id,'world_id':r.world_id,'mode':r.mode,'status':r.status,'job_id':r.job_id} for r in rows]
 
 
 @router.get('/project-imports/{import_id}')
 def import_detail(import_id:str,offset:int=Query(0,ge=0),limit:int=Query(50,ge=1,le=100),session:Session=Depends(get_session)):
     run=get_or_404(session,m.ProjectImport,import_id)
+    if archive.reconcile(run):session.commit()
     states=list(session.execute(select(m.ProjectImportItem.status,func.count()).where(m.ProjectImportItem.import_id==import_id).group_by(m.ProjectImportItem.status)))
     rows=session.scalars(select(m.ProjectImportItem).where(m.ProjectImportItem.import_id==import_id).order_by(m.ProjectImportItem.id).limit(limit).offset(offset))
     return {'id':run.id,'world_id':run.world_id,'status':run.status,'job_id':run.job_id,'mode':run.mode,'report_id':run.report_id,'counts':dict(states),
@@ -87,6 +91,7 @@ def import_detail(import_id:str,offset:int=Query(0,ge=0),limit:int=Query(50,ge=1
 @router.post('/project-imports/{import_id}/resume',status_code=202)
 def resume(import_id:str,session:Session=Depends(get_session)):
     run=get_or_404(session,m.ProjectImport,import_id)
+    if archive.reconcile(run):session.flush()
     claimed=session.execute(update(m.ProjectImport).where(m.ProjectImport.id==import_id,m.ProjectImport.status.in_(['interrupted','partial','cancelled'])).values(status='queued')).rowcount
     if not claimed:raise HTTPException(409,'任务正在运行或已经全部完成')
     session.commit()
@@ -151,6 +156,9 @@ def reference(session,world_id,kind,entity_id,allow=False):
     if row is None:
         row=m.WorldResource(world_id=world_id,entity_kind=kind,entity_id=entity_id,title=getattr(target,'title',None) or getattr(target,'name',None) or f'{kind} #{entity_id}',category=kind)
         session.add(row);session.flush()
+    else:
+        from ..archiveidentity import valid
+        if not valid(row,target):raise HTTPException(409,'旧引用失效，请先移除，不能自动关联复用ID的新资料')
     return row
 
 
@@ -175,9 +183,11 @@ def resource_row(session,row,detail=False):
     data={k:getattr(row,k) for k in ('id','world_id','entity_kind','entity_id','title','category','source_path','storage_mode','global_tag_ids','label_ids','favorite','stars','preference','notes')}
     model=archive.ENTITIES[row.entity_kind]
     if not detail:
-        data['missing_record']=session.scalar(select(model.id).where(model.id==row.entity_id)) is None
+        data['missing_record']=session.scalar(select(model.id).where(model.id==row.entity_id,model.created_at<=row.created_at)) is None
         return data
     target=session.get(model,row.entity_id)
+    from ..archiveidentity import valid
+    if not valid(row,target):target=None
     data['missing_record']=target is None
     if detail and target:
         data['content']=getattr(target,'content',None) or getattr(target,'profile',None) or getattr(target,'summary',None) or getattr(target,'description',None)
@@ -211,7 +221,7 @@ def listing(world_id:int,q:str='',kind:str='',label_id:int|None=None,tag_id:int|
         hits=[m.WorldResource.title.contains(q,autoescape=True),m.WorldResource.notes.contains(q,autoescape=True)]
         for entity_kind,model in archive.ENTITIES.items():
             columns=[getattr(model,k).contains(q,autoescape=True) for k in ('content','profile','summary','name','title') if hasattr(model,k)]
-            if columns:hits.append(and_(m.WorldResource.entity_kind==entity_kind,m.WorldResource.entity_id.in_(select(model.id).where(or_(*columns)))))
+            if columns:hits.append(and_(m.WorldResource.entity_kind==entity_kind,m.WorldResource.entity_id.in_(select(model.id).where(or_(*columns),model.created_at<=m.WorldResource.created_at))))
         stmt=stmt.where(or_(*hits))
     total=session.scalar(select(func.count()).select_from(stmt.subquery()))
     rows=session.scalars(stmt.order_by(m.WorldResource.id.desc()).limit(limit).offset(offset))

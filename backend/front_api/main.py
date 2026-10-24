@@ -45,6 +45,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ensure_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()
+        from .archiveidentity import install
+        install()
         _hooks_installed = True
 
     @asynccontextmanager

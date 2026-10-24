@@ -83,9 +83,11 @@ export const LABELS = {
 }
 
 /** 轮询后台任务直到结束；onUpdate 每次拿到最新状态。 */
-export async function waitJob(id, onUpdate, interval = 800) {
+export async function waitJob(id, onUpdate, interval = 800, signal) {
   for (;;) {
+    if (signal?.aborted) return null
     const j = await api.get(`/api/jobs/${id}`)
+    if (signal?.aborted) return null
     onUpdate?.(j)
     if (!['queued', 'running'].includes(j.status)) return j
     await new Promise((r) => setTimeout(r, interval))

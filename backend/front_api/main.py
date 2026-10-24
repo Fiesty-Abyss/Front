@@ -25,6 +25,7 @@ from .routers import extractionreview as extractionreview_router
 from .routers import backups as backups_router
 from .routers import oc as oc_router
 from .routers import ocimages
+from .routers import ocdrawing
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _hooks_installed = False
@@ -83,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         backups_router.router,
         oc_router.router,
         ocimages.router,
+        ocdrawing.router,
         exports.router,
         library.tag_extra, library.tags, library.works, library.worlds,
         encyclopedia.extra, encyclopedia.entries, encyclopedia.appearances,

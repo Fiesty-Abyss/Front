@@ -129,6 +129,10 @@ def image_ref(session,profile_id,rid):
 
 def image_path(session,profile_id,rid):
     _,ref,asset=image_ref(session,profile_id,rid)
+    return reference_path(session,ref,asset)
+
+
+def reference_path(session,ref,asset):
     if ref.get('asset_version'):
         _,_,payload=revision(session,'asset',asset.id,ref['asset_version'])
         if payload.get('file_path'):return media_path(payload['file_path']),payload.get('mime')
@@ -137,8 +141,10 @@ def image_path(session,profile_id,rid):
 
 
 @router.get('/api/oc/{profile_id}/images/{rid}/file')
-def image_file(profile_id:int,rid:str,session:Session=Depends(get_session)):
-    path,mime=image_path(session,profile_id,rid);return FileResponse(path,media_type=mime,headers={'X-Content-Type-Options':'nosniff'})
+def image_file(profile_id:int,rid:str,download:bool=False,session:Session=Depends(get_session)):
+    path,mime=image_path(session,profile_id,rid)
+    _,ref,asset=image_ref(session,profile_id,rid)
+    return FileResponse(path,media_type=mime,filename=(asset.original_name or path.name) if download else None,headers={'X-Content-Type-Options':'nosniff'})
 
 
 @router.get('/api/oc/{profile_id}/compare')

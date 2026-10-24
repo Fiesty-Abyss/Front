@@ -35,7 +35,9 @@ def test_existing_sd_engine_oc_binding_and_mock_comfy(client,monkeypatch):
         assert j.status_code==200,j.text
         job=wait_job(client,j.json());assert job['status']=='done',job
         oc=client.get(url).json();assert oc['references'][-1]['parameters']['backend']==backend
-        if backend=='comfyui':assert oc['references'][-1]['parameters']['workflow']
+        if backend=='comfyui':
+            assert oc['references'][-1]['parameters']['workflow_sha256']
+            generation=client.get(f"/api/generations/{oc['references'][-1]['generation_id']}").json();assert generation['params']['workflow']
     b=client.get(url+'/batches').json();assert b['total']==2 and all(x['job']['status']=='done' for x in b['items'])
     assert client.post('/api/generate',json={'positive':'x','oc_profile_id':oc['id'],'oc_expected_version':1}).status_code==409
     get_settings.cache_clear()

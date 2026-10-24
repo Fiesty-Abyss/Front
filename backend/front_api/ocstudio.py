@@ -70,6 +70,8 @@ def attach(session,profile,kind,entity_id,role='reference',design_id=None,allow_
         value['asset_version']=versions.enable(session,target,'OC引用时素材快照')
         value['sha256']=target.sha256
     if len(profile.references)>=2000 and not old:raise HTTPException(413,'单档案引用超过2000，请整理收藏集')
-    profile.references=[r for r in profile.references if r['id']!=value['id']]+[value]
+    references=[r for r in profile.references if r['id']!=value['id']]+[value]
+    if len(json.dumps(references,ensure_ascii=False).encode())>8*1024*1024:raise HTTPException(413,'档案引用元数据超过8MiB，请拆分整理收藏集')
+    profile.references=references
     if as_cover:profile.cover_asset_id=entity_id
     return value

@@ -1,4 +1,5 @@
 """OC bindings around the existing generation engine, not a second SD engine."""
+import hashlib,json
 from fastapi import HTTPException
 from . import models as m,ocstudio as studio
 
@@ -22,7 +23,9 @@ def attach_output(session,batch,asset,generation,job):
     obj=session.get(m.OCProfile,row.profile_id) if row.profile_id else None
     if obj is None or studio.identity(obj)!=row.profile_identity or studio.scope(session,obj)!=row.scope or (row.design_id and not any(d['id']==row.design_id for d in obj.designs)):
         job.errors.append('OC或造型归属已变化：生成结果保留在素材库，未自动关联');return
-    try:studio.attach(session,obj,'asset',asset.id,role='generated',design_id=row.design_id,generation_id=generation.id,batch=batch,parameters=generation.params)
+    parameters={k:v for k,v in generation.params.items() if k!='workflow'}
+    if generation.params.get('workflow'):parameters['workflow_sha256']=hashlib.sha256(json.dumps(generation.params['workflow'],sort_keys=True).encode()).hexdigest()
+    try:studio.attach(session,obj,'asset',asset.id,role='generated',design_id=row.design_id,generation_id=generation.id,batch=batch,parameters=parameters)
     except HTTPException:
         job.errors.append('素材已有不同世界观归属，未自动跨世界关联；请手工审核引用')
 

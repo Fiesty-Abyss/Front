@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -29,7 +30,7 @@ from .routers import ocdrawing
 from .routers import audio,referenceimports
 from .routers import bonuses, modelassets
 
-FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+FRONTEND_DIST = (Path(sys._MEIPASS) if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[2]) / "frontend" / "dist"
 _hooks_installed = False
 
 

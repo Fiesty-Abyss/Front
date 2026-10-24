@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Front Preview",
+  "version": "0.7.0-preview.1",
+  "identifier": "io.github.fiesty-abyss.front",
+  "build": {"frontendDist": "../splash"},
+  "app": {"windows": [], "security": {"capabilities": []}},
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico"],
+    "resources": {"../../.cache/desktop-stage/backend/": "backend/"},
+    "windows": {"webviewInstallMode": {"type": "downloadBootstrapper"}, "nsis": {"installMode": "currentUser", "languages": ["SimpChinese", "English"], "displayLanguageSelector": true}}
+  }
+}

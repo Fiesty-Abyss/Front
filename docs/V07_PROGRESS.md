@@ -1,3 +1,17 @@
+## 2026-10-24：音频、特典、模型与桌面预览当前状态
+
+本节为当前接续状态；后文保留各轮历史记录，旧基线和“尚未实施”的描述不代替本节与 GitHub 最新结果。
+
+- PR #25 Audio、#26 特典、#27 模型资产均通过 CI 并普通合并，稳定 Web 基线 `176e59c`。PR #28 原生预览验收通过，待最终 CI 合并；不是 v0.7 正式发布。
+- 本机 222 项后端测试与前端生产构建通过。生成 WAV/MP3/FLAC/OGG/M4A 真实浏览器播放、续听/字幕/波形，特典 PDF/EPUB/图片预览和共享去重，模型扫描/个人资料/后台 Hash 已交互验证；公开截图仅含生成样本。
+- 真实模型只读识别32项：17 Checkpoint、2 VAE、7 Embedding、6放大；20项Safetensors头部/偏移检查、12项仅登记。4项有架构证据、28项未知；32项size/mtime和4项抽样完整SHA256不变。没有启动、连接或修改旧WebUI，没有复制权重或上传私有路径报告。
+- Web正式库升级前完整备份20个托管文件、34条外部引用，并在隔离目录恢复验证；升级后原业务行及34原件SHA256不变，SQLite integrity=ok、外键问题0、缺失字段0。原地索引资料未移动，备份和报告留在private中。
+- Windows Actions已构建Tauri程序、NSIS和便携ZIP，冻结后端真实HTTP起停/认证/写入通过；本次runner为221项通过、1项跳过，完整冒烟约4.096秒，不是窗口启动时间。首次ZIP旧时间戳失败未上传包，修复后重建附件约65.9MiB。本机原生窗口、5音轨+LRC原地索引、实际播放/顺播及5音轨状态保存已验；Alt+F4和仅强杀已核对外壳后的所属后端/端口清理通过，重启保留1专辑/6素材，SQLite完整性通过且外键0，既有Web版仍正常，详情见 [WINDOWS_DESKTOP](WINDOWS_DESKTOP.md)。
+- 下载artifact及附件SHA256已校验，含Python312.dll/vcruntime140.dll、权重文件0。回环服务热启动就绪1.79秒（200ms采样，非首屏绘制），异常终止外壳后的端口关闭在0.97秒轮询观察内完成。干净截图仅用[screenshots/desktop/native.png](screenshots/desktop/native.png)，全部生成样本。
+- 交付目录为本地私有desktop-preview/0.7.0-preview.1，包含安装器、空数据便携ZIP、SHA、依赖声明和构建信息，不携带QA FrontData。完整本地路径及私有报告不提交。
+- 原生短时资源采样：9个自有进程RSS求和814.7MiB（共享页重复，非实际物理总量）、PrivateBytes求和634.7MiB；外壳RSS24.1/Private4.6MiB，冻结后端RSS117.9/Private100.8MiB；5秒空闲CPU增量合计0%（单核口径）。GPU专用显存未测，整体内存预算/WebView/GPU优化及长时大量素材回归未完成，不以外壳占用替代全软件。
+- 安装器干净系统安装/卸载/升级矩阵、只读磁盘/ACL、大型迁移启动进度/120秒等待、离线WebView2、外部链接/工具适配继续待办。没有签名更新或正式Release；真实AI/生图、Live2D/SDK授权、Krita/数位板、小说语义分析、Steam及大规模性能计划全部保留。
+
 ## 2026-10-24：作品特典阶段
 
 - Audio #25双CI通过后普通merge，main=`6dbf64c`；本阶段基于该main，复用共享导入和原有Asset/Collection/预览/版本。

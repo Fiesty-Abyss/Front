@@ -190,7 +190,7 @@ const TABS = computed(() => [['overview', '概览', BookOpen], ['plays', '游玩
         <div class="row"><h3 class="gd-h">游玩笔记</h3><span class="spacer" /><span class="small faint">离开输入框自动保存</span></div>
         <textarea v-model="notes" rows="9" placeholder="路线顺序、喜欢的角色、通关感想……（Markdown）" @blur="saveNotes" />
         <div class="small muted">已玩 {{ fmtMinutes(g.play_minutes) }}<template v-if="g.started_on"> · {{ g.started_on }} 开始</template><template v-if="g.finished_on"> · {{ g.finished_on }} 通关</template></div>
-        <RouterLink v-if="g.work_id" :to="`/works?id=${g.work_id}`" class="small">在“作品 / CG”里打开关联作品 →</RouterLink>
+        <RouterLink v-if="g.work_id" :to="`/extras?work_id=${g.work_id}`" class="btn">特典 / 附加资料</RouterLink><RouterLink v-if="g.work_id" :to="`/works?id=${g.work_id}`" class="small">在“作品 / CG”里打开关联作品 →</RouterLink>
       </div>
     </section>
 

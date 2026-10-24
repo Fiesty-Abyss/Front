@@ -48,6 +48,8 @@ def _tag_link(name: str, owner: str) -> Table:
 
 asset_tags = _tag_link("asset_tags", "asset")
 audio_album_tags = _tag_link('audio_album_tags','audio_album')
+bonus_archive_tags = _tag_link('bonus_archive_tags','bonus_archive')
+bonus_item_tags = _tag_link('bonus_item_tags','bonus_item')
 character_tags = _tag_link("character_tags", "character")
 oc_profile_tags = _tag_link('oc_profile_tags','oc_profile')
 world_tags = _tag_link("world_tags", "world")
@@ -134,6 +136,55 @@ class Asset(TimestampMixin, Base):
     work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
     world_id: Mapped[int | None] = mapped_column(ForeignKey("worlds.id", ondelete="SET NULL"))
     tags: Mapped[list[Tag]] = relationship(secondary=asset_tags, lazy="selectin")
+
+
+class BonusArchive(TimestampMixin, Base):
+    __tablename__='bonus_archives'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200),index=True)
+    collection_id: Mapped[int | None] = mapped_column(ForeignKey('collections.id',ondelete='SET NULL'))
+    work_id: Mapped[int | None] = mapped_column(ForeignKey('works.id',ondelete='SET NULL'),index=True)
+    world_id: Mapped[int | None] = mapped_column(ForeignKey('worlds.id',ondelete='SET NULL'))
+    cover_asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id',ondelete='SET NULL'))
+    source: Mapped[str] = mapped_column(String(2000),default='')
+    version_label: Mapped[str] = mapped_column(String(100),default='')
+    acquired_on: Mapped[date | None] = mapped_column(Date)
+    favorite: Mapped[bool] = mapped_column(Boolean,default=False)
+    stars: Mapped[int] = mapped_column(Integer,default=0)
+    preference: Mapped[int] = mapped_column(Integer,default=0)
+    notes: Mapped[str] = mapped_column(Text,default='')
+    tags: Mapped[list[Tag]] = relationship(secondary=bonus_archive_tags,lazy='selectin')
+
+
+class BonusGroup(TimestampMixin, Base):
+    __tablename__='bonus_groups'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    archive_id: Mapped[int] = mapped_column(ForeignKey('bonus_archives.id',ondelete='CASCADE'),index=True)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey('bonus_groups.id',ondelete='SET NULL'))
+    name: Mapped[str] = mapped_column(String(200))
+
+
+class BonusItem(TimestampMixin, Base):
+    __tablename__='bonus_items'
+    __table_args__=(UniqueConstraint('archive_id','asset_id'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    archive_id: Mapped[int] = mapped_column(ForeignKey('bonus_archives.id',ondelete='CASCADE'),index=True)
+    group_id: Mapped[int | None] = mapped_column(ForeignKey('bonus_groups.id',ondelete='SET NULL'),index=True)
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id',ondelete='SET NULL'))
+    asset_identity: Mapped[str] = mapped_column(String(50))
+    asset_version: Mapped[int | None] = mapped_column(Integer)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    category: Mapped[str] = mapped_column(String(80),default='未确认')
+    suggestion: Mapped[dict] = mapped_column(JSON,default=dict)
+    approved_scope: Mapped[dict] = mapped_column(JSON,default=dict)
+    source: Mapped[str] = mapped_column(String(2000),default='')
+    version_label: Mapped[str] = mapped_column(String(100),default='')
+    acquired_on: Mapped[date | None] = mapped_column(Date)
+    favorite: Mapped[bool] = mapped_column(Boolean,default=False)
+    stars: Mapped[int] = mapped_column(Integer,default=0)
+    preference: Mapped[int] = mapped_column(Integer,default=0)
+    notes: Mapped[str] = mapped_column(Text,default='')
+    tags: Mapped[list[Tag]] = relationship(secondary=bonus_item_tags,lazy='selectin')
 
 
 class AudioAlbum(TimestampMixin, Base):

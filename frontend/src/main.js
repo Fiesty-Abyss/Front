@@ -7,6 +7,7 @@ import Ico from './components/Ico.vue'
 
 const routes = [
   { path: '/', component: () => import('./views/Dashboard.vue'), meta: { title: '总览' } },
+  { path: '/extras', component: () => import('./views/BonusArchives.vue'), meta: { title: '特典与附加资料' } },
   { path: '/audio', component: () => import('./views/AudioLibrary.vue'), meta: { title: 'Audio Library' } },
   { path: '/assets', component: () => import('./views/Assets.vue'), meta: { title: '素材库' } },
   { path: '/live2d', component: () => import('./views/Live2DStudio.vue'), meta: { title: 'Live2D Studio' } },

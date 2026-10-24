@@ -73,7 +73,7 @@ async function newCollection() {
     </aside>
     <section v-if="cur" class="grid" style="align-content:start">
       <div class="card">
-        <div class="row"><h2 style="margin:0">{{ cur.title }}</h2><span class="badge">{{ LABELS.workKind[cur.kind] }}</span><span class="spacer" /><a v-if="cur.url" class="btn" :href="cur.url" target="_blank" rel="noopener noreferrer">官网 ↗</a><QuickSearch :q="cur.title" kind="work" /><button @click="edit(cur)">编辑</button></div>
+        <div class="row"><h2 style="margin:0">{{ cur.title }}</h2><span class="badge">{{ LABELS.workKind[cur.kind] }}</span><span class="spacer" /><a v-if="cur.url" class="btn" :href="cur.url" target="_blank" rel="noopener noreferrer">官网 ↗</a><RouterLink class="btn" :to="`/extras?work_id=${cur.id}`">特典 / 附加资料</RouterLink><QuickSearch :q="cur.title" kind="work" /><button @click="edit(cur)">编辑</button></div>
         <p class="muted">{{ cur.description }}</p>
         <TagChips :tags="cur.tags" show-cat />
       </div>

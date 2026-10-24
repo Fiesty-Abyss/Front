@@ -1,10 +1,12 @@
 <script setup>
+import {useRoute} from 'vue-router'
 import {computed,defineAsyncComponent,onBeforeUnmount,onMounted,ref,watch} from 'vue'
 import {api,Assets,thumb,waitJob} from '../api'
 import TagPicker from '../components/TagPicker.vue'
 import JobProgress from '../components/JobProgress.vue'
 const AudioPlayer=defineAsyncComponent(()=>import('../viewers/AudioPlayer.vue'))
 const LibraryImportPanel=defineAsyncComponent(()=>import('../components/LibraryImportPanel.vue'))
+const route=useRoute()
 const albums=ref({items:[],total:0}),tracks=ref({items:[],total:0}),offset=ref(0),albumOffset=ref(0),q=ref(''),albumId=ref(''),current=ref(null),editing=ref(null),error=ref(''),busy=ref(false),showImport=ref(false),waveform=ref(null),job=ref(null),autoNext=ref(false),choices=ref({world:[],character:[],work:[]}),choiceQ=ref(''),cross=ref(false)
 const lifecycle=new AbortController();let timer;onBeforeUnmount(()=>{lifecycle.abort();clearTimeout(timer)})
 const album=computed(()=>albums.value.items.find(a=>a.id===Number(albumId.value)))
@@ -15,10 +17,10 @@ async function run(fn){if(busy.value)return;busy.value=true;error.value='';try{a
 async function loadAlbums(){albums.value=await api.get('/api/audio/albums',{offset:albumOffset.value})}
 async function loadTracks(){tracks.value=await api.get('/api/audio/tracks',{q:q.value,album_id:albumId.value||null,offset:offset.value})}
 watch([q,albumId],()=>{offset.value=0;clearTimeout(timer);timer=setTimeout(()=>run(loadTracks),200)})
-onMounted(()=>run(async()=>{await loadAlbums();await loadTracks()}))
+onMounted(()=>run(async()=>{await loadAlbums();await loadTracks();if(route.query.asset_id){const a=await Assets.get(Number(route.query.asset_id));if(a.kind==='audio')current.value=a;else throw new Error('此素材不是音轨')}}))
 async function select(a,autoplay=false){autoNext.value=autoplay;current.value=await Assets.get(a.id);waveform.value=null;showImport.value=false}
 async function next(){const i=tracks.value.items.findIndex(t=>t.id===current.value?.id);if(i>=0&&i+1<tracks.value.items.length)await select(tracks.value.items[i+1],true);else if(offset.value+50<tracks.value.total){offset.value+=50;await loadTracks();if(tracks.value.items[0])await select(tracks.value.items[0],true)}}
-function newAlbum(a=null){editing.value=a?{...structuredClone(a),tag_ids:a.tags.map(t=>t.id)}:{title:'',category:'ASMR',world_id:null,work_id:null,character_id:null,cover_asset_id:null,favorite:false,stars:0,preference:0,notes:'',tag_ids:[]};loadChoices().catch(e=>error.value=e.message)}
+function newAlbum(a=null){editing.value=a?{...JSON.parse(JSON.stringify(a)),tag_ids:a.tags.map(t=>t.id)}:{title:'',category:'ASMR',world_id:null,work_id:null,character_id:null,cover_asset_id:null,favorite:false,stars:0,preference:0,notes:'',tag_ids:[]};loadChoices().catch(e=>error.value=e.message)}
 async function loadChoices(){const entries=await Promise.all(['world','work','character'].map(kind=>api.get('/api/oc/choices',{kind,q:choiceQ.value})));choices.value={world:entries[0].items,work:entries[1].items,character:entries[2].items}}
 async function save(){const {id,collection_id,tags,updated_at,...body}=editing.value;const value=id?await api.put(`/api/audio/albums/${id}?expected_updated_at=${encodeURIComponent(updated_at)}`,body):await api.post('/api/audio/albums',body);editing.value=null;await loadAlbums();albumId.value=value.id;await loadTracks()}
 async function loadPool(){pool.value=await api.get('/api/audio/tracks',{q:poolQ.value,offset:poolOffset.value})}

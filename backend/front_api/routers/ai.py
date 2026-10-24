@@ -291,7 +291,8 @@ def _prepare(session: Session, chat: m.ChatSession, payload: s.ChatGenerate) -> 
 
 
 def _save_reply(session_id: int, parent_id: int | None, content: str, meta: dict[str, Any]) -> dict[str, Any]:
-    with new_session() as db:
+    from ..maintenance import operation
+    with operation(lambda:None), new_session() as db:
         chat = db.get(m.ChatSession, session_id)
         msg = m.ChatMessage(session_id=session_id, role="assistant", content=content, parent_id=parent_id, meta=meta)
         db.add(msg)
@@ -305,6 +306,10 @@ def _save_reply(session_id: int, parent_id: int | None, content: str, meta: dict
 
 def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+
+
+def has_active_generations():
+    return bool(_running)
 
 
 @router.post("/sessions/{session_id}/generate")
@@ -371,10 +376,11 @@ def generate(
             saved = True
             yield _sse("done", res)
         finally:
-            _running.pop(token, None)
-            if not saved and parts:  # 客户端中途断开：保存已经生成的部分
-                meta["interrupted"] = True
-                _save_reply(chat.id, parent_id, "".join(parts), meta)
+            try:
+                if not saved and parts:  # Keep generation registered through the final partial save.
+                    meta["interrupted"] = True
+                    _save_reply(chat.id, parent_id, "".join(parts), meta)
+            finally:_running.pop(token, None)
 
     return StreamingResponse(events(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

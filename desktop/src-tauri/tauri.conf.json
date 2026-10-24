@@ -5,6 +5,7 @@
   "identifier": "io.github.fiesty-abyss.front",
   "build": {"frontendDist": "../splash"},
   "app": {"windows": [], "security": {"capabilities": []}},
+  "plugins": {"updater": {"pubkey": "", "requireSignedVersion": true, "allowDowngrades": false, "windows": {"installMode": "passive"}}},
   "bundle": {
     "active": true,
     "targets": ["nsis"],

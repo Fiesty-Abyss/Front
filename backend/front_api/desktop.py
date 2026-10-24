@@ -100,6 +100,16 @@ fetch('/_desktop/session',{method:'POST',headers:{Authorization:'Bearer '+token}
 
 
 def protect(app, *, token: str, port: int, stop):
+    from .desktopupdate import Preparation
+    preparation=Preparation()
+    previous_lifespan=app.router.lifespan_context
+    @contextlib.asynccontextmanager
+    async def desktop_lifespan(application):
+        async with previous_lifespan(application) as state:
+            try:yield state
+            finally:
+                preparation.close()
+    app.router.lifespan_context=desktop_lifespan
     origin = f'http://127.0.0.1:{port}'
     cookie = f'front_desktop_{port}'
     session_secret = secrets.token_urlsafe(32)
@@ -131,6 +141,20 @@ def protect(app, *, token: str, port: int, stop):
                 return JSONResponse({'detail':'Shell authorization required'},status_code=403)
             stop()
             return JSONResponse({'ok':True})
+        if path.startswith('/_desktop/update/'):
+            if not authenticated:
+                return JSONResponse({'detail':'Shell authorization required'},status_code=403)
+            raw_id=request.headers.get('x-front-update-request','')
+            if not 1<=len(raw_id)<=20 or not raw_id.isascii() or not raw_id.isdigit() or not 0<int(raw_id)<=2**64-1:
+                return JSONResponse({'detail':'Invalid update request identifier'},status_code=400)
+            request_id=int(raw_id)
+            if request.method=='POST' and path=='/_desktop/update/prepare':
+                from fastapi import HTTPException
+                try:return JSONResponse(preparation.start(request_id),status_code=202)
+                except HTTPException as exc:return JSONResponse({'detail':exc.detail},status_code=exc.status_code)
+            if request.method=='POST' and path=='/_desktop/update/release':
+                return JSONResponse({'released':preparation.release(request_id)})
+            return JSONResponse({'detail':'Not found'},status_code=404)
         response = await call_next(request)
         response.headers['Referrer-Policy'] = 'no-referrer'
         response.headers['X-Content-Type-Options'] = 'nosniff'

@@ -75,15 +75,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    @app.middleware('http')
-    async def backup_write_gate(request,call_next):
-        from . import maintenance
-        mutation=request.url.path.startswith('/api/') and request.method in ('POST','PUT','PATCH','DELETE')
-        if request.url.path.startswith('/api/jobs/') and request.url.path.endswith('/cancel'):mutation=False
-        if not mutation:return await call_next(request)
-        if not maintenance.begin():return JSONResponse({'detail':'正在创建一致性备份，资料写入暂缓；请备份结束后重试。'},status_code=423)
-        try:return await call_next(request)
-        finally:maintenance.end()
+    from .maintenance import MutationGate
+    app.add_middleware(MutationGate)
     for r in (
         system.router,
         backups_router.router,

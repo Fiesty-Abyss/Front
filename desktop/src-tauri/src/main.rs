@@ -3,6 +3,9 @@
 use std::{fs, io::{BufRead, BufReader, Write}, net::TcpStream, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::{mpsc, Mutex}, time::{Duration, Instant}};
 use serde::Deserialize;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+mod updates;
+#[cfg(test)]
+mod updater_tests;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
@@ -35,6 +38,7 @@ impl Drop for OwnedJob {fn drop(&mut self){unsafe{windows_sys::Win32::Foundation
 struct Service { child: Child, ready: Ready, #[cfg(windows)] _job: OwnedJob }
 impl Service {
     fn stop(&mut self) {
+        if matches!(self.child.try_wait(),Ok(Some(_))){return;}
         if let Ok(mut stream)=TcpStream::connect_timeout(&format!("127.0.0.1:{}",self.ready.port).parse().unwrap(),Duration::from_secs(1)) {
             let _=stream.set_write_timeout(Some(Duration::from_secs(1)));
             let request=format!("POST /_desktop/shutdown HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nAuthorization: Bearer {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",self.ready.port,self.ready.token);
@@ -100,7 +104,12 @@ fn start_service(binary: &Path, folder: &Path) -> Result<Service,Box<dyn std::er
 }
 
 fn main() {
-    let result=tauri::Builder::default().setup(|app| {
+    let result=tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![updates::desktop_update])
+    .setup(|app| {
+        if let Some(key)=option_env!("FRONT_UPDATE_PUBLIC_KEY").filter(|v|!v.trim().is_empty()) {
+            app.handle().plugin(tauri_plugin_updater::Builder::new().pubkey(key).build())?;
+        }
         let folder=data_dir(app)?;
         let binary=app.path().resource_dir()?.join("backend/front-backend.exe");
         let service=start_service(&binary,&folder)?;
@@ -108,6 +117,10 @@ fn main() {
         let url=format!("http://127.0.0.1:{}/_desktop/bootstrap#{}",port,service.ready.token);
         app.manage(Mutex::new(Some(service)));
         let allowed_origin=format!("http://127.0.0.1:{}",port);
+        app.manage(updates::Updates::new(folder.clone(),allowed_origin.clone(),app.package_info().version.to_string())?);
+        app.add_capability(tauri::ipc::CapabilityBuilder::new("front-updates")
+            .local(false).window("main").remote(format!("{allowed_origin}/*"))
+            .permission("allow-desktop-update"))?;
         WebviewWindowBuilder::new(app,"main",WebviewUrl::External(url.parse()?))
             .title("Front Preview").inner_size(1280.0,850.0).min_inner_size(720.0,540.0)
             .data_directory(folder.join("webview"))

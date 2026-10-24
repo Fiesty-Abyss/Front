@@ -43,3 +43,8 @@ Tauri/onedir底座、数据目录/会话保护/升级前完整备份与Windows�
 ### DESKTOP-02 启动与安装可靠性
 
 PR #29资源释放已正常合并main2eccdb5（三项CIsuccess）。B追加目录可写预检、损坏库拒绝、真实源码启动/多实例/重启/模拟旧结构触发真实备份恢复；冻结最小PATH回归接入Windows CI。真干净VM安装、卸载重装、只读ACL/离线WebView2、长迁移进度仍待，不以CI替代。长期创作和UPDATE-01任务保留。
+
+
+## 2026-10-25 · A/B已合并，C安全更新
+
+PR #29、#30均经backend/frontend/windows-x64成功后普通合并，最新main `7ca4654`。B本机冻结最小PATH、生成旧结构备份恢复通过；干净VM/真实安装仍待。C从最新main独立开发官方Updater、按需设置面板、固定Release源/通道与签名版本校验、安装前完整备份隔离恢复及持续写屏障。取消ID隔离，流式最终写入纳入保护；没有数据库结构迁移。最终本机236后端、3前端资源测试、生产构建通过，入口215.74KB/gzip82.98KB（A前213.15/80.90KB）；专用面板/SDK懒加载。Mock UI和真实CLI签名/HTTPS传输已验，Rust SDK/原生编译等待本PR Windows CI，不宣称安装验收或公开更新上线。详见[SIGNED_UPDATES_C](audits/v0.7/SIGNED_UPDATES_C.md)。D发布门槛、E大型库和F全面UI审计继续保留；长期创作方向不变。

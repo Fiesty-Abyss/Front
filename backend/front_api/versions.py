@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from . import models as m
 
 ENTITIES = dict(asset=m.Asset, character=m.Character, entry=m.WorldEntry, note=m.Note,
-                world=m.World, work=m.Work, relation=m.Relation,oc=m.OCProfile,study=m.OCStudy)
+                world=m.World, work=m.Work, relation=m.Relation,oc=m.OCProfile,study=m.OCStudy,bonus=m.BonusArchive,bonus_item=m.BonusItem)
 KINDS = {v:k for k,v in ENTITIES.items()}
 SKIP = {'id','created_at','updated_at'}
 
@@ -54,6 +54,9 @@ def payload(session, obj):
         from . import ocstudio
         profile=session.get(m.OCProfile,obj.profile_id) if obj.profile_id else None
         value['_study_scope']=ocstudio.scope(session,profile) if profile and ocstudio.identity(profile)==obj.profile_identity else None
+    if isinstance(obj,m.BonusItem):
+        archive=session.get(m.BonusArchive,obj.archive_id)
+        value['_bonus_scope']=[archive.id,archive.world_id,archive.work_id] if archive else None
     if isinstance(obj,m.Asset):
         plan = session.connection().execute(select(m.ChapterRevision.__table__).where(m.ChapterRevision.asset_id==obj.id).order_by(m.ChapterRevision.id.desc()).limit(1)).mappings().first()
         value['_chapters'] = {'text_hash':plan['text_hash'],'chapters':plan['chapters']} if plan else None

@@ -59,7 +59,10 @@ def dispatch(session,run):
                         else:
                             with path.open('rb') as stream:asset,created=ingest_stream(ses,stream,path.name,expected_sha=info['sha256'])
                         if not created and not current.allow_cross_scope and any(getattr(asset,k) is not None and getattr(asset,k)!=getattr(current,k) for k in ('world_id','work_id')):raise HTTPException(422,'既有素材属于不同世界观/作品，需明确允许跨范围引用')
-                        if created:asset.world_id=current.world_id;asset.work_id=current.work_id
+                        if created:
+                            asset.world_id=current.world_id;asset.work_id=current.work_id
+                            asset.meta={**(asset.meta or {}),'import_origin':{'relative':info['relative'],'report_id':current.report_id}}
+                            if not asset.source:asset.source=str(path)
                         link(ses,current.collection_id,asset.id);item.asset_id=asset.id;item.status='done';item.message='已登记新素材' if created else '已引用现有素材，未复制或覆盖'
                         ses.commit();job.result['imported']+=1
                     except jobs.Cancelled:raise

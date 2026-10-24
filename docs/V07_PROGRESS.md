@@ -1,3 +1,9 @@
+## 2026-10-24：作品特典阶段
+
+- Audio #25双CI通过后普通merge，main=`6dbf64c`；本阶段基于该main，复用共享导入和原有Asset/Collection/预览/版本。
+- 任意作品特典、相对目录分组、待确认分类/来源、评分标签/版本恢复，以及游戏/作品入口已实现。最终全量213测试及3项目录上下文专题通过，构建/浏览器PDF-EPUB-图片与去重回归通过；详见[BONUS_ARCHIVES](BONUS_ARCHIVES.md)。
+- 所有公开素材为生成文件，不读取Steam账号，不绕DRM；真实WebUI仅准备只读检查，未启动，私人库尚未迁移新增表。
+
 ## 2026-10-24：Audio Library阶段
 
 - 核对main=`1d75409`、无开放PR，独立分支`codex/audio-library`。复用原音频解析/Asset/Collection/目录预览与索引，新增续听/书签/字幕及可恢复共享导入编排。

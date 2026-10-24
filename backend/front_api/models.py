@@ -133,6 +133,26 @@ class Asset(TimestampMixin, Base):
     tags: Mapped[list[Tag]] = relationship(secondary=asset_tags, lazy="selectin")
 
 
+class Live2DProfile(TimestampMixin, Base):
+    """References original packages; never owns or deletes their files."""
+    __tablename__ = 'live2d_profiles'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    identity: Mapped[str] = mapped_column(String(64), unique=True)
+    title: Mapped[str] = mapped_column(String(300))
+    source_path: Mapped[str] = mapped_column(Text)
+    main: Mapped[str] = mapped_column(Text)
+    scan: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    creator: Mapped[str] = mapped_column(String(300), default='')
+    source_url: Mapped[str] = mapped_column(String(2000), default='')
+    license_notes: Mapped[str] = mapped_column(Text, default='')
+    model_version: Mapped[str] = mapped_column(String(100), default='')
+    favorite: Mapped[bool] = mapped_column(Boolean, default=False)
+    stars: Mapped[int] = mapped_column(Integer, default=0)
+    preference: Mapped[int] = mapped_column(Integer, default=0)
+    labels: Mapped[list[str]] = mapped_column(JSON, default=list)
+    notes: Mapped[str] = mapped_column(Text, default='')
+
+
 class Collection(TimestampMixin, Base):
     """收藏集：把素材按主题或按作品归档。"""
 

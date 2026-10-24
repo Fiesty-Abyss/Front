@@ -253,3 +253,5 @@ docs/
 OC图像延用Generation与Asset，OCGenerationBatch仅存稳定归属和配方；ocgeneration验证异步结果仍属原OC/造型。ImageService显式声明Images协议，复用AIProviderConfig凭据；imageapi只做有界base64适配，不启动推理进程。见OC_IMAGES.md。
 
 OCStudy学习日志保存素材版本引用，复用Collection和versions（study种类）；ocstudy负责归属与共享引用。artwork只在oc-raster有限任务中执行Pillow栅格处理；派生文件经ingest进入素材库，导出副本进入可清理exports缓存，备份只包含永久媒体。详见OC_DRAWING.md。
+
+AudioAlbum只管理专辑偏好与Collection引用；AudioState按Asset存续听/字幕/书签，源身份/Hash与revision保护并发。LibraryImport/Item在原projectpreview和ingest之上编排可恢复任务，供音频与特典共用，不拥有第二套文件存储。AudioPlayer仍用于通用预览，remember模式才保存进度。详见AUDIO_LIBRARY.md。

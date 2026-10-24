@@ -15,8 +15,13 @@ if TYPE_CHECKING:
 EXT = {".mp3", ".flac", ".ogg", ".oga", ".opus", ".wav", ".m4a", ".aac", ".wma", ".aiff", ".aif"}
 
 
-def analyze(path: Path, out: Analysis) -> None:
-    tag = TinyTag.get(str(path), image=True)
+def analyze(path: Path, out: Analysis,cover=True) -> None:
+    # An unusually large ID3 tag must not allocate an unbounded embedded image/text frame.
+    with path.open('rb') as stream:head=stream.read(10)
+    oversized=head[:3]==b'ID3' and len(head)==10 and sum((b&127)<<(7*(3-i)) for i,b in enumerate(head[6:10]))>16*1024*1024
+    tag = TinyTag.get(str(path), image=cover and not oversized,tags=not oversized)
+    out.meta['format']=path.suffix.lstrip('.').upper()
+    if oversized:out.meta['note']='ID3标签超过16MiB，仅提取音频技术信息，不读取封面与文本标签'
     out.meta.update(clean({
         "title": text(tag.title), "artist": text(tag.artist), "album": text(tag.album),
         "albumartist": text(tag.albumartist), "composer": text(tag.composer), "genre": text(tag.genre),

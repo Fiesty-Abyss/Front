@@ -77,10 +77,12 @@ def generate_api(profile_id:int,body:ApiRun,session:Session=Depends(get_session)
             try:
                 with Image.open(io.BytesIO(data)) as img:
                     if img.width*img.height>32_000_000:raise ValueError()
+                    extension={'PNG':'png','JPEG':'jpg','WEBP':'webp','GIF':'gif'}.get(img.format)
+                    if not extension:raise ValueError()
                     img.verify()
             except Exception:raise sdgen.BackendError('API返回图像无效或超过3200万像素上限') from None
             with new_session() as ses:
-                asset,created=ingest(ses,data,f'oc-{batch}-{i}.png',kind='ai_image',title=f'{profile_title} · API生成 {i+1}',world_id=scope['world_id'],extra_meta={'generation':{'batch':batch,'backend':'images-api'}})
+                asset,created=ingest(ses,data,f'oc-{batch}-{i}.{extension}',kind='ai_image',title=f'{profile_title} · API生成 {i+1}',world_id=scope['world_id'],extra_meta={'generation':{'batch':batch,'backend':'images-api'}})
                 params={'backend':'images-api','service_id':service.id,'provider_id':pid,'model':service.model,'prompt':body.positive,'revised_prompt':revised,'requested_size':body.size,'actual_size':f'{asset.width}x{asset.height}'}
                 gen=m.Generation(asset_id=asset.id,params=params,batch=batch);ses.add(gen);ses.flush();ocgeneration.attach_output(ses,batch,asset,gen,job)
                 current=ses.get(m.ImageService,service.id)

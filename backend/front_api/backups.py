@@ -52,7 +52,7 @@ def sqlite_copy(source,dest,check=lambda:None):
         if dst.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise ValueError('SQLite快照完整性检查失败')
 
 
-def schema_issues(path):
+def schema_issues(path,complete=False):
     with closing(sqlite3.connect(path)) as db,db:
         names={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         allowed=set(Base.metadata.tables)|{'search_index','search_index_content','search_index_data','search_index_idx','search_index_docsize','search_index_config','sqlite_sequence','sqlite_stat1','sqlite_stat4'}
@@ -61,6 +61,8 @@ def schema_issues(path):
             if name in names:
                 cols={r[1] for r in db.execute(f'PRAGMA table_info("{name}")')}
                 issues.extend(f'当前程序不认识字段：{name}.{x}' for x in cols-set(table.columns.keys()))
+                if complete:issues.extend(f'迁移后仍缺少字段：{name}.{x}' for x in set(table.columns.keys())-cols)
+            elif complete:issues.append(f'迁移后仍缺少数据表：{name}')
         if not {'assets','worlds','characters'}<=names:issues.append('不是可识别的Front数据库')
         if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok':issues.append('数据库完整性检查失败')
         return issues
@@ -231,6 +233,7 @@ def restore(job,package,allow_partial=False):
         engine=create_engine('sqlite:///'+str(staging/'front.db'))
         try:Base.metadata.create_all(engine);upgrade(engine)
         finally:engine.dispose()
+        if schema_issues(staging/'front.db',complete=True):raise ValueError('恢复副本迁移后结构不完整；不能作为已验证数据目录使用')
         from .projectpreview import stamp
         with closing(sqlite3.connect(staging/'front.db')) as db,db:
             for ref in manifest['references']:

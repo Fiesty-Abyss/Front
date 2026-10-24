@@ -83,3 +83,14 @@ def test_backup_write_barrier_cancel_and_reject_future_schema(client,data_dir,mo
     assert any('future_table' in e for e in backups.verify(package)[1])
     job=jobs.Job('test','cancel');job.cancel_requested=True
     with pytest.raises(jobs.Cancelled):backups.create(job)
+
+
+def test_restore_rejects_incomplete_schema_after_migration(client,data_dir):
+    from contextlib import closing
+    j=jobs.Job('full-backup','generated schema test');backups.create(j);package=backups.package_for(j.result['backup_id'])
+    with closing(sqlite3.connect(package/'front.db')) as db,db:db.execute('ALTER TABLE assets DROP COLUMN description')
+    manifest=json.loads((package/'manifest.json').read_text(encoding='utf-8'));sha,size=backups.digest(package/'front.db');manifest['database']={'sha256':sha,'size':size};backups.atomic_json(package/'manifest.json',manifest)
+    # Old schemas may legitimately omit additive columns, but must be complete after migration.
+    before=backups.digest(data_dir/'front.db')
+    with pytest.raises(ValueError,match='结构不完整'):backups.restore(jobs.Job('full-restore','isolated incompatible test'),package)
+    assert backups.digest(data_dir/'front.db')==before

@@ -59,6 +59,14 @@ def test_images_api_explicit_contract_mock_and_unsupported_parameters(client,mon
     assert client.get('/api/oc-image-services').json()['items'][0]['last_success']
     oc=client.get(url).json();assert oc['references'][0]['parameters']['model']=='image-model'
     assert 'test-secret' not in json.dumps(client.get(url+'/batches').json())
+    import io
+    from PIL import Image
+    encoded=io.BytesIO();Image.new('RGB',(20,24),'blue').save(encoded,'JPEG')
+    monkeypatch.setattr(imageapi,'client_factory',lambda **kw:httpx.Client(transport=httpx.MockTransport(lambda r:httpx.Response(200,json={'data':[{'b64_json':base64.b64encode(encoded.getvalue()).decode()}]})),**kw))
+    jpeg_job=wait_job(client,client.post(url+'/generate-api',json=payload|{'expected_version':oc['version']}).json());assert jpeg_job['status']=='done',jpeg_job
+    aid=jpeg_job['result']['items'][0]['asset_id'];asset=client.get(f'/api/assets/{aid}').json()
+    assert asset['original_name'].endswith('.jpg') and asset['mime']=='image/jpeg'
+    oc=client.get(url).json()
     monkeypatch.setattr(imageapi,'client_factory',lambda **kw:httpx.Client(transport=httpx.MockTransport(lambda r:httpx.Response(401,json={'error':'test-secret'})),**kw))
     job=wait_job(client,client.post(url+'/generate-api',json=payload|{'expected_version':oc['version']}).json());assert job['status']=='error'
     assert 'test-secret' not in json.dumps(job)

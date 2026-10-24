@@ -71,3 +71,10 @@ Windows Actions 先执行后端测试、前端生产构建及冻结 Sidecar 冒�
 - 安装器缺少 WebView2 时通过微软引导程序下载；便携版要求系统已有 WebView2，纯离线运行时包尚未提供。
 - 外部链接和外部创作工具打开流程尚待原生环境验证。
 - 没有代码签名、签名更新、Updater 或正式 Release。真实生图/AI 服务未调用，Live2D SDK/素材许可、Krita/数位板、小说语义分析及大型素材库计划继续保留。
+
+
+## 2026-10-25 阶段A补充
+
+#28已合并到接管main1508a5c；早前“待CI合并”是历史状态。新性能采样与资源生命周期修复见[DESKTOP_PERFORMANCE_A](audits/v0.7/DESKTOP_PERFORMANCE_A.md)。真正干净Windows、安装卸载升级与正式签名更新仍需按[矩阵](audits/v0.7/DESKTOP_VALIDATION_MATRIX.md)验收。
+
+只读采样：`python desktop/profiling.py <本实例外壳PID> --output <隔离报告路径>`。工作集求和重复共享页，私有提交不是物理RAM，GPU计数另列；不可测项返回null及coverage。工具不输出进程命令行、访问令牌或页面内容，不改变进程优先级或工作集。

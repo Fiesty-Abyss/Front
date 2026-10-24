@@ -8,6 +8,7 @@ import { guard, toast } from '../toast'
 
 const f = reactive({ q: '', tag: [] })
 const items = ref([])
+const initializing = ref(true), initializationError = ref('')
 const cur = ref(null)
 const cmp = ref(null)
 const models = ref([])
@@ -17,13 +18,18 @@ const adding = ref(false)
 
 async function load() { items.value = (await Prompts.list({ ...f, limit: 500 })).items }
 const route = useRoute()
-onMounted(async () => {
+async function initialize() {
+  initializing.value = true; initializationError.value = ''
+  try {
   await load()
   const want = items.value.find((p) => p.id === Number(route.query.id))
   if (want || items.value.length) await select(want ?? items.value[items.value.length - 1])
   if (route.query.batch) { view.value = 'xy'; xy.batch = String(route.query.batch); loadXY() }
   else if (route.query.view === 'xy') { view.value = 'xy'; loadXY() }
-})
+  } catch (e) { initializationError.value = e.message || '资料加载失败'; if (cur.value) toast(initializationError.value, true) }
+  finally { initializing.value = false }
+}
+onMounted(initialize)
 let t
 watch(f, () => { clearTimeout(t); t = setTimeout(load, 200) }, { deep: true })
 
@@ -89,10 +95,10 @@ async function addGen() {
 }
 </script>
 <template>
-  <div class="grid" style="grid-template-columns: 300px 1fr">
+  <div class="grid prompt-layout">
     <aside class="card grid" style="align-content:start;gap:8px">
       <input v-model="f.q" placeholder="搜索提示词内容" />
-      <button class="primary" @click="select(null)"><Ico g="＋" />新建提示词</button>
+      <button class="primary" :disabled="initializing" @click="select(null)"><Ico g="＋" />新建提示词</button>
       <div v-for="p in items" :key="p.id" class="card" style="cursor:pointer;padding:10px" :style="cur?.id === p.id ? { borderColor: 'var(--accent)' } : {}" @click="select(p)">
         <b>{{ p.title }}</b><div class="small muted mono" style="max-height:34px;overflow:hidden">{{ p.positive }}</div>
       </div>
@@ -182,6 +188,9 @@ async function addGen() {
         </template>
       </div>
     </section>
+    <section v-else-if="initializing" class="card empty" role="status">正在读取资料…</section>
+    <section v-else-if="initializationError" class="card empty" role="alert"><p>{{ initializationError }}</p><button @click="initialize">重新加载</button></section>
+    <section v-else class="card empty"><h2>记录提示词与效果</h2><p>保存提示词后可手动关联模型和效果图，未配置生图服务也能使用。</p><button class="primary" @click="select(null)">记录第一条提示词</button></section>
   </div>
   <div v-if="big" class="modal-mask" style="cursor:zoom-out" @click="big = null"><div style="text-align:center"><img :src="`/api/assets/${big.id}/file`" style="max-width:90vw;max-height:84vh;border-radius:10px" /><div class="small" style="margin-top:8px">{{ big.title }}</div></div></div>
   <Modal v-if="adding" title="加入对比" @close="adding = false">
@@ -193,6 +202,9 @@ async function addGen() {
   </Modal>
 </template>
 <style scoped>
+.prompt-layout{grid-template-columns:300px minmax(0,1fr);align-items:start}
+.prompt-layout>*{min-width:0}
+@media(max-width:900px){.prompt-layout{grid-template-columns:minmax(0,1fr)}}
 .diffbar { display: grid; gap: 6px; margin: 10px 0; padding: 8px 12px; border-radius: 8px; background: var(--panel2); }
 .chip.hl { background: #fbbf2422; border-color: #fbbf2466; color: #fde68a; white-space: nowrap; }
 .meta .chip { font-size: 10.5px; padding: 0 6px; }

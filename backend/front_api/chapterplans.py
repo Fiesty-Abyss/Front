@@ -16,10 +16,14 @@ MAX_SOURCE = 32 * 1024 * 1024
 def source_text(asset):
     ext = Path(asset.original_name or '').suffix.lower()
     use_file = (asset.meta or {}).get('text_truncated') or ext == '.epub'
-    if use_file and asset.file_path:
+    if use_file:
         root = get_settings().data_dir.resolve()
-        path = (root / asset.file_path).resolve()
-        if not path.is_relative_to(root) or not path.is_file():
+        if asset.file_path:
+            path = (root / asset.file_path).resolve()
+        else:
+            from .sourcefiles import external_file
+            path = external_file(asset)
+        if (asset.file_path and not path.is_relative_to(root)) or not path.is_file():
             raise HTTPException(409, '小说原文件已失效；不能使用截断预览代替全文')
         if path.stat().st_size > MAX_SOURCE:
             raise HTTPException(413, '章节整理全文限 32 MiB，请分卷；原文件保留')

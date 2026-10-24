@@ -92,6 +92,9 @@ def tag_usage(session: Session = Depends(get_session)) -> dict[int, dict[str, in
         for tag_id, oid in session.execute(select(t.c.tag_id, owner)).all():
             owners.setdefault(tag_id, set()).add((t.name, oid))
     children: dict[int, list[int]] = {}
+    for rid,tag_ids in session.execute(select(m.WorldResource.id,m.WorldResource.global_tag_ids)).yield_per(500):
+        for tid in tag_ids or []:
+            owners.setdefault(tid,set()).add(('world_resources',rid))
     ids = list(session.scalars(select(m.Tag.id)))
     for tid, pid in session.execute(select(m.Tag.id, m.Tag.parent_id)).all():
         if pid:
@@ -150,6 +153,10 @@ def merge_tag(tag_id: int, body: MergeRequest, session: Session = Depends(get_se
     for child in session.scalars(select(m.Tag).where(m.Tag.parent_id == src.id)):
         child.parent_id = dst.id
     dst.aliases = _clean_aliases([*(dst.aliases or []), src.name, *(src.aliases or [])], dst.name)
+    session.execute(text('''UPDATE world_resources SET global_tag_ids=(
+        SELECT json_group_array(DISTINCT CASE WHEN value=:old THEN :new ELSE value END)
+        FROM json_each(world_resources.global_tag_ids))
+        WHERE EXISTS (SELECT 1 FROM json_each(world_resources.global_tag_ids) WHERE value=:old)'''),{'old':src.id,'new':dst.id})
     session.delete(src)
     session.commit()
     session.refresh(dst)

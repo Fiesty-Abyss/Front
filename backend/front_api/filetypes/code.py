@@ -15,7 +15,7 @@ LANG = {
     ".cs": "csharp", ".java": "java", ".go": "go", ".rs": "rust", ".lua": "lua", ".sh": "bash", ".bat": "dos",
     ".ps1": "powershell", ".sql": "sql", ".rb": "ruby", ".php": "php", ".kt": "kotlin", ".swift": "swift",
     ".rpy": "python", ".ks": "plaintext", ".tjs": "javascript", ".csv": "plaintext", ".tsv": "plaintext",
-    ".log": "plaintext", ".srt": "plaintext", ".ass": "plaintext", ".lrc": "plaintext", ".glsl": "glsl", ".hlsl": "cpp",
+    ".log": "plaintext", ".srt": "plaintext", ".vtt":"plaintext", ".ass": "plaintext", ".lrc": "plaintext", ".glsl": "glsl", ".hlsl": "cpp",
 }
 EXT = set(LANG)
 LABEL = {".rpy": "Ren'Py 脚本", ".ks": "KiriKiri 脚本", ".tjs": "TJS 脚本", ".srt": "字幕", ".ass": "字幕", ".lrc": "歌词"}
@@ -25,7 +25,7 @@ MAX = 2 * 1024 * 1024
 def analyze(path: Path, ext: str, out: Analysis) -> None:
     from ..ingest import decode_text
 
-    raw = path.read_bytes()[:MAX]
+    with path.open('rb') as stream:raw=stream.read(MAX)
     body = decode_text(raw)
     out.content = body
     out.meta.update({"language": LANG.get(ext, "plaintext"), "lines": body.count("\n") + 1,

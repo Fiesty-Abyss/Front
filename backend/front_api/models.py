@@ -47,6 +47,7 @@ def _tag_link(name: str, owner: str) -> Table:
 
 
 asset_tags = _tag_link("asset_tags", "asset")
+audio_album_tags = _tag_link('audio_album_tags','audio_album')
 character_tags = _tag_link("character_tags", "character")
 oc_profile_tags = _tag_link('oc_profile_tags','oc_profile')
 world_tags = _tag_link("world_tags", "world")
@@ -133,6 +134,63 @@ class Asset(TimestampMixin, Base):
     work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
     world_id: Mapped[int | None] = mapped_column(ForeignKey("worlds.id", ondelete="SET NULL"))
     tags: Mapped[list[Tag]] = relationship(secondary=asset_tags, lazy="selectin")
+
+
+class AudioAlbum(TimestampMixin, Base):
+    __tablename__='audio_albums'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200),index=True)
+    category: Mapped[str] = mapped_column(String(80),default='音频收藏')
+    collection_id: Mapped[int | None] = mapped_column(ForeignKey('collections.id',ondelete='SET NULL'))
+    world_id: Mapped[int | None] = mapped_column(ForeignKey('worlds.id',ondelete='SET NULL'),index=True)
+    work_id: Mapped[int | None] = mapped_column(ForeignKey('works.id',ondelete='SET NULL'))
+    character_id: Mapped[int | None] = mapped_column(ForeignKey('characters.id',ondelete='SET NULL'))
+    cover_asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id',ondelete='SET NULL'))
+    favorite: Mapped[bool] = mapped_column(Boolean,default=False)
+    stars: Mapped[int] = mapped_column(Integer,default=0)
+    preference: Mapped[int] = mapped_column(Integer,default=0)
+    notes: Mapped[str] = mapped_column(Text,default='')
+    tags: Mapped[list[Tag]] = relationship(secondary=audio_album_tags,lazy='selectin')
+
+
+class AudioState(Base):
+    __tablename__='audio_states'
+    asset_id: Mapped[int] = mapped_column(ForeignKey('assets.id',ondelete='CASCADE'),primary_key=True)
+    content_sha: Mapped[str | None] = mapped_column(String(64))
+    position: Mapped[float] = mapped_column(Float,default=0)
+    rate: Mapped[float] = mapped_column(Float,default=1)
+    loop: Mapped[bool] = mapped_column(Boolean,default=False)
+    notes: Mapped[str] = mapped_column(Text,default='')
+    bookmarks: Mapped[list[dict]] = mapped_column(JSON,default=list)
+    subtitles: Mapped[list[dict]] = mapped_column(JSON,default=list)
+    history: Mapped[list[dict]] = mapped_column(JSON,default=list)
+    revision: Mapped[int] = mapped_column(Integer,default=0)
+
+
+class LibraryImport(TimestampMixin, Base):
+    __tablename__='library_imports'
+    id: Mapped[str] = mapped_column(String(32),primary_key=True)
+    report_id: Mapped[str] = mapped_column(String(12))
+    collection_id: Mapped[int | None] = mapped_column(ForeignKey('collections.id',ondelete='SET NULL'))
+    collection_identity: Mapped[str | None] = mapped_column(String(50))
+    world_id: Mapped[int | None] = mapped_column(ForeignKey('worlds.id',ondelete='SET NULL'))
+    work_id: Mapped[int | None] = mapped_column(ForeignKey('works.id',ondelete='SET NULL'))
+    scope: Mapped[dict] = mapped_column(JSON,default=dict)
+    mode: Mapped[str] = mapped_column(String(20),default='indexed')
+    allow_cross_scope: Mapped[bool] = mapped_column(Boolean,default=False)
+    status: Mapped[str] = mapped_column(String(20),default='queued')
+    job_id: Mapped[str | None] = mapped_column(String(20))
+
+
+class LibraryImportItem(Base):
+    __tablename__='library_import_items'
+    __table_args__=(UniqueConstraint('import_id','file_index'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey('library_imports.id',ondelete='CASCADE'),index=True)
+    file_index: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20),default='pending',index=True)
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id',ondelete='SET NULL'))
+    message: Mapped[str | None] = mapped_column(String(500))
 
 
 class Live2DProfile(TimestampMixin, Base):

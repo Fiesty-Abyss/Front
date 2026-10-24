@@ -96,6 +96,11 @@ def build(root, files, unsupported, session, job, world_id):
                             item.update(width=image.width,height=image.height)
                     except (OSError, ValueError, Image.DecompressionBombError):
                         item['note'] = '图片头无法识别；未解码完整图片'
+                elif item['kind']=='audio':
+                    from .filetypes import Analysis,audio
+                    try:
+                        analysis=Analysis(kind='audio');audio.analyze(path,analysis,cover=False);item['audio']=analysis.meta
+                    except Exception as exc:item['note']='音频标签未读取：'+type(exc).__name__
                 report['bytes'] += before[0]
         except (OSError, ValueError) as exc:
             item['error'] = str(exc) if isinstance(exc, ValueError) else type(exc).__name__

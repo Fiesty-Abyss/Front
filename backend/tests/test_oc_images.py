@@ -20,6 +20,13 @@ def test_oc_manual_compare_versions_and_independent_use(client):
     assert [x['field'] for x in d['differences']]==['model','seed']
     assert client.get(url+f'/images/{refs[0]}/file').content==png_bytes((10,20,30))
     assert len(oc['references'])==2
+    import io
+    from PIL import Image,PngImagePlugin
+    buffer=io.BytesIO();info=PngImagePlugin.PngInfo();info.add_text('parameters','generated geometric portrait\nSteps: 24, Sampler: Euler, CFG scale: 7, Seed: 17, Size: 32x32')
+    Image.new('RGB',(32,32),'purple').save(buffer,'PNG',pnginfo=info)
+    response=client.post(url+'/manual-image',files={'file':('embedded.png',buffer.getvalue(),'image/png')},data={'expected_version':oc['version']});assert response.status_code==200,response.text
+    parameters=client.get(url).json()['references'][-1]['parameters']
+    assert parameters['steps']==24 and parameters['seed']==17 and parameters['prompt']=='generated geometric portrait'
     caps=client.get('/api/oc-image-services').json();assert caps['items']==[]
     provider=client.post('/api/ai/providers',json={'name':'Chat only','base_url':'http://mock/v1','chat_model':'chat'}).json()
     assert client.get('/api/oc-image-services').json()['items']==[]

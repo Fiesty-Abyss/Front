@@ -21,3 +21,5 @@
 新增image_services与oc_generation_batches表，不改历史Generation字段。专用OCImages约11.51kB（gzip4.97kB），生成/比较组件按标签加载，无新增依赖；未测真实GPU耗时或十万批次。Images响应48MiB/图像3200万像素上限，后台线程仍共用2worker/32队列。
 
 协议依据：[官方Images API](https://developers.openai.com/api/reference/resources/images)。供应商具体模型与尺寸支持由用户配置合同及实际响应确认，不靠模型名字猜测。
+
+最终回归补充：手动PNG通过既有解析器提取内嵌SD参数（步数、种子、提示词等），再由明确录入字段覆盖，不丢失原有元数据；Images返回按实际文件格式命名。

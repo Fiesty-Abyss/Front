@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel,Field,ConfigDict
 from sqlalchemy import select,func
 from sqlalchemy.orm import Session
-from .. import models as m,jobs,ocstudio as studio,ocgeneration,sdgen,imageapi,versions
+from .. import models as m,jobs,ocstudio as studio,ocgeneration,sdgen,sdparams,imageapi,versions
 from ..db import get_session,new_session
 from ..config import get_settings
 from ..crud import get_or_404
@@ -113,7 +113,11 @@ def manual(profile_id:int,file:UploadFile=File(...),expected_version:int=Form(..
     except (ValueError,AssertionError):raise HTTPException(422,'参数应为JSON对象') from None
     asset,created=ingest_stream(session,file.file,file.filename or 'manual.png',kind='reference',world_id=studio.scope(session,obj)['world_id'])
     if not asset.width or asset.width*asset.height>32_000_000:raise HTTPException(422,'请选择3200万像素内可解码图片；绘画工程请使用素材库引用')
-    gen=m.Generation(asset_id=asset.id,params={'origin':'manual',**params});session.add(gen);session.flush()
+    embedded=(asset.meta or {}).get('sd') or {}
+    extracted=sdparams.normalize(embedded.get('params') or {})
+    for key in ('prompt','negative_prompt','loras'):
+        if embedded.get(key):extracted[key]=embedded[key]
+    gen=m.Generation(asset_id=asset.id,params={'origin':'manual',**extracted,**params});session.add(gen);session.flush()
     studio.attach(session,obj,'asset',asset.id,role='manual-image',design_id=design_id,allow_cross_world=allow_cross_world,generation_id=gen.id,parameters=gen.params)
     session.commit()
     if created:make_thumb(asset.id,_file_of(asset))

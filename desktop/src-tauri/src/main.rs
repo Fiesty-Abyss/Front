@@ -56,7 +56,7 @@ fn data_dir(app: &tauri::App) -> Result<PathBuf,Box<dyn std::error::Error>> {
     let folder=if let Some(value)=std::env::var_os("FRONT_DATA_DIR") {PathBuf::from(value)}
         else if parent.join("Front.portable").is_file(){parent.join("FrontData")}
         else{app.path().app_local_data_dir()?};
-    fs::create_dir_all(&folder).map_err(|_|"Front data directory is not writable. Move portable Front to a writable folder or set FRONT_DATA_DIR.")?;
+    fs::create_dir_all(&folder).map_err(|_|"data_directory_unwritable")?;
     Ok(folder)
 }
 
@@ -83,6 +83,7 @@ fn start_service(binary: &Path, folder: &Path) -> Result<Service,Box<dyn std::er
         if let Some(code)=value.get("error").and_then(|v|v.as_str()) {
             return Err(std::io::Error::other(match code {
                 "data_directory_in_use"=>"data_directory_in_use",
+                "data_directory_unwritable"=>"data_directory_unwritable",
                 "database_incompatible_or_damaged"=>"database_incompatible_or_damaged",
                 "upgrade_backup_incomplete"=>"upgrade_backup_incomplete",
                 _=>"sidecar_initialization_failed"
@@ -126,6 +127,7 @@ fn main() {
 
 fn startup_error(code:&str) {
     let text=if code.contains("data_directory_in_use") {"Front 资料目录正在使用中。请先关闭使用该目录的 Front 窗口。"}
+        else if code.contains("data_directory_unwritable") {"Front 无法写入资料目录。请检查磁盘空间和文件夹权限；便携版可移到可写目录，或通过 FRONT_DATA_DIR 指定独立目录。原有资料未被覆盖。"}
         else if code.contains("database_incompatible_or_damaged") {"Front 检测到不兼容或损坏的资料库，已停止升级。请使用较新版本或在独立目录验证备份。"}
         else if code.contains("upgrade_backup_incomplete") {"Front 升级前完整备份未通过验证，已保留原资料。请先检查缺失的托管素材和备份报告。"}
         else {"Front 无法启动。请确认已完整解压程序、WebView2 已安装，资料目录可写。便携版请移到可写目录重试。详情见资料目录 logs/desktop.log。"};

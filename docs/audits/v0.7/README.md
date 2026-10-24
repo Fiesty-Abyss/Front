@@ -120,3 +120,12 @@ cd ..
 当前机器未发现 Cargo/Rust/MSVC 命令；这不是要求普通用户安装工具的理由。桌面端应在 Windows CI 产出 Tauri 2 + Python Sidecar 安装版与便携版，并在没有开发工具的环境验证。仓库目前只有测试/构建 CI，没有签名 Release 构建流水线。
 
 接续顺序与发布门槛见 [v0.7 开发计划](../../V07_PLAN.md) 和 [进度记录](../../V07_PROGRESS.md)。本轮完成后仍然是 **Do not ship yet（针对 v0.7 正式桌面版）**。
+
+
+## 桌面稳定冲刺补充（2026-10-25）
+
+- [A：进程、GPU与资源生命周期](DESKTOP_PERFORMANCE_A.md)，PR #29已通过三项CI并合并main2eccdb5。
+- [B：启动与隔离升级回归](DESKTOP_STABILITY_B.md)。
+- [完整安装验收矩阵](DESKTOP_VALIDATION_MATRIX.md)：区分本机、CI、模拟和未验。
+
+上述原始审计是历史记录；当前已有在线与完整媒体备份、隔离恢复和Windows预览流水线，不能再将旧段落“未实现备份/Windows构建”当成当前事实。正式签名发布与干净系统安装仍不满足验收。

@@ -12,9 +12,21 @@ import secrets
 import socket
 import sys
 import threading
+import tempfile
 import time
 
 from fastapi.responses import HTMLResponse, JSONResponse
+
+
+def prepare_folder(folder: Path):
+    """Check actual create/write/remove access before opening or migrating the database."""
+    try:
+        for path in (folder, folder/'logs', folder/'media', folder/'thumbs'):
+            path.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryFile(dir=path, prefix='.front-write-check-') as probe:
+                probe.write(b'Front'); probe.flush(); os.fsync(probe.fileno())
+    except OSError as exc:
+        raise RuntimeError('data_directory_unwritable') from exc
 
 
 @contextlib.contextmanager
@@ -52,7 +64,10 @@ def prepare_data(settings):
     from .db import Base
     from .migrate import COLUMNS
     import sqlite3
-    issues = backups.schema_issues(settings.db_path)
+    try:
+        issues = backups.schema_issues(settings.db_path)
+    except sqlite3.DatabaseError as exc:
+        raise RuntimeError('database_incompatible_or_damaged') from exc
     if issues:
         raise RuntimeError('database_incompatible_or_damaged')
     with contextlib.closing(sqlite3.connect(settings.db_path)) as db:
@@ -124,6 +139,7 @@ def protect(app, *, token: str, port: int, stop):
 
 
 def serve(folder: Path):
+    prepare_folder(folder)
     os.environ['FRONT_DATA_DIR'] = str(folder.resolve())
     from .config import get_settings
     get_settings.cache_clear()
@@ -178,7 +194,7 @@ def main():
         serve(Path(args.data_dir))
     except Exception as exc:
         # Only stable codes cross the shell pipe; never raw paths, tokens or provider exceptions.
-        known={'data_directory_in_use','database_incompatible_or_damaged','upgrade_backup_incomplete'}
+        known={'data_directory_in_use','data_directory_unwritable','database_incompatible_or_damaged','upgrade_backup_incomplete'}
         code=str(exc) if str(exc) in known else 'sidecar_initialization_failed'
         print(json.dumps({'error':code}),flush=True)
         raise SystemExit(1)

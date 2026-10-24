@@ -1,15 +1,15 @@
 # 下次接续入口
 
-这是本轮开始时的接续快照，不能代替实时Git/PR/CI查询。A阶段新测量尚未写入；本轮结束时应由主Agent更新“本轮结果”字段。
+这是可继续更新的执行快照，不能代替实时Git/PR/CI查询。阶段A已交付，B进行中；下次从最新检查点接续。
 
 ## 已核对的基线
 
 | 项目 | 当前事实 |
 | --- | --- |
 | 仓库 | `Fiesty-Abyss/Front`，保留Vue 3/FastAPI/SQLite架构 |
-| 最新已合并main | `1508a5c290857d8f1ab6b0ecdbbdb51a763dd1d6` |
+| 最新已合并main | `2eccdb509a29e2182daa0365eb2b1ebe0d80fb72` |
 | PR状态 | #25 Audio、#26 特典、#27 模型资产、#28 Windows预览已合并；接管时无开放PR，后续需重新查询 |
-| 当前工作分支 | `codex/desktop-performance-a`，从上述main新建，正在阶段A |
+| 当前工作分支 | `codex/desktop-startup-regression-b`，从上述main新建，正在阶段B |
 | 既有预览前测 | Windows包源提交`e4228a8`、Actions run `40099832266`；测试附件通过Hash核验并已做本机原生预览验收 |
 | 历史测试 | 本机222项通过；上述Windows runner为221项通过/1项跳过。不能把旧计数当成新HEAD测试结果 |
 | 正式Web运行 | 本地8000仍使用私有稳定快照`private/web-runtime-176e59c`，数据在`private/front-data`；运行快照不等于当前main |
@@ -67,3 +67,9 @@
 ## 阶段A交付检查点
 
 已完成3D资源生命周期/静态按需绘制与动效清理。本机最终225项后端、3项前端资源测试、构建通过；等量10次及候选30次原生回归和生成封面通过，性能审计已落盘。当前分支`codex/desktop-performance-a`，PR/最终CI待创建核对，最新main仍1508a5c。无数据迁移，正式8000继续稳定快照，临时原生测试实例已关闭。后续先完成该PR正常合并，再从最新main推进B；干净VM、复杂GLB/VRM长期回归、冷/热启动分布仍未覆盖。
+
+## 最新检查点：A已合并、B实现中
+
+PR #29 head f03d7bd，三个检查backend/frontend/windows-x64全部success，正常merge main2eccdb5；Windows run40111031814成功。A本机225后端/3前端/构建，OBJ30次和带贴图生成GLB10次/封面已验。后续branch`codex/desktop-startup-regression-b`，启动目录预检、损坏库明确错误、冻结回归脚本已写，源码真实HTTP矩阵已过。B全量、最终构建、PR和CI待更新。正式Web8000仍为稳定私有快照，不随测试分支改变。
+
+B本机最终验证：228项后端测试（84.44秒）、3项前端资源测试、生产构建（6.87秒）全部通过，串行执行。冻结Windows、原生错误对话框与安装矩阵仍以本PR CI和后续实际测试为准。

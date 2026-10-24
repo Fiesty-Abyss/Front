@@ -52,6 +52,9 @@ jobs:
       - name: Test frozen sidecar in isolated directory
         timeout-minutes: 5
         run: python desktop/smoke_sidecar.py .cache/desktop-stage/backend/front-backend.exe .cache/desktop-smoke
+      - name: Frozen startup and migration regression (minimal PATH, generated data)
+        timeout-minutes: 8
+        run: python desktop/regression_sidecar.py .cache/desktop-stage/backend/front-backend.exe .cache/desktop-regression
       - name: Collect license inventory
         shell: pwsh
         run: |

@@ -21,6 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import event, text
 
 from .db import Base
 
@@ -164,6 +165,73 @@ class ChapterRevision(Base):
     chapters: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     note: Mapped[str] = mapped_column(String(500), default='')
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ExternalAssetFile(Base):
+    __tablename__ = 'external_asset_files'
+    asset_id: Mapped[int] = mapped_column(ForeignKey('assets.id', ondelete='CASCADE'), primary_key=True)
+    path: Mapped[str] = mapped_column(Text)
+    root: Mapped[str] = mapped_column(Text)
+    stamp: Mapped[list] = mapped_column(JSON)
+
+
+class WorldLabel(Base):
+    __tablename__ = 'world_labels'
+    __table_args__ = (UniqueConstraint('world_id','name'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    world_id: Mapped[int] = mapped_column(ForeignKey('worlds.id', ondelete='CASCADE'), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey('world_labels.id', ondelete='SET NULL'))
+
+
+class WorldResource(TimestampMixin, Base):
+    __tablename__ = 'world_resources'
+    __table_args__ = (UniqueConstraint('world_id','entity_kind','entity_id'), UniqueConstraint('world_id','source_key'))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    world_id: Mapped[int] = mapped_column(ForeignKey('worlds.id', ondelete='CASCADE'), index=True)
+    entity_kind: Mapped[str] = mapped_column(String(30), default='asset')
+    entity_id: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(300))
+    category: Mapped[str] = mapped_column(String(80), default='resource')
+    source_key: Mapped[str | None] = mapped_column(String(64))
+    source_path: Mapped[str | None] = mapped_column(Text)
+    storage_mode: Mapped[str] = mapped_column(String(20), default='reference')
+    global_tag_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
+    label_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
+    favorite: Mapped[bool] = mapped_column(Boolean, default=False)
+    stars: Mapped[int] = mapped_column(Integer, default=0)
+    preference: Mapped[int] = mapped_column(Integer, default=0)
+    notes: Mapped[str] = mapped_column(Text, default='')
+
+
+class ProjectImport(TimestampMixin, Base):
+    __tablename__ = 'project_imports'
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    world_id: Mapped[int] = mapped_column(ForeignKey('worlds.id', ondelete='CASCADE'), index=True)
+    mode: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20), default='queued')
+    report_id: Mapped[str] = mapped_column(String(12))
+    job_id: Mapped[str | None] = mapped_column(String(12))
+
+
+class ProjectImportItem(Base):
+    __tablename__ = 'project_import_items'
+    __table_args__ = (UniqueConstraint('import_id','file_index'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey('project_imports.id', ondelete='CASCADE'), index=True)
+    file_index: Mapped[int] = mapped_column(Integer)
+    selection: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(20), default='pending')
+    resource_id: Mapped[int | None] = mapped_column(Integer)
+    message: Mapped[str] = mapped_column(String(500), default='')
+
+
+@event.listens_for(Tag,'after_delete')
+def _detach_archived_global_tag(_mapper,conn,target):
+    conn.execute(text('''UPDATE world_resources SET global_tag_ids=(
+        SELECT json_group_array(value) FROM json_each(world_resources.global_tag_ids) WHERE value!=:id)
+        WHERE EXISTS (SELECT 1 FROM json_each(world_resources.global_tag_ids) WHERE value=:id)'''),{'id':target.id})
 
 
 class Collection(TimestampMixin, Base):

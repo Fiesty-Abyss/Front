@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+const WorldArchive=defineAsyncComponent(()=>import('../components/WorldArchive.vue'))
 import { useRoute, useRouter } from 'vue-router'
 import { api, Characters, LABELS, thumb, WorldEntries, Worlds } from '../api'
 import EntryTree from '../components/EntryTree.vue'
@@ -18,7 +19,7 @@ const timeline = ref([])
 const busy = ref(false)
 const tab = ref(route.query.tab ?? 'setting')
 const editingEntry = ref(null)
-const TABS = [['setting', '设定'], ['location', '地点'], ['organization', '组织'], ['event', '时间线'], ['other', '物品 / 概念']]
+const TABS = [['setting', '设定'], ['archive','项目档案'], ['location', '地点'], ['organization', '组织'], ['event', '时间线'], ['other', '物品 / 概念']]
 
 async function load() { items.value = (await Worlds.list({ limit: 500 })).items }
 onMounted(async () => {
@@ -112,7 +113,7 @@ const parentOptions = computed(() => {
 })
 </script>
 <template>
-  <div class="grid" style="grid-template-columns: 240px 1fr; align-items:start">
+  <div class="grid world-layout">
     <aside class="card grid" style="align-content:start;gap:6px">
       <button class="primary" @click="select(null)"><Ico g="＋" />新建世界观</button>
       <div v-for="w in items" :key="w.id" class="card" style="cursor:pointer;padding:10px" :style="cur?.id === w.id ? { borderColor: 'var(--accent)' } : {}" @click="select(w)">
@@ -121,7 +122,7 @@ const parentOptions = computed(() => {
     </aside>
     <section v-if="cur" class="grid" style="align-content:start">
       <div v-if="cur.id" class="row">
-        <span v-for="[k, l] in TABS" :key="k" class="chip click" :class="{ on: tab === k }" style="padding:5px 14px;font-size:13px" @click="tab = k">{{ l }}<template v-if="k !== 'setting'"> · {{ counts[k] }}</template></span>
+        <span v-for="[k, l] in TABS" :key="k" class="chip click" :class="{ on: tab === k }" style="padding:5px 14px;font-size:13px" @click="tab = k">{{ l }}<template v-if="counts[k] != null"> · {{ counts[k] }}</template></span>
         <span class="spacer" />
         <a class="btn" :href="`/api/exports/encyclopedia?world_id=${cur.id}`" download title="只导出已保存的百科文字，不包含媒体文件，也不是整库备份">导出当前百科 · Markdown ZIP</a>
         <span class="small muted">角色 {{ chars.length }}</span>
@@ -144,6 +145,7 @@ const parentOptions = computed(() => {
         </div>
       </div>
 
+      <WorldArchive v-else-if="tab==='archive'" :key="cur.id" :world-id="cur.id"/>
       <div v-else-if="tab === 'location'" class="card">
         <div class="row" style="margin-bottom:8px"><h2 style="margin:0">地点</h2><span class="small muted">层级：城市 › 街区 › 建筑……</span><span class="spacer" /><button class="primary" @click="newEntry('location')"><Ico g="＋" />新地点</button></div>
         <EntryTree :nodes="locationTree" @open="openEntry" />
@@ -227,6 +229,12 @@ const parentOptions = computed(() => {
     </div>
   </Modal>
 </template>
+
+<style scoped>
+.world-layout{grid-template-columns:220px minmax(0,1fr);align-items:start}
+.world-layout>section{min-width:0}
+@media(max-width:1100px){.world-layout{grid-template-columns:minmax(0,1fr)}}
+</style>
 <style scoped>
 .timeline { position: relative; padding-left: 4px; }
 .timeline::before { content: ''; position: absolute; left: 150px; top: 6px; bottom: 6px; width: 2px; background: linear-gradient(var(--accent), var(--accent2)); opacity: .6; }

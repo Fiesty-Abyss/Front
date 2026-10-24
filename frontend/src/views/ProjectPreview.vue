@@ -1,10 +1,12 @@
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+const ProjectImportPanel=defineAsyncComponent(()=>import('../components/ProjectImportPanel.vue'))
 import { useRoute } from 'vue-router'
 import { api, Worlds } from '../api'
 import JobProgress from '../components/JobProgress.vue'
 
-const form = reactive({path:'',recursive:true,world_id:useRoute().query.world_id || ''})
+const route=useRoute()
+const form = reactive({path:'',recursive:true,world_id:route.query.world_id || ''})
 const report = ref(null), job = ref(null), detail = ref(null), error = ref(''), busy = ref(false), worlds = ref([])
 const offset = ref(0), reportId = ref(''), imageVisible = ref(false), imageError = ref(false)
 let disposed = false, timer, sequence = 0
@@ -38,13 +40,14 @@ async function select(file) {
 }
 onMounted(async () => {
   worlds.value = (await Worlds.list({limit:500})).items
+  if(route.query.import_id){try{const run=await api.get(`/api/project-imports/${route.query.import_id}`);await load(run.report_id);return}catch(e){error.value=e.message}}
   const history = await api.get('/api/jobs?kind=project-preview')
   if (!disposed && history.length) await poll(history[0].id)
 })
 </script>
 <template>
   <div class="grid">
-    <div class="card grid"><h2 style="margin:0">项目文件只读预览</h2><p class="small muted" style="margin:0">先检查文件、候选分类和重复内容。不创建世界观，不导入素材，不执行脚本，也不调用 AI。</p>
+    <div class="card grid"><h2 style="margin:0">项目文件只读预览</h2><p class="small muted" style="margin:0">扫描阶段只读，不执行脚本或调用 AI。正式归档必须在下方明确选择并确认。</p>
       <form class="grid" @submit.prevent="scan"><label class="field">本机项目目录<input v-model="form.path" required placeholder="输入任意原创项目文件夹路径" /></label>
         <div class="row"><label class="row small"><input v-model="form.recursive" type="checkbox" style="width:auto" />包含子目录</label><span class="spacer" /><label class="field">重复项的世界观参考范围<select v-model="form.world_id"><option value="">未选择 / 新项目预览</option><option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.name }} · #{{ w.id }}</option></select></label><button class="primary" :disabled="busy || !form.path">扫描预览</button></div>
       </form>
@@ -52,8 +55,9 @@ onMounted(async () => {
     <JobProgress :job="job" />
     <p v-if="error" role="alert" class="notice">{{ error }}</p>
     <template v-if="report">
-      <div class="row"><span class="badge">可识别 {{ report.total }} 项</span><span class="badge">重复候选 {{ report.duplicate_files }}</span><span class="badge">跳过未知格式 {{ report.unsupported }}</span><span class="badge">异常 {{ report.errors }}</span><span class="badge">复用哈希 {{ report.reused_hashes }}</span><span class="spacer" /><span class="small muted">原目录保持不变 · 尚未入库</span></div>
+      <div class="row"><span class="badge">可识别 {{ report.total }} 项</span><span class="badge">重复候选 {{ report.duplicate_files }}</span><span class="badge">跳过未知格式 {{ report.unsupported }}</span><span class="badge">异常 {{ report.errors }}</span><span class="badge">复用哈希 {{ report.reused_hashes }}</span><span class="spacer" /><span class="small muted">原目录保持不变 · 导入结果见批次记录</span></div>
       <p class="small muted">分类依据路径和格式，仅供人工审核；同内容不代表同一人物或同一世界观，跨世界观资源不会自动合并。</p>
+      <ProjectImportPanel :key="reportId" :report-id="reportId" :initial-world-id="form.world_id" :import-id="route.query.import_id"/>
       <div class="preview-layout">
         <section class="card grid"><div class="file-list"><table><thead><tr><th>文件</th><th>候选分类</th><th>状态</th></tr></thead><tbody><tr v-for="file in report.items" :key="file.index"><td><button @click="select(file)">{{ file.relative }}</button><small class="muted">{{ file.bytes?.toLocaleString() || '—' }} bytes<span v-if="file.width"> · {{ file.width }}×{{ file.height }}</span></small></td><td>{{ CATEGORIES[file.candidate] || file.kind }}</td><td>{{ file.error || (file.duplicate_of != null ? `与第 ${file.duplicate_of + 1} 项重复` : file.existing.length ? '库内相同内容' : '未发现重复') }}</td></tr></tbody></table></div>
           <nav class="row" aria-label="项目文件分页"><button :disabled="!offset" @click="load(reportId,offset-50)">上一页</button><span class="small">{{ Math.floor(offset/50)+1 }} / {{ Math.max(1,Math.ceil(report.total/50)) }}</span><button :disabled="offset+50 >= report.total" @click="load(reportId,offset+50)">下一页</button></nav>

@@ -19,6 +19,7 @@ from .routers import exports
 from .routers import live2d
 from .routers import chapterplans as chapterplans_router
 from .routers import projectpreview as projectpreview_router
+from .routers import projectarchive as projectarchive_router
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _hooks_installed = False
@@ -30,9 +31,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     for d in (settings.data_dir, settings.media_dir, settings.thumb_dir):
         d.mkdir(parents=True, exist_ok=True)
     job_manager = jobs.configure(settings.data_dir / "jobs.sqlite3")
+    from .dbbackup import before_schema_change
+    before_schema_change(settings)
     engine = init_engine(f"sqlite:///{settings.db_path}")
     Base.metadata.create_all(engine)
     upgrade(engine)
+    from .projectarchive import recover
+    recover(engine)
     ensure_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()
@@ -64,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         importer.router,
         chapterplans_router.router,
         projectpreview_router.router,
+        projectarchive_router.router,
         live2d.router,
         assets.files, assets.router,
         characters.characters, characters.relations, characters.graph,

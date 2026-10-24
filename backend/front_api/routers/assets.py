@@ -127,7 +127,8 @@ def upload(
 
 def _file_of(asset: m.Asset) -> Path:
     if not asset.file_path:
-        raise HTTPException(404, "该素材没有文件")
+        from ..sourcefiles import external_file
+        return external_file(asset)
     root = get_settings().data_dir.resolve()
     path = (root / asset.file_path).resolve()
     if root not in path.parents or not path.is_file():
@@ -250,6 +251,9 @@ def delete_file(asset_id: int, session: Session = Depends(get_session)) -> None:
     asset = get_or_404(session, m.Asset, asset_id)
     _remove_files(session, asset)
     asset.file_path = None
+    binding=session.get(m.ExternalAssetFile,asset_id)
+    if binding is not None:
+        session.delete(binding)  # Detach only. External originals are never unlinked.
     session.commit()
 
 
@@ -274,7 +278,9 @@ def install_delete_hook() -> None:
         session = object_session(target)
         if session is not None:
             if target.file_path:
-                schedule_delete(session, get_settings().data_dir / target.file_path)
+                other = _conn.scalar(select(m.Asset.id).where(m.Asset.file_path == target.file_path).limit(1))
+                if other is None:
+                    schedule_delete(session, get_settings().data_dir / target.file_path)
             schedule_delete(session, _thumb_path(target.id))
 
 

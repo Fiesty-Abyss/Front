@@ -94,6 +94,7 @@ def ingest_stream(
     world_id: int | None = None,
     tags: list[m.Tag] | None = None,
     extra_meta: dict[str, Any] | None = None,
+    expected_sha: str | None = None,
 ) -> tuple[m.Asset, bool]:
     """返回 (素材, 是否新建)。相同内容的文件已存在时直接返回旧素材，不重复写盘。
     调用方负责 commit；缩略图在 commit 后用 make_thumb 生成。"""
@@ -115,8 +116,11 @@ def ingest_stream(
             handle.flush()
             os.fsync(handle.fileno())
         sha = digest.hexdigest()
+        if expected_sha is not None and sha != expected_sha:
+            from fastapi import HTTPException
+            raise HTTPException(409, '原文件内容与预览不一致，请重新预览')
         dup = find_duplicate(session, sha)
-        if dup:
+        if dup and dup.file_path:
             return dup, False
         ext = Path(name).suffix.lower()
         rel = Path('media') / date.today().strftime('%Y/%m') / f'{sha}{ext}'
@@ -127,6 +131,19 @@ def ingest_stream(
     finally:
         if staged is not None:
             staged.unlink(missing_ok=True)
+
+    if dup:
+        dup.file_path = rel.as_posix()
+        return dup, False
+    return _register(session, dest, name, sha, size, rel, mime=mime, kind=kind, title=title,
+                     description=description, source=source, work_date=work_date, work_id=work_id,
+                     world_id=world_id, tags=tags, extra_meta=extra_meta)
+
+
+def _register(session, dest, name, sha, size, rel, *, mime=None, kind=None, title=None,
+              description=None, source=None, work_date=None, work_id=None, world_id=None,
+              tags=None, extra_meta=None):
+    settings = get_settings()
 
     ext = Path(name).suffix.lower()
     mime = mime or mimetypes.guess_type(name)[0] or "application/octet-stream"
@@ -146,7 +163,7 @@ def ingest_stream(
     if tags:
         asset.tags = list(tags)
 
-    asset.file_path = rel.as_posix()
+    asset.file_path = rel.as_posix() if rel else None
     pending_thumb = None
 
     if ext in TEXT_EXT or (mime.startswith("text/") and ext not in KIND_BY_EXT):
@@ -188,3 +205,27 @@ def ingest_stream(
 def ingest(session: Session, data: bytes, name: str, **kwargs) -> tuple[m.Asset, bool]:
     """Compatibility entry for existing in-memory AI outputs and small fixtures."""
     return ingest_stream(session, io.BytesIO(data), name, **kwargs)
+
+
+def index_file(session, path: Path, root: Path, expected_sha: str, check=lambda: None):
+    from .projectpreview import stamp
+    before = stamp(path)
+    hasher = hashlib.sha256()
+    with path.open('rb') as handle:
+        while chunk := handle.read(1024 * 1024):
+            check(); hasher.update(chunk)
+    if stamp(path) != before or hasher.hexdigest() != expected_sha:
+        from fastapi import HTTPException
+        raise HTTPException(409,'原文件内容与预览不一致，请重新预览')
+    asset = find_duplicate(session, expected_sha)
+    if asset:
+        if not asset.file_path:
+            binding=session.get(m.ExternalAssetFile,asset.id)
+            if binding is not None:
+                old=Path(binding.path)
+                if not old.is_file() or stamp(old)!=binding.stamp:
+                    binding.path=str(path);binding.root=str(root);binding.stamp=before
+        return asset, False
+    asset, created = _register(session,path,path.name,expected_sha,before[0],None,source=str(path),work_date=date.fromtimestamp(path.stat().st_mtime))
+    session.add(m.ExternalAssetFile(asset_id=asset.id,path=str(path),root=str(root),stamp=before))
+    return asset, created

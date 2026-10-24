@@ -1,6 +1,7 @@
 <script setup>
 import QuickSearch from '../components/QuickSearch.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api, LABELS, SDModels, thumb, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
 import Modal from '../components/Modal.vue'
@@ -9,12 +10,13 @@ import TagPicker from '../components/TagPicker.vue'
 import { guard, toast } from '../toast'
 
 const f = reactive({ q: '', kind: '', base_model: '' })
+const route=useRoute()
 const items = ref([])
 const editing = ref(null)
 const busy = ref('')
 const job = ref(null)
 async function load() { items.value = (await SDModels.list({ ...f, limit: 500 })).items }
-onMounted(load)
+onMounted(async()=>{await load();if(route.query.id)await guard(async()=>edit(await SDModels.get(Number(route.query.id))))})
 let t
 watch(f, () => { clearTimeout(t); t = setTimeout(load, 200) }, { deep: true })
 

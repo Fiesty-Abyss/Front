@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel,Field,ConfigDict
 from sqlalchemy import select,func
 from sqlalchemy.orm import Session
-from .. import models as m,jobs,ocstudio as studio,ocgeneration,sdgen,imageapi,versions
+from .. import models as m,jobs,ocstudio as studio,ocgeneration,sdgen,sdparams,imageapi,versions
 from ..db import get_session,new_session
 from ..config import get_settings
 from ..crud import get_or_404
@@ -77,10 +77,12 @@ def generate_api(profile_id:int,body:ApiRun,session:Session=Depends(get_session)
             try:
                 with Image.open(io.BytesIO(data)) as img:
                     if img.width*img.height>32_000_000:raise ValueError()
+                    extension={'PNG':'png','JPEG':'jpg','WEBP':'webp','GIF':'gif'}.get(img.format)
+                    if not extension:raise ValueError()
                     img.verify()
             except Exception:raise sdgen.BackendError('API返回图像无效或超过3200万像素上限') from None
             with new_session() as ses:
-                asset,created=ingest(ses,data,f'oc-{batch}-{i}.png',kind='ai_image',title=f'{profile_title} · API生成 {i+1}',world_id=scope['world_id'],extra_meta={'generation':{'batch':batch,'backend':'images-api'}})
+                asset,created=ingest(ses,data,f'oc-{batch}-{i}.{extension}',kind='ai_image',title=f'{profile_title} · API生成 {i+1}',world_id=scope['world_id'],extra_meta={'generation':{'batch':batch,'backend':'images-api'}})
                 params={'backend':'images-api','service_id':service.id,'provider_id':pid,'model':service.model,'prompt':body.positive,'revised_prompt':revised,'requested_size':body.size,'actual_size':f'{asset.width}x{asset.height}'}
                 gen=m.Generation(asset_id=asset.id,params=params,batch=batch);ses.add(gen);ses.flush();ocgeneration.attach_output(ses,batch,asset,gen,job)
                 current=ses.get(m.ImageService,service.id)
@@ -111,7 +113,11 @@ def manual(profile_id:int,file:UploadFile=File(...),expected_version:int=Form(..
     except (ValueError,AssertionError):raise HTTPException(422,'参数应为JSON对象') from None
     asset,created=ingest_stream(session,file.file,file.filename or 'manual.png',kind='reference',world_id=studio.scope(session,obj)['world_id'])
     if not asset.width or asset.width*asset.height>32_000_000:raise HTTPException(422,'请选择3200万像素内可解码图片；绘画工程请使用素材库引用')
-    gen=m.Generation(asset_id=asset.id,params={'origin':'manual',**params});session.add(gen);session.flush()
+    embedded=(asset.meta or {}).get('sd') or {}
+    extracted=sdparams.normalize(embedded.get('params') or {})
+    for key in ('prompt','negative_prompt','loras'):
+        if embedded.get(key):extracted[key]=embedded[key]
+    gen=m.Generation(asset_id=asset.id,params={'origin':'manual',**extracted,**params});session.add(gen);session.flush()
     studio.attach(session,obj,'asset',asset.id,role='manual-image',design_id=design_id,allow_cross_world=allow_cross_world,generation_id=gen.id,parameters=gen.params)
     session.commit()
     if created:make_thumb(asset.id,_file_of(asset))
@@ -129,6 +135,10 @@ def image_ref(session,profile_id,rid):
 
 def image_path(session,profile_id,rid):
     _,ref,asset=image_ref(session,profile_id,rid)
+    return reference_path(session,ref,asset)
+
+
+def reference_path(session,ref,asset):
     if ref.get('asset_version'):
         _,_,payload=revision(session,'asset',asset.id,ref['asset_version'])
         if payload.get('file_path'):return media_path(payload['file_path']),payload.get('mime')
@@ -137,8 +147,10 @@ def image_path(session,profile_id,rid):
 
 
 @router.get('/api/oc/{profile_id}/images/{rid}/file')
-def image_file(profile_id:int,rid:str,session:Session=Depends(get_session)):
-    path,mime=image_path(session,profile_id,rid);return FileResponse(path,media_type=mime,headers={'X-Content-Type-Options':'nosniff'})
+def image_file(profile_id:int,rid:str,download:bool=False,session:Session=Depends(get_session)):
+    path,mime=image_path(session,profile_id,rid)
+    _,ref,asset=image_ref(session,profile_id,rid)
+    return FileResponse(path,media_type=mime,filename=(asset.original_name or path.name) if download else None,headers={'X-Content-Type-Options':'nosniff'})
 
 
 @router.get('/api/oc/{profile_id}/compare')

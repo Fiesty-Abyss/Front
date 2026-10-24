@@ -386,6 +386,18 @@ class OCProfile(TimestampMixin, Base):
     tags: Mapped[list[Tag]] = relationship(secondary=oc_profile_tags,lazy='selectin')
 
 
+class OCStudy(TimestampMixin, Base):
+    """Practice journal; source files remain ordinary assets in a shared collection."""
+    __tablename__='oc_studies'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    profile_id: Mapped[int | None] = mapped_column(ForeignKey('oc_profiles.id',ondelete='SET NULL'),index=True)
+    profile_identity: Mapped[str] = mapped_column(String(50))
+    collection_id: Mapped[int | None] = mapped_column(ForeignKey('collections.id',ondelete='SET NULL'))
+    title: Mapped[str] = mapped_column(String(200))
+    notes: Mapped[str] = mapped_column(Text,default='')
+    entries: Mapped[list[dict]] = mapped_column(JSON,default=list)
+
+
 class ImageService(TimestampMixin, Base):
     """Explicit image API contract; a chat provider alone never implies image support."""
     __tablename__='image_services'

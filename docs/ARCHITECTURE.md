@@ -251,3 +251,5 @@ docs/
 `OCProfile`只存创作字段/造型/资料引用；百科Character持有唯一世界观及作品归属，避免双写。`ocstudio`负责范围/引用身份/版本并发控制，复用versions而非第二套历史。`/api/oc/choices`只返回归属选择元数据，前端`/oc`动态导入。详见[OC_STUDIO](OC_STUDIO.md)。
 
 OC图像延用Generation与Asset，OCGenerationBatch仅存稳定归属和配方；ocgeneration验证异步结果仍属原OC/造型。ImageService显式声明Images协议，复用AIProviderConfig凭据；imageapi只做有界base64适配，不启动推理进程。见OC_IMAGES.md。
+
+OCStudy学习日志保存素材版本引用，复用Collection和versions（study种类）；ocstudy负责归属与共享引用。artwork只在oc-raster有限任务中执行Pillow栅格处理；派生文件经ingest进入素材库，导出副本进入可清理exports缓存，备份只包含永久媒体。详见OC_DRAWING.md。

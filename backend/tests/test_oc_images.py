@@ -20,6 +20,13 @@ def test_oc_manual_compare_versions_and_independent_use(client):
     assert [x['field'] for x in d['differences']]==['model','seed']
     assert client.get(url+f'/images/{refs[0]}/file').content==png_bytes((10,20,30))
     assert len(oc['references'])==2
+    import io
+    from PIL import Image,PngImagePlugin
+    buffer=io.BytesIO();info=PngImagePlugin.PngInfo();info.add_text('parameters','generated geometric portrait\nSteps: 24, Sampler: Euler, CFG scale: 7, Seed: 17, Size: 32x32')
+    Image.new('RGB',(32,32),'purple').save(buffer,'PNG',pnginfo=info)
+    response=client.post(url+'/manual-image',files={'file':('embedded.png',buffer.getvalue(),'image/png')},data={'expected_version':oc['version']});assert response.status_code==200,response.text
+    parameters=client.get(url).json()['references'][-1]['parameters']
+    assert parameters['steps']==24 and parameters['seed']==17 and parameters['prompt']=='generated geometric portrait'
     caps=client.get('/api/oc-image-services').json();assert caps['items']==[]
     provider=client.post('/api/ai/providers',json={'name':'Chat only','base_url':'http://mock/v1','chat_model':'chat'}).json()
     assert client.get('/api/oc-image-services').json()['items']==[]
@@ -35,7 +42,9 @@ def test_existing_sd_engine_oc_binding_and_mock_comfy(client,monkeypatch):
         assert j.status_code==200,j.text
         job=wait_job(client,j.json());assert job['status']=='done',job
         oc=client.get(url).json();assert oc['references'][-1]['parameters']['backend']==backend
-        if backend=='comfyui':assert oc['references'][-1]['parameters']['workflow']
+        if backend=='comfyui':
+            assert oc['references'][-1]['parameters']['workflow_sha256']
+            generation=client.get(f"/api/generations/{oc['references'][-1]['generation_id']}").json();assert generation['params']['workflow']
     b=client.get(url+'/batches').json();assert b['total']==2 and all(x['job']['status']=='done' for x in b['items'])
     assert client.post('/api/generate',json={'positive':'x','oc_profile_id':oc['id'],'oc_expected_version':1}).status_code==409
     get_settings.cache_clear()
@@ -57,6 +66,14 @@ def test_images_api_explicit_contract_mock_and_unsupported_parameters(client,mon
     assert client.get('/api/oc-image-services').json()['items'][0]['last_success']
     oc=client.get(url).json();assert oc['references'][0]['parameters']['model']=='image-model'
     assert 'test-secret' not in json.dumps(client.get(url+'/batches').json())
+    import io
+    from PIL import Image
+    encoded=io.BytesIO();Image.new('RGB',(20,24),'blue').save(encoded,'JPEG')
+    monkeypatch.setattr(imageapi,'client_factory',lambda **kw:httpx.Client(transport=httpx.MockTransport(lambda r:httpx.Response(200,json={'data':[{'b64_json':base64.b64encode(encoded.getvalue()).decode()}]})),**kw))
+    jpeg_job=wait_job(client,client.post(url+'/generate-api',json=payload|{'expected_version':oc['version']}).json());assert jpeg_job['status']=='done',jpeg_job
+    aid=jpeg_job['result']['items'][0]['asset_id'];asset=client.get(f'/api/assets/{aid}').json()
+    assert asset['original_name'].endswith('.jpg') and asset['mime']=='image/jpeg'
+    oc=client.get(url).json()
     monkeypatch.setattr(imageapi,'client_factory',lambda **kw:httpx.Client(transport=httpx.MockTransport(lambda r:httpx.Response(401,json={'error':'test-secret'})),**kw))
     job=wait_job(client,client.post(url+'/generate-api',json=payload|{'expected_version':oc['version']}).json());assert job['status']=='error'
     assert 'test-secret' not in json.dumps(job)

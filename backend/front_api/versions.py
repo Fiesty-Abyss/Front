@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from . import models as m
 
 ENTITIES = dict(asset=m.Asset, character=m.Character, entry=m.WorldEntry, note=m.Note,
-                world=m.World, work=m.Work, relation=m.Relation,oc=m.OCProfile)
+                world=m.World, work=m.Work, relation=m.Relation,oc=m.OCProfile,study=m.OCStudy)
 KINDS = {v:k for k,v in ENTITIES.items()}
 SKIP = {'id','created_at','updated_at'}
 
@@ -50,6 +50,10 @@ def payload(session, obj):
     if isinstance(obj,m.OCProfile):
         char=session.get(m.Character,obj.character_id) if obj.character_id else None
         value['_oc_scope']={'character_id':char.id if char else None,'world_id':char.world_id if char else None,'work_id':char.work_id if char else None}
+    if isinstance(obj,m.OCStudy):
+        from . import ocstudio
+        profile=session.get(m.OCProfile,obj.profile_id) if obj.profile_id else None
+        value['_study_scope']=ocstudio.scope(session,profile) if profile and ocstudio.identity(profile)==obj.profile_identity else None
     if isinstance(obj,m.Asset):
         plan = session.connection().execute(select(m.ChapterRevision.__table__).where(m.ChapterRevision.asset_id==obj.id).order_by(m.ChapterRevision.id.desc()).limit(1)).mappings().first()
         value['_chapters'] = {'text_hash':plan['text_hash'],'chapters':plan['chapters']} if plan else None

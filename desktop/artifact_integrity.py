@@ -7,7 +7,10 @@ import re
 import stat
 import os
 import subprocess
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 development/build environments.
+    import tomli as tomllib
 import zipfile
 
 MANIFEST = 'BUILD_MANIFEST.json'

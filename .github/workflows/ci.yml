@@ -34,3 +34,15 @@ jobs:
           npm ci
           npm test
           npm run build
+
+  python310-compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install declared development dependencies
+        run: pip install -e "backend[dev]"
+      - name: Test build-tool imports and library regression on minimum Python
+        run: python -m pytest backend/tests/test_desktop_artifact_integrity.py backend/tests/test_library_scale.py -q

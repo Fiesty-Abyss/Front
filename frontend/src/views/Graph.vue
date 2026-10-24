@@ -1,7 +1,8 @@
 <script setup>
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
 import cytoscape from 'cytoscape'
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+const ExtractionEvidence=defineAsyncComponent(()=>import('../components/ExtractionEvidence.vue'))
 import { useRoute } from 'vue-router'
 import { api, LABELS, Relations, thumb, Worlds } from '../api'
 import { guard, toast } from '../toast'
@@ -158,6 +159,7 @@ onBeforeUnmount(() => cy?.destroy())
       <div v-if="sel" class="card" style="position:absolute;right:14px;top:14px;width:300px">
         <b>{{ nameOf(sel.source) }} → {{ nameOf(sel.target) }}：{{ sel.kind }}</b>
         <p class="small muted">{{ sel.description || '无说明' }}</p>
+        <ExtractionEvidence :key="sel.id" kind="relation" :entity-id="sel.id"/>
         <div class="row"><button v-if="!sel.confirmed" class="primary" @click="confirmRel">确认 AI 建议</button><button class="danger" @click="delRel">删除</button></div>
       </div>
     </div>

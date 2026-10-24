@@ -40,6 +40,9 @@ def _known(session: Session, world_id: int | None) -> dict[str, int]:
 @router.post("/api/ai/extract/characters", status_code=202)
 def extract_characters(payload: s.ExtractRequest, session: Session = Depends(get_session),
                        provider: AIProvider = Depends(provider_dep)) -> dict[str, Any]:
+    if payload.chapter_revision is not None:
+        from ..extractionreview import start
+        return start(payload,session,provider)
     if payload.world_id is not None:
         get_or_404(session, m.World, payload.world_id)
     if payload.asset_id is not None:
@@ -58,6 +61,9 @@ def extract_characters(payload: s.ExtractRequest, session: Session = Depends(get
             raise HTTPException(503, str(exc)) from exc
     chunks = extract_mod.chunk_text(text, payload.chunk_size)[: payload.max_chunks]
     known = _known(session, payload.world_id)
+    exact_known: dict[str,list[int]] = {}
+    for character in session.scalars(select(m.Character).where(m.Character.world_id == payload.world_id)):
+        exact_known.setdefault(character.name,[]).append(character.id)
 
     def work(job: jobs.Job) -> None:
         acc: list[dict[str, Any]] = []
@@ -72,7 +78,8 @@ def extract_characters(payload: s.ExtractRequest, session: Session = Depends(get
             job.step(f"第 {i + 1} / {len(chunks)} 段，已找到 {len(acc)} 个角色")
             job.result = {"characters": acc, "source": source}
         for c in acc:
-            c["existing_id"] = next((known[n] for n in [c["name"], *c["aliases"]] if n in known), None)
+            matches=exact_known.get(c['name'],[])
+            c['existing_id']=matches[0] if len(matches)==1 else None
         acc.sort(key=lambda c: -c.get("mentions", 1))
         job.result = {"characters": acc, "source": source, "chunks": len(chunks)}
 
@@ -82,6 +89,12 @@ def extract_characters(payload: s.ExtractRequest, session: Session = Depends(get
 
 @router.post("/api/ai/extract/apply")
 def extract_apply(payload: s.ExtractApply, session: Session = Depends(get_session)) -> dict[str, Any]:
+    result=apply_characters(payload,session)
+    session.commit()
+    return result
+
+
+def apply_characters(payload: s.ExtractApply, session: Session) -> dict[str, Any]:
     """把（人工勾选、修改过的）抽取结果写进角色百科；关系以“AI 待确认”写入关系网。"""
     if payload.world_id is not None:
         get_or_404(session, m.World, payload.world_id)
@@ -103,6 +116,10 @@ def extract_apply(payload: s.ExtractApply, session: Session = Depends(get_sessio
         data = c.model_dump()
         data["source"] = payload.source
         existing = session.get(m.Character, c.existing_id) if c.existing_id else None
+        if existing is None:
+            same=list(session.scalars(select(m.Character).where(m.Character.world_id==payload.world_id,m.Character.name==c.name)))
+            if len(same)>1:raise HTTPException(409,'存在多个同名人物，请明确审核要关联的角色ID')
+            if same:existing=same[0]
         if existing is not None:
             if payload.update_existing:
                 if not existing.summary and c.summary:
@@ -144,7 +161,6 @@ def extract_apply(payload: s.ExtractApply, session: Session = Depends(get_sessio
                 session.add(m.Relation(source_id=src.id, target_id=dst.id, kind=r.kind[:60], description=r.evidence or None,
                                        ai_suggested=True, confirmed=False))
                 rel_count += 1
-    session.commit()
     return {"created": created, "updated": updated, "relations": rel_count}
 
 

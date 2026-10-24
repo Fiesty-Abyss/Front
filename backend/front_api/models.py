@@ -556,6 +556,20 @@ class SDModel(TimestampMixin, Base):
     tags: Mapped[list[Tag]] = relationship(secondary=sd_model_tags, lazy="selectin")
 
 
+class SDModelProfile(TimestampMixin, Base):
+    """User overlay; rescan observations never overwrite personal fields."""
+    __tablename__ = 'sd_model_profiles'
+    model_id: Mapped[int] = mapped_column(ForeignKey('sd_models.id', ondelete='CASCADE'), primary_key=True)
+    favorite: Mapped[bool] = mapped_column(Boolean, default=False)
+    stars: Mapped[int] = mapped_column(Integer, default=0)
+    preference: Mapped[int] = mapped_column(Integer, default=0)
+    style: Mapped[str] = mapped_column(Text, default='')
+    scenes: Mapped[str] = mapped_column(Text, default='')
+    usage_notes: Mapped[str] = mapped_column(Text, default='')
+    engine_mappings: Mapped[dict] = mapped_column(JSON, default=dict)
+    observation: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
 class Prompt(TimestampMixin, Base):
     __tablename__ = "prompts"
 

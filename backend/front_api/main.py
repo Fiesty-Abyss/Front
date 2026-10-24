@@ -27,7 +27,7 @@ from .routers import oc as oc_router
 from .routers import ocimages
 from .routers import ocdrawing
 from .routers import audio,referenceimports
-from .routers import bonuses
+from .routers import bonuses, modelassets
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _hooks_installed = False
@@ -91,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ocdrawing.router,
         audio.router,referenceimports.router,
         bonuses.router,
+        modelassets.router,
         exports.router,
         library.tag_extra, library.tags, library.works, library.worlds,
         encyclopedia.extra, encyclopedia.entries, encyclopedia.appearances,

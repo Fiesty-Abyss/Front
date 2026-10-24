@@ -60,6 +60,8 @@ def _existing(session: Session, item: dict[str, Any]) -> m.SDModel | None:
 def scan_models(req: ScanRequest, session: Session = Depends(get_session)) -> dict[str, Any]:
     """只读预览：列出文件夹里的模型文件，按目录名判断类型，读取 safetensors 元数据和旁边的说明文件。"""
     root = _scan_root(req.path)
+    if req.compute_hash:
+        raise HTTPException(422, '目录哈希请使用后台扫描任务')
     items = []
     counts: dict[str, int] = {}
     for p in modelscan.iter_model_files(root, req.recursive):
@@ -91,6 +93,11 @@ def _apply_scan_item(session: Session, mdl: m.SDModel, it: dict[str, Any], fresh
     if it.get("hashes"):
         mdl.hashes = it["hashes"]
         mdl.sha256 = it["hashes"]["SHA256"].lower()
+    session.add(mdl)
+    session.flush()
+    overlay = session.get(m.SDModelProfile, mdl.id) or m.SDModelProfile(model_id=mdl.id)
+    overlay.observation = {k: it.get(k) for k in ('kind', 'base_model', 'size', 'metadata', 'diagnostics', 'compatibility')}
+    session.add(overlay)
 
 
 def _import_preview(session: Session, mdl: m.SDModel, preview: str) -> None:
@@ -109,18 +116,23 @@ def _import_preview(session: Session, mdl: m.SDModel, preview: str) -> None:
 def scan_run(req: ScanRun) -> dict[str, Any]:
     """登记扫描到的模型（后台任务）。已登记的模型按路径或 SHA256 识别，默认跳过。"""
     root = _scan_root(req.path)
-    files = modelscan.iter_model_files(root, req.recursive)
-    if req.files is not None:
-        wanted = set(req.files)
-        files = [f for f in files if str(f) in wanted]
-
     def work(job: jobs.Job) -> None:
+        files = modelscan.iter_model_files(root, req.recursive, job.check)
+        if req.files is not None:
+            wanted = set(req.files)
+            files = [f for f in files if str(f) in wanted]
+        job.total = len(files)
         created, updated, skipped = [], [], 0
         with new_session() as session:
             tags = resolve_tags(session, req.tag_ids)
             for p in files:
                 job.check()
-                it = modelscan.describe(p, root, with_hash=req.compute_hash)
+                try:
+                    it = modelscan.describe(p, root, with_hash=req.compute_hash, check=job.check)
+                except OSError:
+                    job.errors.append(f'无法读取模型：{p.name}')
+                    job.step()
+                    continue
                 ex = _existing(session, it)
                 if ex and not req.update_existing:
                     skipped += 1
@@ -142,17 +154,17 @@ def scan_run(req: ScanRun) -> dict[str, Any]:
                 job.step(p.name)
         job.result = {"created": created, "updated": updated, "skipped": skipped}
 
-    job = jobs.start("model-scan", f"登记模型：{root.name}", len(files), work)
+    job = jobs.start("model-scan", f"登记模型：{root.name}", 0, work)
     return job.to_dict()
 
 
-def _hash_model(session: Session, mdl: m.SDModel) -> dict[str, str]:
+def _hash_model(session: Session, mdl: m.SDModel, check=lambda: None) -> dict[str, str]:
     if not mdl.local_path:
         raise HTTPException(422, "这个模型没有登记本地路径")
     p = Path(mdl.local_path).expanduser()
     if not p.is_file():
         raise HTTPException(404, f"找不到模型文件：{mdl.local_path}")
-    hashes = modelscan.compute_hashes(p)
+    hashes = modelscan.compute_hashes(p, check)
     mdl.hashes = hashes
     mdl.sha256 = hashes["SHA256"].lower()
     mdl.size = p.stat().st_size
@@ -163,6 +175,8 @@ def _hash_model(session: Session, mdl: m.SDModel) -> dict[str, str]:
 def hash_model(model_id: int, session: Session = Depends(get_session)) -> Any:
     """计算单个模型的 SHA256 / AutoV1 / AutoV2 / AutoV3（大文件需要一些时间）。"""
     mdl = get_or_404(session, m.SDModel, model_id)
+    if mdl.local_path and Path(mdl.local_path).is_file() and Path(mdl.local_path).stat().st_size > 64*1024*1024:
+        raise HTTPException(422, '大型模型请使用后台哈希任务')
     _hash_model(session, mdl)
     session.commit()
     return mdl
@@ -182,9 +196,13 @@ def hash_all(body: HashAll | None = None, session: Session = Depends(get_session
     def work(job: jobs.Job) -> None:
         with new_session() as ses:
             for mid in ids:
+                job.check()
                 mdl = ses.get(m.SDModel, mid)
+                if not mdl:
+                    job.step()
+                    continue
                 try:
-                    _hash_model(ses, mdl)
+                    _hash_model(ses, mdl, job.check)
                     ses.commit()
                 except HTTPException as exc:
                     job.errors.append(f"{mdl.name}：{exc.detail}")
@@ -387,6 +405,7 @@ class LoraPick(BaseModel):
 
 class GenerateRequest(BaseModel):
     backend: Literal["webui", "comfyui"] = "webui"
+    mapping_engine: Literal['webui', 'forge', 'comfyui'] | None = None
     prompt_id: int | None = None
     title: str | None = None
     positive: str = ""
@@ -450,6 +469,18 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
         if mdl.kind not in ('lora','lycoris'):raise HTTPException(422,'LoRA请选择LoRA或LyCORIS档案')
         if not mdl.file_name:
             raise HTTPException(422, f"LoRA「{mdl.name}」没有登记文件名")
+    mapped_names = {}
+    if req.mapping_engine:
+        if (req.mapping_engine == 'comfyui') != (req.backend == 'comfyui'):
+            raise HTTPException(422, '名称映射与生成后端不一致')
+        from .modelassets import family
+        for checkpoint in mdls.values():
+            families = {family(r.base_model) for r in [checkpoint, *(lm for lm, _ in loras)]} - {None}
+            if len(families) > 1:
+                raise HTTPException(422, 'Checkpoint与LoRA登记架构不一致，请先核对')
+        for mdl in [*mdls.values(), *(lm for lm, _ in loras)]:
+            profile = session.get(m.SDModelProfile, mdl.id)
+            mapped_names[mdl.id] = ((profile.engine_mappings or {}).get(req.mapping_engine) if profile else None) or mdl.file_name
     cells = sdgen.axis_cells(x.model_dump() if x else None, y.model_dump() if y else None)
     total = len(cells) * req.count
     if total > MAX_IMAGES:
@@ -502,8 +533,8 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
                             model = mdls[int(v)]
                     spec = sdgen.Spec(positive=positive, negative=negative, steps=req.steps, cfg=req.cfg, sampler=req.sampler,
                                       scheduler=req.scheduler, seed=base_seed + i, width=req.width, height=req.height,
-                                      clip_skip=req.clip_skip, model_file=model.file_name if model else None,
-                                      loras=[{"file": lm.file_name, "weight": w, "name": lm.name} for lm, w in loras])
+                                      clip_skip=req.clip_skip, model_file=mapped_names.get(model.id, model.file_name) if model else None,
+                                      loras=[{"file": mapped_names.get(lm.id,lm.file_name), "weight": w, "name": lm.name} for lm, w in loras])
                     for ax, v in ((x, xv), (y, yv)):
                         sdgen.apply_axis(spec, positive, ax.param if ax else None, v, ax.search if ax else None)
                     xy = {k: lab for k, lab in (("x", axis_label(x, xv)), ("y", axis_label(y, yv))) if lab}
@@ -524,7 +555,7 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
                                                 work_date=date.today(), world_id=req.world_id, tags=tags,
                                                 extra_meta={"generation": {"backend": req.backend, "batch": batch}})
                         ses.flush()
-                        params = {**spec.params(), "seed": used_seed, "model": _model_label(model) if model else None,
+                        params = {**spec.params(), "mapping_engine": req.mapping_engine, "mapped_model_file": spec.model_file if req.mapping_engine else None, "seed": used_seed, "model": _model_label(model) if model else None,
                                   "prompt": spec.positive, "negative": spec.negative, "backend": req.backend, "checkpoint_snapshot": {"id":model.id,"name":model.name,"sha256":model.sha256,"file":model.file_name} if model else None, "lora_snapshots":[{"id":lm.id,"name":lm.name,"file":lm.file_name,"sha256":lm.sha256,"weight":spec.loras[j]["weight"]} for j,(lm,_) in enumerate(loras)], "workflow": (sdgen.fill_workflow(req.workflow,spec) if req.workflow else sdgen.comfy_graph(spec)) if req.backend=="comfyui" else None}
                         gen = m.Generation(prompt_id=prompt_id, model_id=model.id if model else None, asset_id=asset.id,
                                            params={k: v for k, v in params.items() if v is not None}, batch=batch, xy=xy)

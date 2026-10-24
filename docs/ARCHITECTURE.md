@@ -257,3 +257,7 @@ OCStudy学习日志保存素材版本引用，复用Collection和versions（stud
 AudioAlbum只管理专辑偏好与Collection引用；AudioState按Asset存续听/字幕/书签，源身份/Hash与revision保护并发。LibraryImport/Item在原projectpreview和ingest之上编排可恢复任务，供音频与特典共用，不拥有第二套文件存储。AudioPlayer仍用于通用预览，remember模式才保存进度。详见AUDIO_LIBRARY.md。
 
 BonusArchive以Work ID关联任意作品与Galgame；BonusItem引用Asset/素材版本并保存独立偏好，BonusGroup只组织目录。导入/存储继续复用LibraryImport、projectpreview和ingest；路径上下文来自本收藏的导入账本，不篡改全局Asset首个来源。版本用既有versions，懒加载FilePreview。见BONUS_ARCHIVES.md。
+
+### 模型资产覆盖层
+
+`SDModel`继续作为提示词/生成/OC统一引用；`sd_model_profiles`仅存个人偏好、扫描观测及各引擎名称映射。扫描报告归入既有project-previews完整备份范围，元数据预览和大文件Hash使用既有有限任务队列。映射不改变外部配置，运行验证单独标记。

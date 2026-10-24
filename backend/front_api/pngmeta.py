@@ -6,14 +6,15 @@ import base64
 import io
 import json
 import re
+from pathlib import Path
 from typing import Any
 
 from PIL import Image, PngImagePlugin
 
 
-def read_png_text(data: bytes) -> dict[str, str]:
+def read_png_text(data: bytes | Path) -> dict[str, str]:
     try:
-        with Image.open(io.BytesIO(data)) as img:
+        with Image.open(io.BytesIO(data) if isinstance(data, bytes) else data) as img:
             if img.format != "PNG":
                 return {}
             info = dict(getattr(img, "text", {}) or {})

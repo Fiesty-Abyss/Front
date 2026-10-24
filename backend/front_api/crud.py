@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from . import models as m
 from .db import get_session
@@ -112,6 +112,7 @@ def make_crud_router(
     validate: Callable[..., None] | None = None,
     validate_with_id: bool = False,
     list_trim: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    list_omit_fields: tuple[str, ...] = (),
 ) -> APIRouter:
     router = APIRouter(prefix=prefix, tags=[tag_name])
     entity = SPEC[model][0] if model in SPEC else None
@@ -135,7 +136,10 @@ def make_crud_router(
                 family = tag_descendants(session, tag_id)
                 stmt = stmt.where(model.tags.any(m.Tag.id.in_(family)))
         if filters:
-            stmt = filters(stmt, request)
+            try:
+                stmt = filters(stmt, request)
+            except (ValueError, OverflowError):
+                raise HTTPException(422, '筛选参数格式不正确') from None
         total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
         if order_by is None:
             stmt = stmt.order_by(model.id.desc())
@@ -143,9 +147,14 @@ def make_crud_router(
             stmt = stmt.order_by(*order_by)
         else:
             stmt = stmt.order_by(order_by)
+        if list_omit_fields:
+            stmt = stmt.options(*(defer(getattr(model, field)) for field in list_omit_fields))
         rows = session.scalars(stmt.limit(limit).offset(offset)).all()
+        def serialize(row):
+            value = {field: None if field in list_omit_fields else getattr(row, field) for field in read_schema.model_fields} if list_omit_fields else row
+            return (list_trim or (lambda d: d))(read_schema.model_validate(value).model_dump(mode="json"))
         return {
-            "items": [(list_trim or (lambda d: d))(read_schema.model_validate(r).model_dump(mode="json")) for r in rows],
+            "items": [serialize(r) for r in rows],
             "total": total,
         }
 

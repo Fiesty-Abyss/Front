@@ -5,9 +5,12 @@ from __future__ import annotations
 import hashlib
 import io
 import mimetypes
+import os
+import tempfile
+import codecs
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from PIL import Image
 from sqlalchemy import select
@@ -39,9 +42,9 @@ def write_thumb(asset_id: int, data: bytes | None) -> bool:
     return thumb_path(asset_id).is_file()
 
 
-def make_thumb(asset_id: int, data: bytes) -> None:
+def make_thumb(asset_id: int, data: bytes | Path) -> None:
     try:
-        with Image.open(io.BytesIO(data)) as img:
+        with Image.open(io.BytesIO(data) if isinstance(data, bytes) else data) as img:
             img.thumbnail(THUMB_SIZE)
             if img.mode not in ("RGB", "RGBA"):
                 img = img.convert("RGBA")
@@ -52,16 +55,16 @@ def make_thumb(asset_id: int, data: bytes) -> None:
         pass
 
 
-def decode_text(data: bytes) -> str:
+def decode_text(data: bytes, *, truncated: bool = False) -> str:
     for enc in ("utf-8-sig", "gb18030", "shift_jis", "utf-16"):
         try:
-            return data.decode(enc)
+            return codecs.getincrementaldecoder(enc)().decode(data, final=not truncated)
         except UnicodeDecodeError:
             continue
     return data.decode("utf-8", errors="replace")
 
 
-def image_generation_meta(data: bytes) -> dict[str, Any] | None:
+def image_generation_meta(data: bytes | Path) -> dict[str, Any] | None:
     """识别 AI 出图信息：SD WebUI / Forge 的 parameters，或 ComfyUI 的 prompt / workflow。"""
     chunks = read_png_text(data)
     if chunks.get("parameters"):
@@ -75,9 +78,9 @@ def find_duplicate(session: Session, sha: str) -> m.Asset | None:
     return session.scalar(select(m.Asset).where(m.Asset.sha256 == sha))
 
 
-def ingest(
+def ingest_stream(
     session: Session,
-    data: bytes,
+    data: BinaryIO,
     name: str,
     *,
     mime: str | None = None,
@@ -94,10 +97,35 @@ def ingest(
     """返回 (素材, 是否新建)。相同内容的文件已存在时直接返回旧素材，不重复写盘。
     调用方负责 commit；缩略图在 commit 后用 make_thumb 生成。"""
     settings = get_settings()
-    sha = hashlib.sha256(data).hexdigest()
-    dup = find_duplicate(session, sha)
-    if dup:
-        return dup, False
+    staging = settings.data_dir / '.staging'
+    staging.mkdir(parents=True, exist_ok=True)
+    digest, size = hashlib.sha256(), 0
+    staged = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=staging, delete=False) as handle:
+            staged = Path(handle.name)
+            while chunk := data.read(1024 * 1024):
+                size += len(chunk)
+                if size > settings.max_upload_mb * 1024 * 1024:
+                    from fastapi import HTTPException
+                    raise HTTPException(413, f'文件超过 {settings.max_upload_mb} MB')
+                digest.update(chunk)
+                handle.write(chunk)
+            handle.flush()
+            os.fsync(handle.fileno())
+        sha = digest.hexdigest()
+        dup = find_duplicate(session, sha)
+        if dup:
+            return dup, False
+        ext = Path(name).suffix.lower()
+        rel = Path('media') / date.today().strftime('%Y/%m') / f'{sha}{ext}'
+        dest = settings.data_dir / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if not dest.exists():
+            os.replace(staged, dest)
+    finally:
+        if staged is not None:
+            staged.unlink(missing_ok=True)
 
     ext = Path(name).suffix.lower()
     mime = mime or mimetypes.guess_type(name)[0] or "application/octet-stream"
@@ -110,24 +138,22 @@ def ingest(
         world_id=world_id,
         original_name=Path(name).name,
         mime=mime,
-        size=len(data),
+        size=size,
         sha256=sha,
         meta=dict(extra_meta or {}),
     )
     if tags:
         asset.tags = list(tags)
 
-    rel = Path("media") / date.today().strftime("%Y/%m") / f"{sha[:20]}{ext}"
-    dest = settings.data_dir / rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if not dest.exists():
-        dest.write_bytes(data)
     asset.file_path = rel.as_posix()
     pending_thumb = None
 
     if ext in TEXT_EXT or (mime.startswith("text/") and ext not in KIND_BY_EXT):
         asset.kind = kind or "novel"
-        asset.content = decode_text(data)
+        with dest.open('rb') as handle:
+            asset.content = decode_text(handle.read(4 * 1024 * 1024), truncated=size > 4 * 1024 * 1024)
+        if size > 4 * 1024 * 1024:
+            asset.meta = {**asset.meta, 'text_truncated': True, 'preview_note': '正文预览限制为 4 MiB，原文件完整保留'}
     elif ext in KIND_BY_EXT or ext == ".zip":
         info = analyze(dest, name)
         asset.kind = info.kind or kind or "other"  # 识别出的文件类型优先（上传表单的默认类型是给图片用的）
@@ -139,13 +165,13 @@ def ingest(
     else:
         asset.kind = kind or "other"
         try:
-            with Image.open(io.BytesIO(data)) as img:
+            with Image.open(dest) as img:
                 asset.width, asset.height = img.size
             if not kind:
                 asset.kind = "drawing"
         except Exception:
             pass
-        gen = image_generation_meta(data) if asset.width else None
+        gen = image_generation_meta(dest) if asset.width else None
         if gen:
             asset.meta = {**asset.meta, "sd": gen, "prompt": gen.get("prompt")}
             if not kind:
@@ -156,3 +182,8 @@ def ingest(
     if pending_thumb:
         write_thumb(asset.id, pending_thumb)
     return asset, True
+
+
+def ingest(session: Session, data: bytes, name: str, **kwargs) -> tuple[m.Asset, bool]:
+    """Compatibility entry for existing in-memory AI outputs and small fixtures."""
+    return ingest_stream(session, io.BytesIO(data), name, **kwargs)

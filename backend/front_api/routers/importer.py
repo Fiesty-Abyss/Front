@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import os
 import zipfile
+import tempfile
 from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
@@ -21,11 +22,12 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from .. import schemas as s
+from .. import jobs
 from ..cg import CGItem, group_cgs, groups_to_json, natural_key
 from ..config import get_settings
 from ..crud import get_or_404, resolve_tags
-from ..db import get_session
-from ..ingest import IMAGE_EXT, IMPORTABLE_EXT, ingest, make_thumb
+from ..db import get_session, new_session
+from ..ingest import IMAGE_EXT, IMPORTABLE_EXT, ingest_stream, make_thumb
 
 MAX_FILES = 5000
 MAX_BUNDLE = 512 * 1024 * 1024
@@ -42,17 +44,19 @@ def bundle_kind(filenames: list[str]) -> str | None:
     return None
 
 
-def zip_dir(path: Path) -> bytes:
-    buf = io.BytesIO()
+def zip_dir(path: Path, buf=None):
+    own_buffer = buf is None
+    buf = buf if buf is not None else io.BytesIO()
     total = 0
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for fp in sorted(path.rglob("*")):
-            if fp.is_file() and not fp.name.startswith("."):
+            if fp.is_file() and not fp.name.startswith(".") and not fp.is_symlink() and fp.resolve().is_relative_to(path.resolve()):
                 total += fp.stat().st_size
                 if total > MAX_BUNDLE:
                     raise OSError(f"模型文件夹超过 {MAX_BUNDLE >> 20} MB")
                 z.write(fp, fp.relative_to(path).as_posix())
-    return buf.getvalue()
+    buf.seek(0)
+    return buf.getvalue() if own_buffer else buf
 router = APIRouter(tags=["批量导入 / CG"])
 
 
@@ -80,7 +84,7 @@ def _resolve_dir(path: str) -> Path:
     rp = p.resolve()
     if rp == data_dir or data_dir in rp.parents:
         raise HTTPException(422, "不能从 Front 自己的数据目录导入")
-    return p
+    return rp
 
 
 def scan_files(root: Path, recursive: bool) -> tuple[list[Path], int]:
@@ -88,15 +92,20 @@ def scan_files(root: Path, recursive: bool) -> tuple[list[Path], int]:
     unsupported = 0
     walker = os.walk(root) if recursive else [(str(root), [], [e.name for e in root.iterdir() if e.is_file()])]
     for dirpath, dirnames, filenames in walker:
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        dirnames[:] = sorted(d for d in dirnames if not d.startswith(".") and not (Path(dirpath) / d).is_symlink()
+                            and not (Path(dirpath) / d).resolve().is_relative_to(get_settings().data_dir.resolve()))
         if recursive and bundle_kind(filenames):
             files.append(Path(dirpath))  # 整个文件夹作为一个模型包
+            if len(files) > MAX_FILES:
+                raise HTTPException(422, f"文件过多（超过 {MAX_FILES} 个），请分批导入子文件夹")
             dirnames[:] = []
             continue
         for name in filenames:
             if name.startswith("."):
                 continue
             fp = Path(dirpath) / name
+            if fp.is_symlink() or not fp.resolve().is_relative_to(root.resolve()):
+                continue
             if fp.suffix.lower() in IMPORTABLE_EXT:
                 files.append(fp)
                 if len(files) > MAX_FILES:
@@ -165,8 +174,7 @@ def regroup_work(session: Session, work_id: int) -> list[dict[str, Any]]:
     return groups_to_json(groups)
 
 
-@router.post("/api/import/run")
-def run(req: RunRequest, session: Session = Depends(get_session)) -> dict[str, Any]:
+def run(req: RunRequest, session: Session, *, job: jobs.Job | None = None) -> dict[str, Any]:
     root = _resolve_dir(req.path)
     files, _ = scan_files(root, req.recursive)
     settings = get_settings()
@@ -181,6 +189,9 @@ def run(req: RunRequest, session: Session = Depends(get_session)) -> dict[str, A
         work_id = work.id
     if req.cg_mode and work_id is None:
         raise HTTPException(422, "CG 模式需要选择作品或填写新作品名")
+    if req.world_id is not None:
+        get_or_404(session, m.World, req.world_id)
+    session.commit()
 
     kind = "cg" if req.cg_mode else (req.kind or None)
     prefix = req.title_prefix
@@ -189,36 +200,40 @@ def run(req: RunRequest, session: Session = Depends(get_session)) -> dict[str, A
     created: list[int] = []
     duplicates: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
-    thumbs: list[tuple[int, Path]] = []
+    if job:
+        job.total = len(files)
+        job.result = {"created": 0, "created_ids": created, "duplicates": duplicates, "errors": errors, "work_id": work_id, "cg_groups": None}
     for i, fp in enumerate(files):
+        if job:
+            job.check()
         rel = _label(root, fp)
         try:
-            if fp.is_dir():
-                data, fname, stem = zip_dir(fp), f"{fp.name}.zip", fp.name
-            else:
-                if fp.stat().st_size > settings.max_upload_mb * 1024 * 1024:
-                    errors.append({"file": rel, "error": f"超过 {settings.max_upload_mb} MB"})
-                    continue
-                data, fname, stem = fp.read_bytes(), fp.name, fp.stem
+            fname, stem = (f"{fp.name}.zip", fp.name) if fp.is_dir() else (fp.name, fp.stem)
             wdate = date.fromtimestamp(fp.stat().st_mtime) if req.use_mtime else None
-            asset, is_new = ingest(
-                session, data, fname, kind=kind, work_date=wdate, title=f"{prefix}{stem}" if prefix else (stem if fp.is_dir() else None), work_id=work_id,
-                world_id=req.world_id, tags=tags, source=str(fp),
-                extra_meta={"import": {"folder": root.name, "relative_path": rel, "imported_at": datetime.now().isoformat(timespec="seconds")}},
-            )
+            staging = settings.data_dir / '.staging'
+            staging.mkdir(exist_ok=True)
+            with (tempfile.TemporaryFile(dir=staging) if fp.is_dir() else fp.open('rb')) as stream:
+                if fp.is_dir():
+                    zip_dir(fp, stream)
+                asset, is_new = ingest_stream(
+                    session, stream, fname, kind=kind, work_date=wdate, title=f"{prefix}{stem}" if prefix else (stem if fp.is_dir() else None), work_id=work_id,
+                    world_id=req.world_id, tags=tags, source=str(fp),
+                    extra_meta={"import": {"folder": root.name, "relative_path": rel, "imported_at": datetime.now().isoformat(timespec="seconds")}},
+                )
+            session.commit()
             if is_new:
                 created.append(asset.id)
                 if asset.width:
-                    thumbs.append((asset.id, fp))
+                    make_thumb(asset.id, settings.data_dir / asset.file_path)
             else:
                 duplicates.append({"file": rel, "asset_id": asset.id})
-        except OSError as exc:
-            errors.append({"file": rel, "error": str(exc)})
-        if i % 50 == 49:
-            session.commit()
+        except (OSError, HTTPException) as exc:
+            session.rollback()
+            errors.append({"file": rel, "error": str(exc.detail) if isinstance(exc, HTTPException) else type(exc).__name__})
+        if job:
+            job.result["created"] = len(created)
+            job.step(rel)
     session.commit()
-    for aid, fp in thumbs:
-        make_thumb(aid, fp.read_bytes())
     groups = regroup_work(session, work_id) if req.cg_mode and work_id else None
     return {
         "created": len(created),
@@ -228,6 +243,30 @@ def run(req: RunRequest, session: Session = Depends(get_session)) -> dict[str, A
         "work_id": work_id,
         "cg_groups": len(groups) if groups is not None else None,
     }
+
+
+@router.post("/api/import/run")
+def run_sync(req: RunRequest, session: Session = Depends(get_session)) -> dict[str, Any]:
+    """Compatibility endpoint; the UI uses the persistent background queue."""
+    return run(req, session)
+
+
+@router.post("/api/import/jobs")
+def enqueue(req: RunRequest, session: Session = Depends(get_session)) -> dict[str, Any]:
+    root = _resolve_dir(req.path)
+    resolve_tags(session, req.tag_ids)
+    if req.work_id is not None:
+        get_or_404(session, m.Work, req.work_id)
+    if req.world_id is not None:
+        get_or_404(session, m.World, req.world_id)
+    if req.cg_mode and not req.work_id and not req.new_work_title:
+        raise HTTPException(422, "CG 模式需要选择作品或填写新作品名")
+
+    def work(job):
+        with new_session() as worker_session:
+            job.result = run(req, worker_session, job=job)
+
+    return jobs.start("import", f"导入：{root.name}", 0, work).to_dict()
 
 
 @router.post("/api/works/{work_id}/cg/regroup")

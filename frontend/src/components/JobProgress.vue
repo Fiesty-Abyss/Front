@@ -5,8 +5,8 @@ import { toast } from '../toast'
 
 const props = defineProps({ job: Object })
 const pct = computed(() => (props.job?.total ? Math.round((props.job.done / props.job.total) * 100) : props.job?.status === 'done' ? 100 : 0))
-const STATUS = { queued: '排队中', running: '进行中', done: '已完成', error: '失败', cancelled: '已取消' }
-async function cancel() { await api.post(`/api/jobs/${props.job.id}/cancel`); toast('已请求取消，当前这张完成后停止') }
+const STATUS = { queued: '排队中', running: '进行中', done: '已完成', error: '失败', cancelled: '已取消', interrupted: '服务中断' }
+async function cancel() { await api.post(`/api/jobs/${props.job.id}/cancel`); toast('已请求取消，当前操作完成后停止') }
 </script>
 <template>
   <div v-if="job" class="job card">

@@ -1,6 +1,6 @@
 <script setup>
 import AssetThumb from '../components/AssetThumb.vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, Assets, fileUrl, FILE_KINDS, LABELS, Works, Worlds } from '../api'
 import Modal from '../components/Modal.vue'
@@ -14,6 +14,11 @@ const f = reactive({ q: '', kind: '', tag: [], year: '', month: '', work_id: rou
 if (route.query.month) { const [y, m] = String(route.query.month).split('-'); f.year = y; f.month = String(Number(m)) }
 const items = ref([])
 const total = ref(0)
+const page = ref(1)
+const pageSize = 60
+const loading = ref(false)
+const loadError = ref('')
+let loadSequence = 0
 const works = ref([])
 const worlds = ref([])
 const editing = ref(null)
@@ -22,10 +27,19 @@ const uploadForm = reactive({ kind: '', work_id: '', world_id: '', tag_ids: [], 
 const fileInput = ref(null)
 
 async function load() {
-  const r = await Assets.list({ ...f, limit: 200 })
-  items.value = r.items
-  total.value = r.total
+  const sequence = ++loadSequence
+  loading.value = true; loadError.value = ''
+  try {
+    const r = await Assets.list({ ...f, limit: pageSize, offset: (page.value - 1) * pageSize })
+    if (sequence !== loadSequence) return
+    total.value = r.total
+    const last = Math.max(1, Math.ceil(r.total / pageSize))
+    if (page.value > last) { page.value = last; return load() }
+    items.value = r.items
+  } catch (e) { if (sequence === loadSequence) loadError.value = e.message }
+  finally { if (sequence === loadSequence) loading.value = false }
 }
+function changePage(value) { page.value = value; load() }
 onMounted(async () => {
   works.value = (await Works.list({ limit: 500 })).items
   worlds.value = (await Worlds.list({ limit: 500 })).items
@@ -41,7 +55,8 @@ async function suggestTags() {
 }
 function addTag(s) { if (s.tag && !editing.value.tag_ids.includes(s.tag.id)) editing.value.tag_ids = [...editing.value.tag_ids, s.tag.id] }
 let timer
-watch(f, () => { clearTimeout(timer); timer = setTimeout(load, 200) }, { deep: true })
+watch(f, () => { page.value = 1; clearTimeout(timer); timer = setTimeout(load, 200) }, { deep: true })
+onBeforeUnmount(() => { clearTimeout(timer); loadSequence++ })
 
 async function doUpload() {
   const files = fileInput.value?.files ?? []
@@ -60,7 +75,7 @@ function newText() {
 }
 async function open(a) {
   aiTags.value = null
-  if (FILE_KINDS.includes(a.kind)) a = await Assets.get(a.id) // 列表里不带预览数据，打开时取完整信息
+  a = await Assets.get(a.id) // All list items omit bodies; always load full detail before editing.
   editing.value = { ...a, tag_ids: a.tags.map((t) => t.id) }
 }
 function onUpdated(a) { Object.assign(editing.value, { meta: a.meta, kind: a.kind, content: a.content, updated_at: a.updated_at }); load() }
@@ -110,7 +125,9 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
         <button @click="newText"><Ico g="＋" />文本 / 小说</button>
         <button class="primary" @click="uploading = true"><Ico g="⇪" />上传文件</button>
       </div>
-      <div v-if="!items.length" class="empty card">没有符合条件的素材</div>
+      <p v-if="loading" role="status" class="small muted">正在加载素材…</p>
+      <div v-if="loadError" role="alert" class="notice">{{ loadError }} <button @click="load">重试</button></div>
+      <div v-if="!loading && !loadError && !items.length" class="empty card">没有符合条件的素材</div>
       <div v-reveal class="thumbgrid gallery">
         <div v-for="a in items" :key="a.id" class="tile" @click="open(a)">
           <AssetThumb :asset="a" />
@@ -120,6 +137,12 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
           </div>
         </div>
       </div>
+      <nav v-if="total > pageSize" class="row" aria-label="素材分页" style="margin-top:16px">
+        <button :disabled="loading || page === 1" @click="changePage(page - 1)">上一页</button>
+        <span class="small">第 {{ page }} / {{ Math.ceil(total / pageSize) }} 页 · 每页 {{ pageSize }} 项</span>
+        <button :disabled="loading || page >= Math.ceil(total / pageSize)" @click="changePage(page + 1)">下一页</button>
+        <button :disabled="loading || page >= Math.ceil(total / pageSize)" @click="changePage(Math.ceil(total / pageSize))">末页</button>
+      </nav>
     </section>
   </div>
 
@@ -151,6 +174,7 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
       </div>
       <label class="field">来源<input v-model="editing.source" placeholder="出处 / 链接" /></label>
       <label class="field">备注<textarea v-model="editing.description" /></label>
+      <p v-if="editing.meta?.preview_note" role="status" class="notice">{{ editing.meta.preview_note }}；此处修改仅保存预览正文，不改写原文件。</p>
       <label v-if="!isFile && (editing.kind === 'novel' || editing.content)" class="field">正文<textarea v-model="editing.content" style="min-height:220px" /></label>
       <div v-if="editing.meta?.sd" class="card" style="background:var(--panel2)">
         <div class="row"><b>出图参数</b><span class="badge ai">{{ SOURCES[editing.meta.sd.source] ?? 'SD' }}</span><span v-if="editing.meta.sd.node_count" class="badge">{{ editing.meta.sd.node_count }} 个节点</span><span class="spacer" />

@@ -342,7 +342,7 @@ def list_jobs(kind: str | None = None) -> list[dict[str, Any]]:
 def get_job(job_id: str) -> dict[str, Any]:
     job = jobs.get(job_id)
     if not job:
-        raise HTTPException(404, "任务不存在（服务重启后任务记录会清空）")
+        raise HTTPException(404, "任务不存在或已超过历史保留数量")
     return job.to_dict()
 
 

@@ -2,11 +2,13 @@ name: Windows preview
 
 on:
   workflow_dispatch:
+  push:
+    tags: ['v*']
   pull_request:
     paths:
       - 'desktop/**'
-      - 'backend/front_api/desktop.py'
-      - 'backend/tests/test_desktop*.py'
+      - 'backend/**'
+      - 'frontend/**'
       - '.github/workflows/windows-preview.yml'
 
 permissions:
@@ -35,6 +37,8 @@ jobs:
             desktop/src-tauri/target
           key: ${{ runner.os }}-front-rust-${{ hashFiles('desktop/src-tauri/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-front-rust-
+      - name: Verify desktop version, tag and internal-only build policy
+        run: python desktop/artifact_integrity.py --source-check
       - name: Install build dependencies
         run: |
           python -m pip install -e "backend[dev]" -r desktop/requirements-build.txt
@@ -67,9 +71,11 @@ jobs:
           .cache/update-test-runtime/Scripts/python.exe desktop/test_updater.py .cache/updater-generated-tests
       - name: Build Tauri x64 NSIS installer
         working-directory: desktop
-        run: npm run build
+        run: npm run build -- --ci -- --locked
       - name: Package portable preview and hashes
         run: python desktop/package_portable.py
+      - name: Independently verify packaged files, CRC, hashes and manifest
+        run: python desktop/artifact_integrity.py .cache/desktop-stage/artifacts
       - name: Upload verified preview build
         uses: actions/upload-artifact@v4
         with:

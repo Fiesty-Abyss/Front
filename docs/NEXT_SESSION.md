@@ -81,3 +81,10 @@ C详情见 SIGNED_UPDATES_C.md；真实CLI签名/局部CA的HTTPS传输已过，
 PR #29 head f03d7bd，三个检查backend/frontend/windows-x64全部success，正常merge main2eccdb5；Windows run40111031814成功。A本机225后端/3前端/构建，OBJ30次和带贴图生成GLB10次/封面已验。后续branch`codex/desktop-startup-regression-b`，启动目录预检、损坏库明确错误、冻结回归脚本已写，源码真实HTTP矩阵已过。B全量、最终构建、PR和CI待更新。正式Web8000仍为稳定私有快照，不随测试分支改变。
 
 B本机最终验证：228项后端测试（84.44秒）、3项前端资源测试、生产构建（6.87秒）全部通过，串行执行。冻结Windows、原生错误对话框与安装矩阵仍以本PR CI和后续实际测试为准。
+
+
+## D交付检查点
+
+C PR #31已正常合并main4153e1e，三个CIsuccess；Windows235后端通过/1跳过、6项真实SDK与并发Rust回归通过，无实际安装。独立D分支codex/artifact-integrity-d增加动态版本、PE资源核对、内部BUILD清单、ZIP/CRC/已知私有路径防线和独立附件Hash复验，Tag仅构建内部附件；15项生成安全样本通过，完整测试/前端构建/PR CI待核对。正式Release/签名根/安装升级和二进制回滚仍未授权或未验收。E已在隔离缓存完成10k/50k/100k元数据基线，发现搜索1万截断、世界观扫描及大型收藏集全量返回问题，产品修复尚未提交；F全面UI仍待。
+
+D本机最终验证：251项后端（97.76秒）、3项前端资源测试、生产构建（7.07秒）通过；串行执行。既有预览真实ZIP/CRC/Hash/PE元数据复验通过，没有安装或公开发布。待独立PR的最终CI与正常合并。

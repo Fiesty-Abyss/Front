@@ -91,3 +91,8 @@
 2. 在获批准的干净Windows环境完成安装、更新、取消/离线、实际安装失败/中断和资料保留矩阵，区分“启动安装器失败”与“安装已部分执行”。
 3. 阶段D准备版本/产物/更新清单/Hash一致性及正式发布门槛。正式签名公钥、公私钥保管、Authenticode和公开Release的人工事项见[HUMAN_ACTIONS_REQUIRED](../../HUMAN_ACTIONS_REQUIRED.md)。
 4. 持续保留完整备份及隔离恢复；便携升级仍使用独立解压与外部资料保留，不强制覆盖活动文件。尚未验证二进制自动回滚，不以数据备份成功替代这一能力。
+
+
+## 最终CI结论
+
+PR #31 head fb8d6df，backend/frontend/windows-x64全部success，Windows run40119749727。正常合并main4153e1e。Windows后端235通过/1跳过；真实官方SDK/TLS/签名版本及取消竞态6项Rust测试全部通过（无ignored遗漏）。NSIS与便携包生成成功，未运行安装器、未发布Release。测试根公钥缺省None，正式更新保持关闭。

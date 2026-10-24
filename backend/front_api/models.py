@@ -48,6 +48,7 @@ def _tag_link(name: str, owner: str) -> Table:
 
 asset_tags = _tag_link("asset_tags", "asset")
 character_tags = _tag_link("character_tags", "character")
+oc_profile_tags = _tag_link('oc_profile_tags','oc_profile')
 world_tags = _tag_link("world_tags", "world")
 prompt_tags = _tag_link("prompt_tags", "prompt")
 sd_model_tags = _tag_link("sd_model_tags", "sd_model")
@@ -365,6 +366,24 @@ class Relation(TimestampMixin, Base):
     bidirectional: Mapped[bool] = mapped_column(Boolean, default=True)
     ai_suggested: Mapped[bool] = mapped_column(Boolean, default=False)
     confirmed: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class OCProfile(TimestampMixin, Base):
+    """Creative drafts linked to canonical encyclopedia characters, never file owners."""
+    __tablename__='oc_profiles'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    character_id: Mapped[int | None] = mapped_column(ForeignKey('characters.id',ondelete='SET NULL'),unique=True,index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    fields: Mapped[dict[str,str]] = mapped_column(JSON,default=dict)
+    designs: Mapped[list[dict]] = mapped_column(JSON,default=list)
+    references: Mapped[list[dict]] = mapped_column(JSON,default=list)
+    source: Mapped[str] = mapped_column(String(2000),default='')
+    cover_asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id',ondelete='SET NULL'))
+    favorite: Mapped[bool] = mapped_column(Boolean,default=False)
+    stars: Mapped[int] = mapped_column(Integer,default=0)
+    preference: Mapped[int] = mapped_column(Integer,default=0)
+    notes: Mapped[str] = mapped_column(Text,default='')
+    tags: Mapped[list[Tag]] = relationship(secondary=oc_profile_tags,lazy='selectin')
 
 
 class SDModel(TimestampMixin, Base):

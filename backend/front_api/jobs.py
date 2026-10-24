@@ -107,7 +107,11 @@ class Manager:
         self.save(job)
         try:
             job.check()
-            fn(job)
+            if job.kind in ('full-backup','backup-verify','full-restore'):
+                fn(job)
+            else:
+                from .maintenance import operation
+                with operation(job.check):fn(job)
             job.status = "cancelled" if job.cancel_requested else "done"
         except Cancelled:
             job.status = "cancelled"

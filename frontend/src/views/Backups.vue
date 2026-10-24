@@ -1,0 +1,27 @@
+<script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { api } from '../api'
+import JobProgress from '../components/JobProgress.vue'
+const restoreHistory=ref([])
+const items=ref([]),external=ref({items:[],total:0}),offset=ref(0),selected=ref([]),path=ref(''),job=ref(null),preview=ref(null),restored=ref(null),confirmed=ref(false),allowPartial=ref(false),error=ref(''),busy=ref(false)
+let disposed=false,timer
+onBeforeUnmount(()=>{disposed=true;clearTimeout(timer)})
+async function load(){const [a,b,c]=await Promise.all([api.get('/api/backups'),api.get('/api/backups/external',{limit:50,offset:offset.value}),api.get('/api/backups/restores')]);if(!disposed){items.value=a;external.value=b;restoreHistory.value=c}}
+onMounted(()=>run(load))
+async function run(fn){if(busy.value)return;busy.value=true;error.value='';try{await fn()}catch(e){if(!disposed)error.value=e.message}finally{if(!disposed&&!['queued','running'].includes(job.value?.status))busy.value=false}}
+async function poll(id,type){clearTimeout(timer);if(disposed)return;try{const value=await api.get(`/api/jobs/${id}`);if(disposed)return;job.value=value;if(['queued','running'].includes(value.status)){timer=setTimeout(()=>poll(id,type),700);return}busy.value=false;if(value.status==='done'){if(type==='preview')preview.value=value.result;if(type==='restore')restored.value=value.result;await load()}else error.value=value.result?.error||value.message||'任务未完成；已有数据保持不变'}catch(e){error.value=e.message;busy.value=false}}
+async function start(type){preview.value=type==='preview'?null:preview.value;confirmed.value=false;const url={create:'/api/backups',preview:'/api/backups/preview',restore:'/api/backups/restore'}[type];const data={create:{external_asset_ids:selected.value},preview:{path:path.value},restore:{path:path.value,confirmed:true,allow_partial:allowPartial.value}}[type];job.value=await api.post(url,data);await poll(job.value.id,type)}
+function use(row){path.value=row.path;preview.value=null;confirmed.value=false;restored.value=null}
+</script>
+<template><div class="grid backup-page">
+<p v-if="error" role="alert" class="notice">{{error}}</p>
+<p class="notice">备份包含私人资料与本机服务配置，请妥善保存。复制期间暂缓资料写入；默认不复制外部原件。恢复只创建全新独立副本，不覆盖当前数据库或源文件。</p>
+<div class="backup-grid"><section class="card grid"><h2>创建完整备份</h2><p>包含一致性SQLite快照、托管图片/附件/模型包、版本保留媒体、缩略图与任务历史。外部模型目录和原地索引会分开列为引用。</p>
+<details><summary>选择额外包含的外部素材（默认全不选）</summary><label v-for="f in external.items" :key="f.id" class="row"><input v-model="selected" type="checkbox" :value="f.id" :disabled="busy"/><span>{{f.title}} · #{{f.id}}<small class="source">{{f.path}}</small></span></label><div class="row"><button :disabled="busy||!offset" @click="offset-=50;run(load)">上一页</button><span>{{external.total}}项 · 已选{{selected.length}}</span><button :disabled="busy||offset+50>=external.total" @click="offset+=50;run(load)">下一页</button></div></details>
+<button class="primary" :disabled="busy" @click="run(()=>start('create'))">创建备份并校验Hash</button><JobProgress :job="job"/>
+<div class="backup-list"><article v-for="b in items" :key="b.id" class="card"><b>{{b.created_at}} · {{b.status}}</b><p>{{b.files}}个文件 · {{b.issues}}项诊断</p><p class="source">{{b.path}}</p><button :disabled="busy||!['complete','partial'].includes(b.status)" @click="use(b)">选择此备份进行恢复预览</button></article></div></section>
+<section class="card grid"><h2>恢复前预览与独立验证</h2><label class="field">本机备份文件夹<input v-model="path" :disabled="busy" @input="preview=null;confirmed=false" placeholder="包含manifest.json和front.db的文件夹"/></label><button :disabled="busy||!path" @click="run(()=>start('preview'))">校验备份并预览</button>
+<template v-if="preview"><p>状态：{{preview.status}} · {{preview.files}}文件 · {{(preview.bytes/1048576).toFixed(2)}} MiB</p><p>{{preview.credentials_notice}}</p><p v-for="(e,i) in preview.verification_issues" :key="'verify'+i" class="notice">{{e}}</p><details><summary>缺失、无法读取与变更报告（{{preview.source_issues.length}}）</summary><p v-for="(e,i) in preview.source_issues" :key="i" class="source">{{e.path}} · {{e.status}} {{e.error_type}}</p></details><details><summary>外部引用（{{preview.references.length}}，未包含项不会复制）</summary><p v-for="(r,i) in preview.references" :key="i" class="source">{{r.kind}} #{{r.id}} · {{r.path}} · {{r.included?'已包含副本':'仅路径引用'}} · {{r.exists?'备份时可访问':'备份时缺失'}}</p></details><label v-if="preview.status==='partial'" class="row"><input v-model="allowPartial" type="checkbox"/>明确接受已报告缺失项，仅恢复备份实际包含的数据</label><label class="row"><input v-model="confirmed" type="checkbox"/>确认在新目录创建恢复副本，当前资料保持不变</label><button class="primary" :disabled="busy||!confirmed||!preview.can_restore||(preview.status==='partial'&&!allowPartial)" @click="run(()=>start('restore'))">创建并验证恢复副本</button></template>
+<div v-if="restored" role="status" class="notice"><b>恢复副本验证通过</b><p class="source">{{restored.path}}</p><p>{{restored.next}}</p><p>该目录与当前实例独立。正式切换数据目录需要停止当前Front后重启；本页没有在线替换数据库。</p></div>
+<details><summary>持久恢复记录（{{restoreHistory.length}}）</summary><p v-for="r in restoreHistory" :key="r.path" class="source">{{r.status}} · {{r.path}} {{r.failure_type}}</p></details></section></div></div></template>
+<style scoped>.backup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}.backup-grid>*{min-width:0}h2{margin:0}.source{display:block;overflow-wrap:anywhere;font-size:12px}.row input[type=checkbox]{width:auto}.backup-list{display:grid;gap:8px;max-height:600px;overflow:auto}@media(max-width:900px){.backup-grid{grid-template-columns:minmax(0,1fr)}}</style>

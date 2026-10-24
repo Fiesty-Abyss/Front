@@ -42,6 +42,14 @@ def upgrade(engine: Engine) -> list[str]:
                 added.append(f"{table}.{column}")
         if "chat_messages.parent_id" in added:
             _link_linear_chats(conn)
+        # A rebuildable index only: no row, history or source-file changes.
+        # Measured 100k-record world queries otherwise scan the date index.
+        if insp.has_table("assets") and {"world_id", "work_date", "id"} <= {
+            c["name"] for c in inspect(conn).get_columns("assets")
+        }:
+            if "ix_assets_world_date_id" not in {i["name"] for i in inspect(conn).get_indexes("assets")}:
+                conn.execute(text("CREATE INDEX ix_assets_world_date_id ON assets(world_id, work_date, id)"))
+                added.append("index:ix_assets_world_date_id")
     return added
 
 

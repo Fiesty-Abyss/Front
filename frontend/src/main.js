@@ -33,6 +33,7 @@ const routes = [
   { path: '/lorebooks', component: () => import('./views/Lorebooks.vue'), meta: { title: '世界书' } },
   { path: '/extract', component: () => import('./views/Extract.vue'), meta: { title: '从小说抽取角色' } },
   { path: '/settings', component: () => import('./views/Settings.vue'), meta: { title: '设置' } },
+  { path: '/backups', component: () => import('./views/Backups.vue'), meta: { title: '完整备份与恢复' } },
   { path: '/tags', component: () => import('./views/Tags.vue'), meta: { title: '标签' } },
   { path: '/search', component: () => import('./views/Search.vue'), meta: { title: '搜索' } },
 ]

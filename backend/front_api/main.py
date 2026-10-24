@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
@@ -22,6 +22,7 @@ from .routers import projectpreview as projectpreview_router
 from .routers import projectarchive as projectarchive_router
 from .routers import versions as versions_router
 from .routers import extractionreview as extractionreview_router
+from .routers import backups as backups_router
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _hooks_installed = False
@@ -66,8 +67,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    @app.middleware('http')
+    async def backup_write_gate(request,call_next):
+        from . import maintenance
+        mutation=request.url.path.startswith('/api/') and request.method in ('POST','PUT','PATCH','DELETE')
+        if request.url.path.startswith('/api/jobs/') and request.url.path.endswith('/cancel'):mutation=False
+        if not mutation:return await call_next(request)
+        if not maintenance.begin():return JSONResponse({'detail':'正在创建一致性备份，资料写入暂缓；请备份结束后重试。'},status_code=423)
+        try:return await call_next(request)
+        finally:maintenance.end()
     for r in (
         system.router,
+        backups_router.router,
         exports.router,
         library.tag_extra, library.tags, library.works, library.worlds,
         encyclopedia.extra, encyclopedia.entries, encyclopedia.appearances,

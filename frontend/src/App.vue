@@ -20,7 +20,7 @@ const nav = [
   ['创作工作区', 'STUDIO', [['/project-preview', FolderInput, '项目预览'], ['/live2d', ScanSearch, 'Live2D Studio']]],
   ['AI 绘画', 'DRAW', [['/generate', WandSparkles, '出图'], ['/prompts', NotebookPen, '提示词库'], ['/snippets', Puzzle, '提示词片段'], ['/models', Box, 'SD 模型库']]],
   ['AI 角色', 'ROLEPLAY', [['/chat', MessageCircle, 'AI 对话'], ['/cards', IdCard, '角色卡'], ['/lorebooks', BookMarked, '世界书'], ['/extract', ScanSearch, '抽取角色']]],
-  ['系统', 'SYSTEM', [['/settings', Settings, '设置']]],
+  ['系统', 'SYSTEM', [['/backups', FolderInput, '备份与恢复'], ['/settings', Settings, '设置']]],
 ]
 const groupOf = (path) => nav.find(([, , items]) => items.some(([to]) => to !== '/' && path.startsWith(to)))?.[1] ?? (path === '/' ? 'LIBRARY' : '')
 

@@ -74,6 +74,7 @@ const role = (p) => [settings.value?.chat_provider_id === p.id && '对话', sett
   settings.value?.tagger_backend === 'vision' && settings.value?.vision_provider_id === p.id && '看图打标签'].filter(Boolean)
 </script>
 <template>
+  <p class="notice">需要可恢复的数据副本？<RouterLink to="/backups">完整媒体备份与恢复</RouterLink> 包含数据库和托管文件，默认不复制外部原件。</p>
   <section class="card grid" style="margin-bottom:14px">
     <h2 style="margin:0">数据导出</h2>
     <p class="small muted" style="margin:0">将全部世界观、角色、地点、组织、事件、物品、概念与关系说明导出为 Markdown ZIP，解压后打开 README.md 阅读。只导出已保存内容；图片、模型、笔记、角色卡和 API Key 不包含在内。这不是可还原的整库备份。</p>

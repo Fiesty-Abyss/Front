@@ -1,6 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 const WorldArchive=defineAsyncComponent(()=>import('../components/WorldArchive.vue'))
+const VersionPanel=defineAsyncComponent(()=>import('../components/VersionPanel.vue'))
 import { useRoute, useRouter } from 'vue-router'
 import { api, Characters, LABELS, thumb, WorldEntries, Worlds } from '../api'
 import EntryTree from '../components/EntryTree.vue'
@@ -133,6 +134,7 @@ const parentOptions = computed(() => {
         <label class="field">概要<textarea v-model="cur.summary" /></label>
         <label class="field">设定正文（Markdown，AI 关系识别会阅读这里）<textarea v-model="cur.content" style="min-height:200px" /></label>
         <TagPicker v-model="cur.tag_ids" />
+        <details v-if="cur.id"><summary>世界观设定版本与差异</summary><VersionPanel :key="cur.id" kind="world" :entity-id="cur.id" @restored="load().then(() => select(items.find(w => w.id === cur.id)))" /></details>
         <div v-if="cur.id">
           <div class="small muted" style="margin-bottom:6px">此世界观下的角色（{{ chars.length }}）</div>
           <div class="row"><RouterLink v-for="c in chars" :key="c.id" :to="`/characters/${c.id}`" class="chip">{{ c.name }}</RouterLink></div>

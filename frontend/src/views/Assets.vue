@@ -1,6 +1,7 @@
 <script setup>
 import AssetThumb from '../components/AssetThumb.vue'
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+const VersionPanel = defineAsyncComponent(() => import('../components/VersionPanel.vue'))
 import { useRoute, useRouter } from 'vue-router'
 import { api, Assets, fileUrl, FILE_KINDS, LABELS, Works, Worlds } from '../api'
 import Modal from '../components/Modal.vue'
@@ -187,6 +188,7 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
       </div>
       <p v-if="editing.id && !isFile" class="small muted">{{ editing.original_name }} · {{ editing.width ? `${editing.width}×${editing.height} · ` : '' }}{{ editing.size ? (editing.size / 1024).toFixed(1) + ' KB' : '' }} <span class="mono">{{ editing.sha256?.slice(0, 16) }}</span></p>
       <TagPicker v-model="editing.tag_ids" />
+      <details v-if="editing.id"><summary>版本记录与差异对比</summary><VersionPanel :key="editing.id" kind="asset" :entity-id="editing.id" @restored="open(editing); load()" /></details>
       <div v-if="editing.id && editing.width" class="card aitag">
         <div class="row"><b>AI 识别标签</b><span class="small muted">{{ taggerOn ? '结果按名称和别名对上已有标签，点击即可加上' : '未开启，可在设置页选择 WebUI Tagger 或视觉模型' }}</span><span class="spacer" />
           <button v-if="taggerOn" class="ghost small" :disabled="aiTags?.loading" @click="suggestTags">{{ aiTags?.loading ? '识别中…' : '识别' }}</button>
@@ -205,5 +207,7 @@ const years = computed(() => { const y = new Date().getFullYear(); return Array.
 </template>
 
 <style scoped>
+.with-filters > section { min-width: 0; }
+.seg { max-width: 100%; overflow-x: auto; }
 .aitag { background: var(--panel2); padding: 10px 12px; }
 </style>

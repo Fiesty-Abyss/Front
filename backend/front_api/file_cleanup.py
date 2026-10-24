@@ -19,6 +19,10 @@ def schedule_delete(session: Session, path: Path) -> None:
     resolved = path.resolve()
     if not resolved.is_relative_to(root) or resolved == root:
         return
+    from .models import RetainedMedia
+    from sqlalchemy import select
+    if session.connection().scalar(select(RetainedMedia.path).where(RetainedMedia.path == resolved.relative_to(root).as_posix())):
+        return
     transaction = session.get_nested_transaction() or session.get_transaction()
     if transaction is None:
         raise RuntimeError("File cleanup requires an active transaction")

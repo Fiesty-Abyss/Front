@@ -106,6 +106,8 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
     _,h=generation(session,kind,entity_id);check_latest(session,h,body.expected_latest)
     if 'world_id' in data and data['world_id']!=getattr(obj,'world_id',None):
         raise HTTPException(409,'历史世界观归属不同；请显式审核跨世界迁移，不自动恢复')
+    if isinstance(obj,m.OCProfile) and data.get('_oc_scope')!=v.payload(session,obj).get('_oc_scope'):
+        raise HTTPException(409,'角色的世界观/作品归属已变化，请明确审核，不自动恢复旧范围')
     for key,created_at in data.get('_references',{}).items():
         column=obj.__table__.c[key]
         for fk in column.foreign_keys:

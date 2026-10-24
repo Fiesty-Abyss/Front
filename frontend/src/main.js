@@ -9,6 +9,7 @@ const routes = [
   { path: '/', component: () => import('./views/Dashboard.vue'), meta: { title: '总览' } },
   { path: '/assets', component: () => import('./views/Assets.vue'), meta: { title: '素材库' } },
   { path: '/live2d', component: () => import('./views/Live2DStudio.vue'), meta: { title: 'Live2D Studio' } },
+  { path: '/oc', component: () => import('./views/OCStudio.vue'), meta: { title: 'OC Studio' } },
   { path: '/galgames', component: () => import('./views/Galgames.vue'), meta: { title: '游戏库' } },
   { path: '/galgames/:id', component: () => import('./views/GalgameDetail.vue'), meta: { title: '游戏库' } },
   { path: '/diagrams', component: () => import('./views/Diagrams.vue'), meta: { title: '图表画布' } },

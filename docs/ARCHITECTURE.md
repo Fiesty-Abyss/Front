@@ -245,3 +245,7 @@ frontend/
 docs/
   screenshots/     README 截图（仓库中唯一允许放图片的目录之一）
 ```
+
+## OC档案
+
+`OCProfile`只存创作字段/造型/资料引用；百科Character持有唯一世界观及作品归属，避免双写。`ocstudio`负责范围/引用身份/版本并发控制，复用versions而非第二套历史。`/api/oc/choices`只返回归属选择元数据，前端`/oc`动态导入。详见[OC_STUDIO](OC_STUDIO.md)。

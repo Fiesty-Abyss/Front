@@ -20,6 +20,7 @@ const routes = [
   { path: '/graph', component: () => import('./views/Graph.vue'), meta: { title: '关系网' } },
   { path: '/works', component: () => import('./views/Works.vue'), meta: { title: '作品 / CG' } },
   { path: '/import', component: () => import('./views/Import.vue'), meta: { title: '批量导入' } },
+  { path: '/project-preview', component: () => import('./views/ProjectPreview.vue'), meta: { title: '项目预览' } },
   { path: '/collections', component: () => import('./views/Collections.vue'), meta: { title: '收藏集' } },
   { path: '/read/:id', component: () => import('./views/Reader.vue'), meta: { title: '阅读', bare: true } },
   { path: '/chapters/:id', component: () => import('./views/ChapterEditor.vue'), meta: { title: '章节整理' } },

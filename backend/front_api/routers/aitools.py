@@ -26,9 +26,8 @@ router = APIRouter(tags=["AI 工具"])
 
 # ---------- 从小说抽取角色 ----------
 def _known(session: Session, world_id: int | None) -> dict[str, int]:
-    stmt = select(m.Character)
-    if world_id is not None:
-        stmt = stmt.where(m.Character.world_id == world_id)
+    # Unscoped extraction may see only unscoped characters, never every world.
+    stmt = select(m.Character).where(m.Character.world_id == world_id)
     out: dict[str, int] = {}
     for c in session.scalars(stmt).all():
         out[c.name] = c.id
@@ -41,8 +40,12 @@ def _known(session: Session, world_id: int | None) -> dict[str, int]:
 @router.post("/api/ai/extract/characters", status_code=202)
 def extract_characters(payload: s.ExtractRequest, session: Session = Depends(get_session),
                        provider: AIProvider = Depends(provider_dep)) -> dict[str, Any]:
+    if payload.world_id is not None:
+        get_or_404(session, m.World, payload.world_id)
     if payload.asset_id is not None:
         asset = get_or_404(session, m.Asset, payload.asset_id)
+        if asset.world_id is not None and asset.world_id != payload.world_id:
+            raise HTTPException(422, '小说与选定世界观不一致，请明确选择小说所属世界观')
         text, source = asset.content or "", asset.title
     else:
         text, source = payload.text or "", "粘贴的文本"
@@ -84,6 +87,12 @@ def extract_apply(payload: s.ExtractApply, session: Session = Depends(get_sessio
         get_or_404(session, m.World, payload.world_id)
     if payload.work_id is not None:
         get_or_404(session, m.Work, payload.work_id)
+    # Validate all selected IDs before applying any part of an edited AI batch.
+    for character in payload.characters:
+        if character.existing_id is not None:
+            existing = get_or_404(session, m.Character, character.existing_id)
+            if existing.world_id != payload.world_id:
+                raise HTTPException(422, '选中的已有角色不属于本次世界观；请重新审核匹配')
     tags = resolve_tags(session, payload.tag_ids)
     gender_tags = {t.name: t for t in session.scalars(select(m.Tag).where(m.Tag.category == "gender")).all()}
     by_name: dict[str, m.Character] = {}

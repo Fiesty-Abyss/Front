@@ -67,9 +67,9 @@ const version = __APP_VERSION__
         <div ref="pill" class="nav-pill" />
         <template v-for="[group, en, items] in nav" :key="group">
           <div class="nav-group">{{ group }} · {{ en }}</div>
-          <nav class="nav">
-            <RouterLink v-for="[to, icon, label] in items" :key="to" :to="to" :title="collapsed ? label : undefined">
-              <component :is="icon" class="ico" :size="17" :stroke-width="1.75" /><span class="lbl">{{ label }}</span>
+          <nav class="nav" :aria-label="group">
+            <RouterLink v-for="[to, icon, label] in items" :key="to" :to="to" :title="label" :aria-label="label">
+              <component :is="icon" aria-hidden="true" class="ico" :size="17" :stroke-width="1.75" /><span class="lbl">{{ label }}</span>
             </RouterLink>
           </nav>
         </template>
@@ -87,8 +87,8 @@ const version = __APP_VERSION__
     <main class="main">
       <div class="topbar">
         <div><div class="crumb">{{ groupOf($route.path) }}</div><h1>{{ $route.meta.title }}</h1></div>
-        <form class="searchbox" @submit.prevent="go">
-          <input ref="searchEl" v-model="q" placeholder="全文搜索：角色、世界观、小说正文、提示词…" />
+        <form class="searchbox" role="search" aria-label="全局搜索" @submit.prevent="go">
+          <input ref="searchEl" v-model="q" aria-label="全局搜索" placeholder="全文搜索：角色、世界观、小说正文、提示词…" />
           <kbd>{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
         </form>
       </div>
@@ -100,7 +100,7 @@ const version = __APP_VERSION__
     </main>
   </div>
   <Transition :css="false" @enter="enterToast" @leave="leaveToast">
-    <div v-if="toastState.msg" class="toast" :class="{ err: toastState.err }">{{ toastState.msg }}</div>
+    <div v-if="toastState.msg" :role="toastState.err ? 'alert' : 'status'" aria-atomic="true" class="toast" :class="{ err: toastState.err }">{{ toastState.msg }}</div>
   </Transition>
   <DesktopUpdateNotice v-if="isDesktop" />
 </template>

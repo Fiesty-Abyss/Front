@@ -13,6 +13,7 @@ import { guard, toast } from '../toast'
 const route = useRoute()
 const router = useRouter()
 const items = ref([])
+const initializing = ref(true), initializationError = ref('')
 const cur = ref(null)
 const chars = ref([])
 const entries = ref([])
@@ -23,7 +24,9 @@ const editingEntry = ref(null)
 const TABS = [['setting', '设定'], ['archive','项目档案'], ['location', '地点'], ['organization', '组织'], ['event', '时间线'], ['other', '物品 / 概念']]
 
 async function load() { items.value = (await Worlds.list({ limit: 500 })).items }
-onMounted(async () => {
+async function initialize() {
+  initializing.value = true; initializationError.value = ''
+  try {
   await load()
   let wantWorld = Number(route.query.id)
   if (!wantWorld && route.query.entry) wantWorld = (await WorldEntries.get(Number(route.query.entry)).catch(() => null))?.world_id
@@ -33,7 +36,10 @@ onMounted(async () => {
     const e = entries.value.find((x) => x.id === Number(route.query.entry))
     if (e) { tab.value = ['location', 'organization', 'event'].includes(e.kind) ? e.kind : 'other'; openEntry(e) }
   }
-})
+  } catch (e) { initializationError.value = e.message || '资料加载失败'; if (cur.value) toast(initializationError.value, true) }
+  finally { initializing.value = false }
+}
+onMounted(initialize)
 async function select(w) {
   cur.value = w ? { ...w, tag_ids: w.tags.map((t) => t.id) } : { name: '', summary: '', content: '', tag_ids: [] }
   if (!w) { tab.value = 'setting'; chars.value = []; entries.value = []; timeline.value = []; return }
@@ -116,7 +122,7 @@ const parentOptions = computed(() => {
 <template>
   <div class="grid world-layout">
     <aside class="card grid" style="align-content:start;gap:6px">
-      <button class="primary" @click="select(null)"><Ico g="＋" />新建世界观</button>
+      <button class="primary" :disabled="initializing" @click="select(null)"><Ico g="＋" />新建世界观</button>
       <div v-for="w in items" :key="w.id" class="card" style="cursor:pointer;padding:10px" :style="cur?.id === w.id ? { borderColor: 'var(--accent)' } : {}" @click="select(w)">
         <b>{{ w.name }}</b><div class="small muted">{{ w.summary?.slice(0, 40) }}</div>
       </div>
@@ -201,6 +207,9 @@ const parentOptions = computed(() => {
         <div v-if="!ofKind('other').length" class="card empty">还没有物品或概念</div>
       </div>
     </section>
+    <section v-else-if="initializing" class="card empty" role="status">正在读取资料…</section>
+    <section v-else-if="initializationError" class="card empty" role="alert"><p>{{ initializationError }}</p><button @click="initialize">重新加载</button></section>
+    <section v-else class="card empty"><h2>建立独立的世界观</h2><p>人物、地点、事件和素材可按世界观归档；也可先创建空白设定。</p><button class="primary" @click="select(null)">开始建立世界观</button></section>
   </div>
 
   <Modal v-if="editingEntry" :title="(editingEntry.id ? '编辑' : '新建') + LABELS.entryKind[editingEntry.kind]" @close="editingEntry = null">

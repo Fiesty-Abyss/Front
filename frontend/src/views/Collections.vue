@@ -82,7 +82,7 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
 </script>
 
 <template>
-  <div class="grid" style="grid-template-columns: 300px 1fr; align-items:start">
+  <div class="grid collections-layout">
     <aside class="card grid" style="gap:8px">
       <button class="primary" @click="create"><Ico g="＋" />新建收藏集</button>
       <p class="small muted" style="margin:0">拖动可调整收藏集顺序</p>
@@ -94,9 +94,9 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
       </div>
     </aside>
     <section v-if="cur" class="grid">
-      <div class="card row" style="flex-wrap:nowrap;align-items:flex-start">
+      <div class="card row collection-heading">
         <div class="avatar" style="width:150px;height:150px" :style="cur.effective_cover_id ? { backgroundImage: `url(${thumb(cur.effective_cover_id)})` } : {}" />
-        <div class="grid" style="flex:1">
+        <div class="grid collection-details">
           <div class="grid cols-2"><label class="field">名称<input v-model="cur.name" /></label><label class="field">关联作品<select v-model="cur.work_id"><option :value="null">无</option><option v-for="w in works" :key="w.id" :value="w.id">{{ w.title }}</option></select></label></div>
           <label class="field">说明<textarea v-model="cur.description" style="min-height:50px" /></label>
           <div class="row"><span class="small muted">封面：{{ cur.cover_asset_id ? '手动指定' : '自动（第一项）' }}</span><span class="spacer" /><button class="danger" @click="remove">删除收藏集</button><button class="primary" @click="saveMeta">保存</button></div>
@@ -132,3 +132,16 @@ const workName = (id) => works.value.find((w) => w.id === id)?.title
     <div class="row" style="margin-top:12px"><span class="muted">已选 {{ chosen.length }}</span><span class="spacer" /><button class="primary" :disabled="!chosen.length" @click="addChosen">加入</button></div>
   </Modal>
 </template>
+
+<style scoped>
+.collections-layout{grid-template-columns:300px minmax(0,1fr);align-items:start}
+.collections-layout>*{min-width:0}
+.collection-heading{flex-wrap:nowrap;align-items:flex-start}
+.collection-heading>.grid{min-width:0;flex:1}
+@media(max-width:900px){
+  .collections-layout{grid-template-columns:minmax(0,1fr)}
+  .collection-heading{flex-wrap:wrap}
+  .collection-heading>.grid{flex-basis:260px}
+  .collection-heading>.avatar{width:96px!important;height:96px!important}
+}
+</style>

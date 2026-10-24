@@ -5,6 +5,9 @@ from __future__ import annotations
 import io
 import re
 import zipfile
+import posixpath
+from html import unescape
+from urllib.parse import unquote
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
@@ -193,7 +196,7 @@ def _odf_text(z: zipfile.ZipFile) -> tuple[list[dict[str, str]], str]:
     return blocks, "\n".join(b["text"] for b in blocks)
 
 
-def _epub(z: zipfile.ZipFile) -> tuple[list[dict[str, str]], str, dict[str, Any]]:
+def _epub(z: zipfile.ZipFile, *, strict: bool = False) -> tuple[list[dict[str, str]], str, dict[str, Any]]:
     meta: dict[str, Any] = {}
     opf_name = next((n for n in z.namelist() if n.endswith(".opf")), None)
     order: list[str] = []
@@ -206,16 +209,20 @@ def _epub(z: zipfile.ZipFile) -> tuple[list[dict[str, str]], str, dict[str, Any]
             if k in ("title", "creator", "language", "publisher") and el.text:
                 meta.setdefault({"creator": "author"}.get(k, k), el.text.strip()[:200])
             if k == "item":
-                items[el.attrib.get("id")] = base + el.attrib.get("href", "")
+                items[el.attrib.get("id")] = posixpath.normpath(base + unquote(el.attrib.get("href", "").split('#')[0]))
             if k == "itemref" and el.attrib.get("idref") in items:
                 order.append(items[el.attrib["idref"]])
+    if strict and (not order or len(order) > 400):
+        raise ValueError('EPUB 无可读取 spine 或超过 400 条')
     texts = []
     for n in order[:400]:
         try:
             html = _read(z, n).decode("utf-8", errors="replace")
         except KeyError:
+            if strict:
+                raise ValueError('EPUB 正文引用缺失或超限') from None
             continue
-        texts.append(re.sub(r"\s+\n", "\n", re.sub(r"<[^>]+>", "", re.sub(r"</(p|h\d|div|br)>", "\n", html))).strip())
+        texts.append(unescape(re.sub(r"\s+\n", "\n", re.sub(r"<[^>]+>", "", re.sub(r"</(p|h\d|div|br)>", "\n", html))).strip()))
     body = "\n\n".join(t for t in texts if t)
     meta["chapters"] = len(order)
     return [{"type": "p", "text": p} for p in body.split("\n") if p.strip()][:300], body, meta

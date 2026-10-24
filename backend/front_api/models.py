@@ -153,6 +153,19 @@ class Live2DProfile(TimestampMixin, Base):
     notes: Mapped[str] = mapped_column(Text, default='')
 
 
+class ChapterRevision(Base):
+    """Append-only chapter plans. Parent uniqueness prevents concurrent lost updates."""
+    __tablename__ = 'chapter_revisions'
+    __table_args__ = (UniqueConstraint('asset_id', 'parent_revision'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey('assets.id', ondelete='CASCADE'), index=True)
+    parent_revision: Mapped[int] = mapped_column(Integer, default=0)
+    text_hash: Mapped[str] = mapped_column(String(64))
+    chapters: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    note: Mapped[str] = mapped_column(String(500), default='')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Collection(TimestampMixin, Base):
     """收藏集：把素材按主题或按作品归档。"""
 

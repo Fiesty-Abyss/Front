@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
+const ExtractionEvidence=defineAsyncComponent(()=>import('../components/ExtractionEvidence.vue'))
 import { useRoute, useRouter } from 'vue-router'
 import { api, Appearances, Assets, fileUrl, LABELS, thumb, Works } from '../api'
 import Markdown from '../components/Markdown.vue'
@@ -89,6 +90,7 @@ async function makeCard() {
           <h2 style="margin-top:0">设定</h2>
           <Markdown v-if="c.profile" :source="c.profile" />
           <div v-else class="empty">还没有详细设定</div>
+          <ExtractionEvidence kind="character" :entity-id="id"/>
         </div>
         <div class="card">
           <div class="row"><h2 style="margin:0">图集 · {{ d.gallery.length }}</h2><span class="spacer" /><button @click="openPicker"><Ico g="＋" />从素材库添加</button></div>

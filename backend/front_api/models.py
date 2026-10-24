@@ -206,6 +206,56 @@ class RetainedMedia(Base):
     path: Mapped[str] = mapped_column(String(500), primary_key=True)
 
 
+class ExtractionBatch(TimestampMixin, Base):
+    __tablename__ = 'extraction_batches'
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id',ondelete='SET NULL'),index=True)
+    asset_created_at: Mapped[str] = mapped_column(String(50))
+    world_id: Mapped[int | None] = mapped_column(ForeignKey('worlds.id',ondelete='SET NULL'),index=True)
+    work_id: Mapped[int | None] = mapped_column(ForeignKey('works.id',ondelete='SET NULL'),index=True)
+    revision: Mapped[int] = mapped_column(Integer)
+    text_hash: Mapped[str] = mapped_column(String(64))
+    chapter_indices: Mapped[list[int]] = mapped_column(JSON)
+    provider: Mapped[str] = mapped_column(String(300))
+    model: Mapped[str] = mapped_column(String(200))
+    endpoint_id: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20),default='queued')
+    job_id: Mapped[str | None] = mapped_column(String(12))
+
+
+class ExtractionUnit(Base):
+    __tablename__ = 'extraction_units'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    batch_id: Mapped[str] = mapped_column(ForeignKey('extraction_batches.id'),index=True)
+    chapter_index: Mapped[int] = mapped_column(Integer)
+    chapter_title: Mapped[str] = mapped_column(String(300))
+    start: Mapped[int] = mapped_column(Integer)
+    content: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20),default='queued')
+    result: Mapped[list[dict]] = mapped_column(JSON,default=list)
+    error: Mapped[str] = mapped_column(String(300),default='')
+
+
+class ExtractionApproval(Base):
+    __tablename__ = 'extraction_approvals'
+    __table_args__ = (UniqueConstraint('batch_id','candidate_name'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    batch_id: Mapped[str] = mapped_column(ForeignKey('extraction_batches.id'),index=True)
+    candidate_name: Mapped[str] = mapped_column(String(200))
+    character_id: Mapped[int | None] = mapped_column(ForeignKey('characters.id',ondelete='SET NULL'))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default=utcnow)
+
+
+class ExtractionEvidence(Base):
+    __tablename__ = 'extraction_evidence'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    batch_id: Mapped[str] = mapped_column(ForeignKey('extraction_batches.id'),index=True)
+    entity_kind: Mapped[str] = mapped_column(String(20))
+    entity_id: Mapped[int] = mapped_column(Integer,index=True)
+    entity_created_at: Mapped[str] = mapped_column(String(50))
+    evidence: Mapped[dict] = mapped_column(JSON)
+
+
 class WorldLabel(Base):
     __tablename__ = 'world_labels'
     __table_args__ = (UniqueConstraint('world_id','name'),)

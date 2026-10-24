@@ -613,6 +613,10 @@ class ExtractRequest(BaseModel):
     max_chunks: int = Field(default=20, ge=1, le=200)
     chunk_size: int = Field(default=3000, ge=500, le=20000)
     world_id: int | None = None
+    work_id: int | None = None
+    chapter_revision: int | None = None
+    chapter_indices: list[int] = Field(default_factory=list,max_length=5000)
+    confirm_send: bool = False
 
 
 class ExtractedRelation(BaseModel):

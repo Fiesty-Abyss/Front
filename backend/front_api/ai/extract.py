@@ -101,9 +101,9 @@ def parse(text: str) -> list[dict[str, Any]]:
 
 def merge(acc: list[dict[str, Any]], items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     def find(name: str, aliases: list[str]) -> dict[str, Any] | None:
-        names = {name, *aliases}
         for c in acc:
-            if names & {c["name"], *c["aliases"]}:
+            # An alias intersection is a review suggestion, never proof of identity.
+            if name == c['name']:
                 return c
         return None
 

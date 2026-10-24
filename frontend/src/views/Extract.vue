@@ -1,5 +1,7 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+const ConfirmedExtraction=defineAsyncComponent(()=>import('../components/ConfirmedExtraction.vue'))
+const legacy=ref(false)
 import { useRoute } from 'vue-router'
 import { api, Assets, LABELS, waitJob, Works, Worlds } from '../api'
 import JobProgress from '../components/JobProgress.vue'
@@ -62,6 +64,9 @@ async function apply() {
 }
 </script>
 <template>
+  <div class="row" style="margin-bottom:12px"><button @click="legacy=!legacy">{{legacy?'返回确认章节与证据审核':'旧版片段抽取（无章节证据保证）'}}</button></div>
+  <ConfirmedExtraction v-if="!legacy"/>
+  <template v-else>
   <div v-if="status && !status.available" class="notice" style="margin-bottom:14px">抽取角色需要先在 <RouterLink to="/settings">设置</RouterLink> 里配置 AI 对话服务。</div>
   <div class="grid" style="grid-template-columns: 320px 1fr; align-items:start">
     <section class="card grid" style="gap:10px">
@@ -105,6 +110,7 @@ async function apply() {
       </table>
     </section>
   </div>
+  </template>
 </template>
 <style scoped>
 .xtable { width: 100%; border-collapse: collapse; }

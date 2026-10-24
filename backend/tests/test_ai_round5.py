@@ -299,7 +299,9 @@ def test_chunking_and_parsing():
     assert items == [{"name": "甲", "aliases": ["小甲", "阿甲"], "gender": "male", "summary": "", "traits": [], "appearance": "", "relations": []}]
     acc = merge([], items)
     merge(acc, [{"name": "小甲", "aliases": [], "gender": "unknown", "summary": "更长的简介", "traits": ["勇敢"], "appearance": "", "relations": []}])
-    assert len(acc) == 1 and acc[0]["summary"] == "更长的简介" and acc[0]["mentions"] == 2
+    assert len(acc) == 2 and acc[0]['name'] == '甲' and acc[1]['name'] == '小甲'
+    merge(acc, [{"name":"甲","aliases":[],"gender":"unknown","summary":"明确同名观察","traits":[],"appearance":"","relations":[]}])
+    assert acc[0]['mentions']==2 and acc[0]['summary']=='明确同名观察'
     assert parse("不是 JSON") == []
 
 

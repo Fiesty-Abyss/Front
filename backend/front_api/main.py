@@ -21,6 +21,7 @@ from .routers import chapterplans as chapterplans_router
 from .routers import projectpreview as projectpreview_router
 from .routers import projectarchive as projectarchive_router
 from .routers import versions as versions_router
+from .routers import extractionreview as extractionreview_router
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _hooks_installed = False
@@ -39,6 +40,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     upgrade(engine)
     from .projectarchive import recover
     recover(engine)
+    from .extractionreview import recover as recover_extraction
+    recover_extraction(engine)
     ensure_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()
@@ -72,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         projectpreview_router.router,
         projectarchive_router.router,
         versions_router.router,
+        extractionreview_router.router,
         live2d.router,
         assets.files, assets.router,
         characters.characters, characters.relations, characters.graph,

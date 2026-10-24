@@ -8,7 +8,7 @@ import json
 import os
 import struct
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 MODEL_EXT = {".safetensors", ".ckpt", ".pt", ".pth", ".bin", ".gguf"}
 PREVIEW_SUFFIXES = (".preview.png", ".preview.jpg", ".preview.jpeg", ".preview.webp", ".png", ".jpg", ".jpeg", ".webp")
@@ -37,7 +37,7 @@ def read_safetensors_header(path: Path) -> tuple[int, dict[str, Any]]:
             if len(head) < 8:
                 return 0, {}
             (length,) = struct.unpack("<Q", head)
-            if length > 100 * 1024 * 1024 or length > path.stat().st_size:
+            if length > 16 * 1024 * 1024 or length + 8 > path.stat().st_size:
                 return 0, {}
             header = json.loads(fh.read(length))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
@@ -48,10 +48,12 @@ def read_safetensors_header(path: Path) -> tuple[int, dict[str, Any]]:
 def safetensors_metadata(path: Path) -> dict[str, str]:
     _, header = read_safetensors_header(path)
     meta = header.get("__metadata__") or {}
-    return {k: v for k, v in meta.items() if isinstance(v, str) and len(v) < 4000}
+    if not isinstance(meta, dict):
+        return {}
+    return {k: v for k, v in list(meta.items())[:64] if isinstance(v, str) and len(v) < 1000}
 
 
-def compute_hashes(path: Path) -> dict[str, str]:
+def compute_hashes(path: Path, check: Callable[[], None] = lambda: None) -> dict[str, str]:
     """一次读取算出常见的几种模型哈希：
     - SHA256：完整文件
     - AutoV1：A1111 旧版 model hash（1 MiB 偏移处 64 KiB 的 SHA256 前 8 位）
@@ -64,6 +66,7 @@ def compute_hashes(path: Path) -> dict[str, str]:
     pos = 0
     with path.open("rb") as fh:
         for chunk in iter(lambda: fh.read(4 * 1024 * 1024), b""):
+            check()
             full.update(chunk)
             if skip is not None:
                 end = pos + len(chunk)
@@ -92,6 +95,8 @@ def guess_base_model(meta: dict[str, Any]) -> str | None:
 
 
 def guess_kind(path: Path, root: Path, meta: dict[str, Any], size: int) -> str:
+    if meta.get("ss_network_module"):
+        return "lycoris" if "lycoris" in str(meta["ss_network_module"]).lower() else "lora"
     try:
         parts = [p.lower() for p in path.relative_to(root).parts[:-1]]
     except ValueError:
@@ -110,7 +115,7 @@ def find_preview(path: Path) -> Path | None:
     base = path.with_suffix("")
     for suf in PREVIEW_SUFFIXES:
         cand = Path(str(base) + suf)
-        if cand.is_file():
+        if cand.is_file() and not cand.is_symlink() and cand.resolve().parent == path.resolve().parent:
             return cand
     return None
 
@@ -120,13 +125,13 @@ def read_sidecars(path: Path) -> dict[str, Any]:
     base = path.with_suffix("")
     out: dict[str, Any] = {}
     info = Path(str(base) + ".civitai.info")
-    if info.is_file():
+    if info.is_file() and not info.is_symlink() and info.resolve().parent == path.resolve().parent and info.stat().st_size <= 2 * 1024 * 1024:
         try:
             out["civitai_info"] = json.loads(info.read_text("utf-8"))
         except (OSError, json.JSONDecodeError, UnicodeDecodeError):
             pass
     user = Path(str(base) + ".json")
-    if user.is_file():
+    if user.is_file() and not user.is_symlink() and user.resolve().parent == path.resolve().parent and user.stat().st_size <= 2 * 1024 * 1024:
         try:
             data = json.loads(user.read_text("utf-8"))
             if isinstance(data, dict):
@@ -136,7 +141,7 @@ def read_sidecars(path: Path) -> dict[str, Any]:
     return out
 
 
-def describe(path: Path, root: Path, *, with_hash: bool = False) -> dict[str, Any]:
+def describe(path: Path, root: Path, *, with_hash: bool = False, check: Callable[[], None] = lambda: None) -> dict[str, Any]:
     size = path.stat().st_size
     meta = safetensors_metadata(path) if path.suffix.lower() == ".safetensors" else {}
     side = read_sidecars(path)
@@ -154,20 +159,64 @@ def describe(path: Path, root: Path, *, with_hash: bool = False) -> dict[str, An
         "notes": user.get("description") or user.get("notes") or None,
         "preview": str(preview) if preview else None,
         "civitai_info": side.get("civitai_info"),
-        "hashes": compute_hashes(path) if with_hash else {},
+        "hashes": compute_hashes(path, check) if with_hash else {},
+        "diagnostics": diagnostics(path),
+        "compatibility": "unverified",
     }
     return item
 
 
-def iter_model_files(root: Path, recursive: bool = True) -> list[Path]:
+def model_roots(root: Path) -> list[Path]:
+    """Unwrap an archive's same-name wrapper; restrict software installs to asset folders."""
+    current = root
+    for _ in range(3):
+        child = current / current.name
+        if (current / 'models').is_dir() or not child.is_dir() or child.is_symlink():
+            break
+        current = child
+    if (current / 'models').is_dir():
+        return [p for p in (current / 'models', current / 'embeddings',
+                current / 'extensions/sd-webui-controlnet/models',
+                current / 'extensions/sd-webui-additional-networks/models') if p.is_dir()]
+    return [root]
+
+
+def iter_model_files(root: Path, recursive: bool = True, check: Callable[[], None] = lambda: None) -> list[Path]:
     files: list[Path] = []
-    walker = os.walk(root) if recursive else [(str(root), [], [p.name for p in root.iterdir() if p.is_file()])]
-    for dirpath, dirnames, filenames in walker:
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
-        for name in sorted(filenames):
-            p = Path(dirpath) / name
-            if p.suffix.lower() in MODEL_EXT:
-                files.append(p)
-                if len(files) >= MAX_FILES:
-                    return files
+    boundary = root.resolve()
+    for source in model_roots(root) if recursive else [root]:
+        walker = os.walk(source) if recursive else [(str(source), [], [p.name for p in source.iterdir() if p.is_file()])]
+        for dirpath, dirnames, filenames in walker:
+            check()
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith('.') and d not in ('venv', 'node_modules', '__pycache__')
+                                and not (Path(dirpath) / d).is_symlink() and (Path(dirpath) / d).resolve().is_relative_to(boundary))
+            for name in sorted(filenames):
+                p = Path(dirpath) / name
+                if p.suffix.lower() in MODEL_EXT and not p.is_symlink() and p.resolve().is_relative_to(boundary):
+                    files.append(p)
+                    if len(files) > MAX_FILES:
+                        raise ValueError('超过5000个模型文件，请选择更小的目录')
     return files
+
+
+def diagnostics(path: Path) -> list[str]:
+    """Header checks are not execution or a guarantee of engine compatibility."""
+    if path.suffix.lower() != '.safetensors':
+        return ['仅登记格式与元数据；未反序列化权重，架构与引擎兼容性待验证']
+    length, header = read_safetensors_header(path)
+    if not length:
+        return ['无效或超过16MiB限制的 safetensors 头部']
+    tensors = [v for k, v in header.items() if k != '__metadata__']
+    if not tensors:
+        return ['仅有元数据，未发现张量描述']
+    size = path.stat().st_size - 8 - length
+    for value in tensors:
+        if not isinstance(value, dict):
+            return ['张量描述结构异常']
+        offsets = value.get('data_offsets')
+        shape = value.get('shape')
+        if not isinstance(offsets, list) or len(offsets) != 2 or any(type(v) is not int for v in offsets) or not 0 <= offsets[0] <= offsets[1] <= size:
+            return ['张量数据偏移超出文件或格式异常']
+        if not isinstance(shape, list) or any(type(v) is not int or v < 0 for v in shape):
+            return ['张量形状异常']
+    return ['头部与偏移已检查；未加载张量，运行兼容性待验证']

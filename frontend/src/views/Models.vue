@@ -1,6 +1,6 @@
 <script setup>
 import QuickSearch from '../components/QuickSearch.vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, LABELS, SDModels, thumb, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
@@ -15,10 +15,15 @@ const items = ref([])
 const editing = ref(null)
 const busy = ref('')
 const job = ref(null)
-async function load() { items.value = (await SDModels.list({ ...f, limit: 500 })).items }
+const ModelProfile=defineAsyncComponent(()=>import('../components/ModelProfile.vue'))
+const page=ref(0), total=ref(0), reportId=ref(''), scanPage=ref(0)
+const lifecycle=new AbortController()
+onBeforeUnmount(()=>{clearTimeout(t);lifecycle.abort()})
+async function load() { const r=await SDModels.list({ ...f, limit: 50,offset:page.value*50 });items.value=r.items;total.value=r.total }
+watch(page,load)
 onMounted(async()=>{await load();if(route.query.id)await guard(async()=>edit(await SDModels.get(Number(route.query.id))))})
 let t
-watch(f, () => { clearTimeout(t); t = setTimeout(load, 200) }, { deep: true })
+watch(f, () => { clearTimeout(t); t = setTimeout(()=>{if(page.value)page.value=0;else load()}, 200) }, { deep: true })
 
 function edit(m) { editing.value = m ? { ...m, tag_ids: m.tags.map((x) => x.id) } : { name: '', kind: 'checkpoint', tag_ids: [], hashes: {}, civitai: {} } }
 async function inspect(hash) {
@@ -43,7 +48,7 @@ async function remove() {
 }
 async function hashOne() {
   busy.value = 'hash'
-  try { const r = await guard(() => api.post(`/api/sd-models/${editing.value.id}/hash`), '哈希已更新'); Object.assign(editing.value, { sha256: r.sha256, hashes: r.hashes, size: r.size }); load() } finally { busy.value = '' }
+  try {const id=editing.value.id;await runJob(`/api/model-assets/${id}/hash`);const r=await SDModels.get(id);if(editing.value?.id===id)Object.assign(editing.value,{sha256:r.sha256,hashes:r.hashes,size:r.size})} finally { busy.value = '' }
 }
 const civ = reactive({ overwrite: false, download_preview: true })
 async function civitaiOne() {
@@ -65,7 +70,7 @@ const fmt = (n) => (n ? (n / 1024 ** 3 >= 1 ? (n / 1024 ** 3).toFixed(2) + ' GB'
 
 // ---------- 扫描模型目录 ----------
 const scan = ref(null)
-const scanForm = reactive({ path: localStorage.getItem('front.modelDir') || '', recursive: true, compute_hash: true, import_previews: true })
+const scanForm = reactive({ path: localStorage.getItem('front.modelDir') || '', recursive: true, compute_hash: false, import_previews: true })
 const scanResult = ref(null)
 const picked = ref(new Set())
 function openScan() { scan.value = true; scanResult.value = null }
@@ -73,10 +78,17 @@ async function doScan() {
   localStorage.setItem('front.modelDir', scanForm.path)
   busy.value = 'scan'
   try {
-    scanResult.value = await guard(() => api.post('/api/sd-models/scan', { path: scanForm.path, recursive: scanForm.recursive }))
-    picked.value = new Set(scanResult.value.items.filter((i) => !i.existing_id).map((i) => i.local_path))
+    const task=await guard(() => api.post('/api/model-assets/scan', { path: scanForm.path, recursive: scanForm.recursive }))
+    job.value=task
+    await waitJob(task.id,x=>job.value=x,800,lifecycle.signal)
+    if(job.value.status!=='done')return
+    reportId.value=job.value.result.report_id;scanPage.value=0;picked.value=new Set()
+    await loadScan()
   } finally { busy.value = '' }
 }
+async function loadScan(){scanResult.value=await api.get(`/api/model-assets/reports/${reportId.value}`,{offset:scanPage.value*50,limit:50})}
+async function scanNext(delta){scanPage.value+=delta;await guard(loadScan)}
+function pickPage(){picked.value=new Set([...picked.value,...scanResult.value.items.filter(x=>!x.existing_id).map(x=>x.local_path)])}
 function toggle(p) { const s = new Set(picked.value); s.has(p) ? s.delete(p) : s.add(p); picked.value = s }
 async function register() {
   const files = [...picked.value]
@@ -100,7 +112,7 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
     <button class="primary" @click="edit(null)"><Ico g="＋" />登记模型</button>
   </div>
   <JobProgress v-if="job" :job="job" style="margin-bottom:12px" />
-  <div class="card" style="padding:0">
+  <div class="card model-table" style="padding:0">
     <table>
       <thead><tr><th style="width:56px" /><th>名称</th><th>类型</th><th>底模</th><th>触发词</th><th>哈希（AutoV2）</th><th>本地路径</th><th>大小</th><th>标签</th></tr></thead>
       <tbody>
@@ -118,6 +130,7 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
     </table>
     <div v-if="!items.length" class="empty">还没有登记模型，试试「扫描模型目录」</div>
   </div>
+  <div class="row" style="margin-top:10px"><span>共 {{total}} 项</span><button :disabled="!page" @click="page--">上一页</button><span>{{page+1}}</span><button :disabled="(page+1)*50>=total" @click="page++">下一页</button><RouterLink to="/oc">OC Studio</RouterLink><RouterLink to="/generate">图像生成</RouterLink></div>
 
   <Modal v-if="scan" title="扫描模型目录" @close="scan = null">
     <div class="grid">
@@ -139,14 +152,15 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
                 <td><span class="mono small">{{ it.relative }}</span><div v-if="it.civitai?.model_name" class="small" style="color:#7dd3fc">{{ it.civitai.model_name }} · {{ it.civitai.version_name }}</div><div v-else-if="it.trigger_words" class="small muted mono">{{ it.trigger_words }}</div></td>
                 <td><span class="badge">{{ LABELS.modelKind[it.kind] ?? it.kind }}</span></td>
                 <td class="small">{{ it.base_model }}</td>
-                <td class="small muted">{{ [it.preview && '预览图', it.civitai && '.civitai.info', it.notes && '说明'].filter(Boolean).join(' · ') || '—' }}</td>
+                <td class="small muted">{{it.diagnostics?.join('；')}}<div>{{ [it.preview && '预览图', it.notes && '说明'].filter(Boolean).join(' · ') }}</div></td>
                 <td class="small">{{ fmt(it.size) }}</td>
                 <td class="small"><span v-if="it.existing_id" class="muted">已登记</span><span v-else style="color:var(--accent2)">新</span></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="row"><span class="small muted">只登记勾选的 {{ picked.size }} 个；已登记的按路径或 SHA256 识别，自动跳过。</span><span class="spacer" /><button class="primary" :disabled="!picked.size" @click="register">登记 {{ picked.size }} 个模型</button></div>
+        <div class="row"><button :disabled="!scanPage" @click="scanNext(-1)">上一页</button><span>{{scanPage+1}}</span><button :disabled="(scanPage+1)*50>=scanResult.total" @click="scanNext(1)">下一页</button><button @click="pickPage">勾选本页新模型</button></div>
+        <div class="row"><span class="small muted">勾选 {{ picked.size }} 个；扫描不代表引擎兼容。大文件Hash在有限后台队列执行。</span><span class="spacer" /><button class="primary" :disabled="!picked.size" @click="register">登记 {{ picked.size }} 个模型</button></div>
       </template>
     </div>
   </Modal>
@@ -184,10 +198,12 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
       </div>
       <label class="field">备注<textarea v-model="editing.notes" /></label>
       <TagPicker v-model="editing.tag_ids" />
+      <ModelProfile v-if="editing.id" :key="editing.id" :model-id="editing.id"/>
       <div class="row"><button v-if="editing.id" class="danger" @click="remove">删除登记</button><span class="spacer" /><button class="primary" @click="save">保存</button></div>
     </div>
   </Modal>
 </template>
 <style scoped>
 .hashes, .civ { background: var(--panel2); padding: 10px 12px; display: grid; gap: 6px; }
+.model-table {max-width:100%;overflow-x:auto;min-width:0}
 </style>

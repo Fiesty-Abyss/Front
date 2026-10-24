@@ -113,6 +113,8 @@ def inspect_model_file(req: InspectRequest) -> dict[str, Any]:
         raise HTTPException(422, f"只支持模型文件: {', '.join(sorted(modelscan.MODEL_EXT))}")
     if not path.is_file():
         raise HTTPException(404, "文件不存在")
+    if req.compute_hash and path.stat().st_size > 64*1024*1024:
+        raise HTTPException(422, '大型模型请先登记，再使用后台哈希任务')
     info = modelscan.describe(path, path.parent, with_hash=req.compute_hash)
     info["sha256"] = info["hashes"]["SHA256"].lower() if info["hashes"] else None
     info["civitai"] = civitai.summarize(info.pop("civitai_info")) if info.get("civitai_info") else None

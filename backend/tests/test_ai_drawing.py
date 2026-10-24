@@ -66,7 +66,7 @@ def test_scan_model_folder(client, tmp_path):
     assert ink["civitai"]["model_name"] == "【示例】InkLine 线稿模型"
     lin = by["linxi_character_example.safetensors"]
     assert lin["kind"] == "lora" and lin["trigger_words"] == "linxi, lighthouse keeper uniform" and lin["base_model"] == "SDXL"
-    assert by["inkwash_style_example.safetensors"]["kind"] == "lora"  # 子文件夹 Lora/style
+    assert by["inkwash_style_example.safetensors"]["kind"] == "lycoris"  # Header identifies LyCORIS despite its Lora directory.
     assert {by["sdxl_vae_example.safetensors"]["kind"], by["4x_softedge_example.pth"]["kind"], by["badhand_example.pt"]["kind"]} == {"vae", "upscaler", "embedding"}
 
     job = wait_job(client, client.post("/api/sd-models/scan/run", json={"path": str(root), "compute_hash": True}).json())

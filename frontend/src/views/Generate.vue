@@ -88,7 +88,7 @@ async function submit() {
     try { workflow = JSON.parse(form.workflowText) } catch { return guard(() => Promise.reject(new Error('自定义工作流需要是 API 格式的 JSON'))) }
   }
   const body = {
-    backend: form.backend, prompt_id: form.prompt_id || null, title: form.title || null, positive: form.positive, negative: form.negative,
+    backend: form.backend, mapping_engine: form.mapping_engine || null, prompt_id: form.prompt_id || null, title: form.title || null, positive: form.positive, negative: form.negative,
     steps: form.steps, cfg: form.cfg, sampler: form.sampler || null, scheduler: form.scheduler || null, seed: Number(form.seed),
     width: form.width, height: form.height, clip_skip: form.clip_skip ? Number(form.clip_skip) : null, count: form.count,
     model_ids: form.model_ids, loras: form.loras, x: axisOut(ax.x), y: axisOut(ax.y), tag_ids: form.tag_ids, workflow,
@@ -142,6 +142,7 @@ async function submit() {
 
       <div class="card grid">
         <div class="row"><h2 style="margin:0">模型</h2><span class="small muted">选多个模型且没设 X 轴时，自动按模型横向对比（同一种子）</span></div>
+        <label class="field">模型名称映射<select v-model="form.mapping_engine"><option :value="null">使用登记文件名</option><option v-if="form.backend==='comfyui'" value="comfyui">ComfyUI 映射</option><template v-else><option value="webui">WebUI 映射</option><option value="forge">Forge 映射</option></template></select><span class="small muted">不复制权重，不修改外部搜索路径；未映射的模型沿用文件名。</span></label>
         <div class="row" style="gap:6px">
           <span v-for="m in checkpoints" :key="m.id" class="chip click" :class="{ on: form.model_ids.includes(m.id) }" @click="toggleIn(form.model_ids, m.id)">{{ m.name }}<span v-if="m.base_model" class="cat"> · {{ m.base_model }}</span></span>
           <span v-if="!checkpoints.length" class="small muted">还没有登记 Checkpoint，将使用后端当前加载的模型</span>

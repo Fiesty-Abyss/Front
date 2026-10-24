@@ -175,6 +175,37 @@ class ExternalAssetFile(Base):
     stamp: Mapped[list] = mapped_column(JSON)
 
 
+class VersionHead(Base):
+    """Opt-in histories; generation prevents SQLite reused IDs mixing histories."""
+    __tablename__ = 'version_heads'
+    kind: Mapped[str] = mapped_column(String(30), primary_key=True)
+    entity_id: Mapped[int] = mapped_column(primary_key=True)
+    generation: Mapped[str] = mapped_column(String(32))
+    present: Mapped[bool] = mapped_column(Boolean, default=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class VersionBlob(Base):
+    __tablename__ = 'version_blobs'
+    sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+
+
+class EntityVersion(Base):
+    __tablename__ = 'entity_versions'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    generation: Mapped[str] = mapped_column(String(32), index=True)
+    blob_sha: Mapped[str] = mapped_column(ForeignKey('version_blobs.sha256'))
+    note: Mapped[str] = mapped_column(String(500), default='')
+    source: Mapped[str] = mapped_column(String(100), default='manual')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RetainedMedia(Base):
+    __tablename__ = 'retained_media'
+    path: Mapped[str] = mapped_column(String(500), primary_key=True)
+
+
 class WorldLabel(Base):
     __tablename__ = 'world_labels'
     __table_args__ = (UniqueConstraint('world_id','name'),)

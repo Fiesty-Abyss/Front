@@ -20,6 +20,7 @@ from .routers import live2d
 from .routers import chapterplans as chapterplans_router
 from .routers import projectpreview as projectpreview_router
 from .routers import projectarchive as projectarchive_router
+from .routers import versions as versions_router
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _hooks_installed = False
@@ -70,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         chapterplans_router.router,
         projectpreview_router.router,
         projectarchive_router.router,
+        versions_router.router,
         live2d.router,
         assets.files, assets.router,
         characters.characters, characters.relations, characters.graph,

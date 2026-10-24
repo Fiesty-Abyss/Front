@@ -261,3 +261,7 @@ BonusArchive以Work ID关联任意作品与Galgame；BonusItem引用Asset/素材
 ### 模型资产覆盖层
 
 `SDModel`继续作为提示词/生成/OC统一引用；`sd_model_profiles`仅存个人偏好、扫描观测及各引擎名称映射。扫描报告归入既有project-previews完整备份范围，元数据预览和大文件Hash使用既有有限任务队列。映射不改变外部配置，运行验证单独标记。
+
+### Windows桌面Sidecar
+
+Tauri 2仅管理窗口、自有子进程及数据目录，公共Vue页面通过随机127.0.0.1端口加载同一FastAPI业务。桌面会话保护仅在desktop入口启用，不改变Web自托管入口。Python onedir资源、WebView缓存、数据库与素材目录分离；迁移复用完整备份/隔离恢复与既有upgrade，进程生命周期由Windows Job Object约束。

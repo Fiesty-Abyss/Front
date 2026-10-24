@@ -1,0 +1,7 @@
+{
+  "name": "front-desktop-build",
+  "private": true,
+  "version": "0.7.0-preview.1",
+  "scripts": {"build": "tauri build"},
+  "devDependencies": {"@tauri-apps/cli": "2.12.4"}
+}

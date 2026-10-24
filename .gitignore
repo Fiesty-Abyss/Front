@@ -49,3 +49,5 @@ frontend/dist/
 Thumbs.db
 .env
 .cache/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/

@@ -26,6 +26,7 @@ from ..filetypes.docs import render_pdf_page
 from ..filetypes.util import is_image
 from ..ingest import find_duplicate, ingest, make_thumb, thumb_path, write_thumb
 from ..pngmeta import read_png_text
+from ..file_cleanup import schedule_delete
 
 
 def _filters(stmt, request):
@@ -251,8 +252,8 @@ def _remove_files(session: Session, asset: m.Asset) -> None:
             select(func.count()).where(m.Asset.file_path == asset.file_path, m.Asset.id != asset.id)
         )
         if not others:
-            (get_settings().data_dir / asset.file_path).unlink(missing_ok=True)
-    _thumb_path(asset.id).unlink(missing_ok=True)
+            schedule_delete(session, get_settings().data_dir / asset.file_path)
+    schedule_delete(session, _thumb_path(asset.id))
 
 
 def install_delete_hook() -> None:
@@ -261,11 +262,13 @@ def install_delete_hook() -> None:
 
     @event.listens_for(m.Asset, "after_delete")
     def _after_delete(_mapper, _conn, target: m.Asset) -> None:
-        if target.file_path:
-            path = get_settings().data_dir / target.file_path
-            # after_delete 内不再查询；同哈希文件不会重复入库，因此路径唯一
-            path.unlink(missing_ok=True)
-        _thumb_path(target.id).unlink(missing_ok=True)
+        from sqlalchemy.orm import object_session
+
+        session = object_session(target)
+        if session is not None:
+            if target.file_path:
+                schedule_delete(session, get_settings().data_dir / target.file_path)
+            schedule_delete(session, _thumb_path(target.id))
 
 
 # ---------------- 小说：章节与阅读 ----------------

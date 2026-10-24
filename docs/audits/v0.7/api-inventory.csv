@@ -1,0 +1,228 @@
+method,path,tags,required_parameters
+GET,/api/health,系统,
+GET,/api/stats,系统,
+GET,/api/stats/activity,系统,
+GET,/api/search,系统,q
+POST,/api/search/rebuild,系统,
+GET,/api/exports/encyclopedia,数据导出,
+GET,/api/tags/usage,标签,
+GET,/api/tags/tree,标签,
+POST,/api/tags/{tag_id}/merge,标签,tag_id
+GET,/api/tags,标签,
+POST,/api/tags,标签,
+GET,/api/tags/{obj_id},标签,obj_id
+PATCH,/api/tags/{obj_id},标签,obj_id
+DELETE,/api/tags/{obj_id},标签,obj_id
+GET,/api/works,作品,
+POST,/api/works,作品,
+GET,/api/works/{obj_id},作品,obj_id
+PATCH,/api/works/{obj_id},作品,obj_id
+DELETE,/api/works/{obj_id},作品,obj_id
+GET,/api/worlds,世界观,
+POST,/api/worlds,世界观,
+GET,/api/worlds/{obj_id},世界观,obj_id
+PATCH,/api/worlds/{obj_id},世界观,obj_id
+DELETE,/api/worlds/{obj_id},世界观,obj_id
+GET,/api/worlds/{world_id}/timeline,角色百科,world_id
+PUT,/api/characters/{character_id}/gallery,角色百科,character_id
+POST,/api/characters/{character_id}/gallery,角色百科,character_id
+DELETE,/api/characters/{character_id}/gallery/{asset_id},角色百科,"character_id,asset_id"
+GET,/api/characters/{character_id}/detail,角色百科,character_id
+GET,/api/works/{work_id}/characters,角色百科,work_id
+GET,/api/world-entries,世界观条目,
+POST,/api/world-entries,世界观条目,
+GET,/api/world-entries/{obj_id},世界观条目,obj_id
+PATCH,/api/world-entries/{obj_id},世界观条目,obj_id
+DELETE,/api/world-entries/{obj_id},世界观条目,obj_id
+GET,/api/appearances,出场作品,
+POST,/api/appearances,出场作品,
+GET,/api/appearances/{obj_id},出场作品,obj_id
+PATCH,/api/appearances/{obj_id},出场作品,obj_id
+DELETE,/api/appearances/{obj_id},出场作品,obj_id
+PUT,/api/collections/order,收藏集,
+POST,/api/collections/{collection_id}/items,收藏集,collection_id
+DELETE,/api/collections/{collection_id}/items/{asset_id},收藏集,"collection_id,asset_id"
+PUT,/api/collections/{collection_id}/order,收藏集,collection_id
+GET,/api/collections,收藏集,
+POST,/api/collections,收藏集,
+GET,/api/collections/{obj_id},收藏集,obj_id
+PATCH,/api/collections/{obj_id},收藏集,obj_id
+DELETE,/api/collections/{obj_id},收藏集,obj_id
+POST,/api/import/scan,批量导入 / CG,
+POST,/api/import/run,批量导入 / CG,
+POST,/api/works/{work_id}/cg/regroup,批量导入 / CG,work_id
+GET,/api/works/{work_id}/cg,批量导入 / CG,work_id
+GET,/api/assets/stats/timeline,素材库,
+POST,/api/assets/upload,素材库,
+GET,/api/assets/{asset_id}/file,素材库,asset_id
+DELETE,/api/assets/{asset_id}/file,素材库,asset_id
+GET,/api/assets/{asset_id}/entry/{entry},素材库,"asset_id,entry"
+GET,/api/assets/{asset_id}/pdf/{page},素材库,"asset_id,page"
+PUT,/api/assets/{asset_id}/thumb,素材库,asset_id
+GET,/api/assets/{asset_id}/thumb,素材库,asset_id
+POST,/api/assets/{asset_id}/reanalyze,素材库,asset_id
+POST,/api/assets/reanalyze,素材库,
+GET,/api/assets/{asset_id}/chapters,素材库,asset_id
+GET,/api/assets/{asset_id}/chapters/{index},素材库,"asset_id,index"
+GET,/api/assets/{asset_id}/workflow,素材库,asset_id
+GET,/api/assets,素材库,
+POST,/api/assets,素材库,
+GET,/api/assets/{obj_id},素材库,obj_id
+PATCH,/api/assets/{obj_id},素材库,obj_id
+DELETE,/api/assets/{obj_id},素材库,obj_id
+GET,/api/characters,角色百科,
+POST,/api/characters,角色百科,
+GET,/api/characters/{obj_id},角色百科,obj_id
+PATCH,/api/characters/{obj_id},角色百科,obj_id
+DELETE,/api/characters/{obj_id},角色百科,obj_id
+GET,/api/relations,关系网,
+POST,/api/relations,关系网,
+GET,/api/relations/{obj_id},关系网,obj_id
+PATCH,/api/relations/{obj_id},关系网,obj_id
+DELETE,/api/relations/{obj_id},关系网,obj_id
+GET,/api/graph,关系网,
+PUT,/api/graph/layout,关系网,
+DELETE,/api/graph/layout,关系网,
+GET,/api/graph/export,关系网,
+POST,/api/sd-models/scan,AI 绘画工作流,
+POST,/api/sd-models/scan/run,AI 绘画工作流,
+POST,/api/sd-models/{model_id}/hash,AI 绘画工作流,model_id
+POST,/api/sd-models/hash-all,AI 绘画工作流,
+POST,/api/sd-models/{model_id}/civitai,AI 绘画工作流,model_id
+POST,/api/sd-models/civitai-all,AI 绘画工作流,
+POST,/api/prompt-snippets/compose,AI 绘画工作流,
+GET,/api/jobs,AI 绘画工作流,
+GET,/api/jobs/{job_id},AI 绘画工作流,job_id
+POST,/api/jobs/{job_id}/cancel,AI 绘画工作流,job_id
+GET,/api/generate/status,AI 绘画工作流,
+POST,/api/generate,AI 绘画工作流,
+GET,/api/prompts/{prompt_id}/batches,AI 绘画工作流,prompt_id
+GET,/api/prompts/{prompt_id}/xy,AI 绘画工作流,prompt_id
+GET,/api/prompt-snippets,提示词片段,
+POST,/api/prompt-snippets,提示词片段,
+GET,/api/prompt-snippets/{obj_id},提示词片段,obj_id
+PATCH,/api/prompt-snippets/{obj_id},提示词片段,obj_id
+DELETE,/api/prompt-snippets/{obj_id},提示词片段,obj_id
+GET,/api/prompts/{prompt_id}/compare,SD 模型库,prompt_id
+POST,/api/sd-models/inspect,SD 模型库,
+POST,/api/prompts/from-asset/{asset_id},SD 模型库,asset_id
+GET,/api/sd-models,SD 模型库,
+POST,/api/sd-models,SD 模型库,
+GET,/api/sd-models/{obj_id},SD 模型库,obj_id
+PATCH,/api/sd-models/{obj_id},SD 模型库,obj_id
+DELETE,/api/sd-models/{obj_id},SD 模型库,obj_id
+GET,/api/prompts,提示词库,
+POST,/api/prompts,提示词库,
+GET,/api/prompts/{obj_id},提示词库,obj_id
+PATCH,/api/prompts/{obj_id},提示词库,obj_id
+DELETE,/api/prompts/{obj_id},提示词库,obj_id
+GET,/api/generations,出图记录,
+POST,/api/generations,出图记录,
+GET,/api/generations/{obj_id},出图记录,obj_id
+PATCH,/api/generations/{obj_id},出图记录,obj_id
+DELETE,/api/generations/{obj_id},出图记录,obj_id
+POST,/api/cards/import,角色卡,
+GET,/api/cards/{card_id}/export.json,角色卡,card_id
+GET,/api/cards/{card_id}/export.png,角色卡,card_id
+POST,/api/cards/from-character/{character_id},角色卡,character_id
+GET,/api/cards,角色卡,
+POST,/api/cards,角色卡,
+GET,/api/cards/{obj_id},角色卡,obj_id
+PATCH,/api/cards/{obj_id},角色卡,obj_id
+DELETE,/api/cards/{obj_id},角色卡,obj_id
+POST,/api/ai/extract/characters,AI 工具,
+POST,/api/ai/extract/apply,AI 工具,
+GET,/api/search/semantic,AI 工具,q
+GET,/api/search/similar,AI 工具,"entity,id"
+GET,/api/search/semantic/status,AI 工具,
+POST,/api/search/semantic/index,AI 工具,
+GET,/api/ai/tagger/status,AI 工具,
+POST,/api/ai/tagger/assets/{asset_id},AI 工具,asset_id
+POST,/api/ai/tagger/run,AI 工具,
+GET,/api/ai/providers,设置,
+POST,/api/ai/providers,设置,
+GET,/api/ai/providers/{pid},设置,pid
+PATCH,/api/ai/providers/{pid},设置,pid
+DELETE,/api/ai/providers/{pid},设置,pid
+GET,/api/ai/providers/{pid}/models,设置,pid
+POST,/api/ai/providers/{pid}/test,设置,pid
+GET,/api/settings,设置,
+PATCH,/api/settings,设置,
+GET,/api/lorebooks,世界书,
+POST,/api/lorebooks,世界书,
+GET,/api/lorebooks/{book_id},世界书,book_id
+PATCH,/api/lorebooks/{book_id},世界书,book_id
+DELETE,/api/lorebooks/{book_id},世界书,book_id
+POST,/api/lorebooks/{book_id}/entries,世界书,book_id
+PATCH,/api/lore-entries/{entry_id},世界书,entry_id
+DELETE,/api/lore-entries/{entry_id},世界书,entry_id
+POST,/api/lorebooks/{book_id}/test,世界书,book_id
+POST,/api/lorebooks/import,世界书,
+GET,/api/lorebooks/{book_id}/export,世界书,book_id
+POST,/api/lorebooks/from-world/{world_id},世界书,world_id
+GET,/api/quick-search/sites,浏览器查询,
+PUT,/api/quick-search/sites,浏览器查询,
+POST,/api/quick-search/sites/reset,浏览器查询,
+GET,/api/quick-search,浏览器查询,q
+GET,/api/notes/tree,笔记本,
+POST,/api/notes/{note_id}/move,笔记本,note_id
+GET,/api/notes/{note_id}/refs,笔记本,note_id
+GET,/api/notes,笔记本,
+POST,/api/notes,笔记本,
+GET,/api/notes/{obj_id},笔记本,obj_id
+PATCH,/api/notes/{obj_id},笔记本,obj_id
+DELETE,/api/notes/{obj_id},笔记本,obj_id
+GET,/api/diagrams/templates,图表画布,
+GET,/api/diagrams/{diagram_id}/export,图表画布,diagram_id
+POST,/api/diagrams/import,图表画布,
+POST,/api/diagrams/{diagram_id}/duplicate,图表画布,diagram_id
+PUT,/api/diagrams/{diagram_id}/preview,图表画布,diagram_id
+GET,/api/diagrams/{diagram_id}/preview,图表画布,diagram_id
+DELETE,/api/diagrams/{diagram_id}/preview,图表画布,diagram_id
+GET,/api/diagrams,图表画布,
+POST,/api/diagrams,图表画布,
+GET,/api/diagrams/{obj_id},图表画布,obj_id
+PATCH,/api/diagrams/{obj_id},图表画布,obj_id
+DELETE,/api/diagrams/{obj_id},图表画布,obj_id
+GET,/api/galgames/meta/settings,游戏库,
+PUT,/api/galgames/meta/settings,游戏库,
+GET,/api/galgames/meta/search,游戏库,q
+POST,/api/galgames/meta/preview,游戏库,
+POST,/api/galgames/from-meta,游戏库,
+POST,/api/galgames/quick-add,游戏库,
+POST,/api/galgames/{gid}/refresh,游戏库,gid
+POST,/api/galgames/{gid}/match,游戏库,gid
+DELETE,/api/galgames/{gid}/sources/{source},游戏库,"gid,source"
+GET,/api/galgames/{gid}/cover,游戏库,gid
+POST,/api/galgames/{gid}/cover,游戏库,gid
+PUT,/api/galgames/{gid}/cover,游戏库,gid
+DELETE,/api/galgames/{gid}/cover,游戏库,gid
+POST,/api/galgames/{gid}/work,游戏库,gid
+POST,/api/galgames/{gid}/import-characters,游戏库,gid
+GET,/api/galgames/stats/summary,游戏库,
+GET,/api/galgames/{gid}/cg,游戏库,gid
+GET,/api/galgames/plays/summary,游戏库,
+GET,/api/galgames/{gid}/plays,游戏库,gid
+POST,/api/galgames/{gid}/plays,游戏库,gid
+DELETE,/api/galgames/plays/{pid},游戏库,pid
+POST,/api/galgames/bulk,游戏库,
+GET,/api/galgames/export/file,游戏库,
+GET,/api/galgames,游戏库,
+POST,/api/galgames,游戏库,
+GET,/api/galgames/{obj_id},游戏库,obj_id
+PATCH,/api/galgames/{obj_id},游戏库,obj_id
+DELETE,/api/galgames/{obj_id},游戏库,obj_id
+GET,/api/ai/status,AI 接口,
+GET,/api/ai/sessions,AI 接口,
+POST,/api/ai/sessions,AI 接口,
+GET,/api/ai/sessions/{session_id},AI 接口,session_id
+PATCH,/api/ai/sessions/{session_id},AI 接口,session_id
+DELETE,/api/ai/sessions/{session_id},AI 接口,session_id
+POST,/api/ai/sessions/{session_id}/select,AI 接口,session_id
+GET,/api/ai/sessions/{session_id}/context,AI 接口,session_id
+PATCH,/api/ai/messages/{message_id},AI 接口,message_id
+DELETE,/api/ai/messages/{message_id},AI 接口,message_id
+POST,/api/ai/sessions/{session_id}/generate,AI 接口,session_id
+POST,/api/ai/generations/{token}/stop,AI 接口,token
+POST,/api/ai/sessions/{session_id}/messages,AI 接口,session_id
+POST,/api/ai/worlds/{world_id}/suggest-relations,AI 接口,world_id

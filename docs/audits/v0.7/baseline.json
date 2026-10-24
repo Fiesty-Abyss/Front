@@ -1,0 +1,1041 @@
+{
+  "environment": {
+    "platform": "Windows",
+    "python": "3.13.9",
+    "sqlite": "3.50.4"
+  },
+  "method": "Generated fixtures; in-process ASGI timings, 15 sequential samples; no TCP/browser latency. Large upload memory uses tracemalloc (Python allocations, not RSS). Not real production assets or GPU validation.",
+  "empty_app_creation_ms": 57.32,
+  "seed_refs": {
+    "world_id": 1,
+    "card_id": 1,
+    "prompt_id": 1,
+    "batches": [
+      "3d20a0c78211",
+      "94c522fc8aa1"
+    ],
+    "chat_id": 1,
+    "lorebook_id": 1,
+    "galgames": {
+      "sakura": 1,
+      "fog": 2,
+      "star": 3,
+      "summer": 4,
+      "night": 5,
+      "unmatched": 6
+    }
+  },
+  "generated_files": [
+    {
+      "name": "lighthouse.glb",
+      "status": 201,
+      "id": 37,
+      "kind": "model3d",
+      "width": null,
+      "meta": {
+        "format": "glTF 二进制",
+        "previewable": true,
+        "generator": "Front 示例生成器",
+        "gltf_version": "2.0",
+        "meshes": 1,
+        "materials": 6,
+        "nodes": 1,
+        "vertices": 300,
+        "triangles": 288,
+        "ext": "glb",
+        "thumb": false
+      }
+    },
+    {
+      "name": "keeper.vrm",
+      "status": 201,
+      "id": 38,
+      "kind": "model3d",
+      "width": null,
+      "meta": {
+        "format": "VRM 1.0",
+        "previewable": true,
+        "generator": "Front 示例生成器",
+        "gltf_version": "2.0",
+        "meshes": 1,
+        "materials": 6,
+        "nodes": 1,
+        "vertices": 300,
+        "triangles": 288,
+        "extensions": [
+          "VRMC_vrm"
+        ],
+        "vrm_meta": {
+          "vrm": "1.0",
+          "name": "【示例】灯塔守望者（VRM 元数据演示）",
+          "model_version": "1.0",
+          "authors": [
+            "Front 示例生成器"
+          ],
+          "license_url": "https://vrm.dev/licenses/1.0/",
+          "avatar_permission": "everyone",
+          "commercial_usage": "personalNonProfit",
+          "allow_redistribution": false,
+          "modification": "prohibited",
+          "credit_notation": "required"
+        },
+        "ext": "vrm",
+        "thumb": false
+      }
+    },
+    {
+      "name": "lighthouse.obj",
+      "status": 201,
+      "id": 39,
+      "kind": "model3d",
+      "width": null,
+      "meta": {
+        "format": "Wavefront OBJ",
+        "previewable": true,
+        "vertices": 204,
+        "faces": 192,
+        "groups": 6,
+        "mtllib": [
+          "lighthouse.mtl"
+        ],
+        "materials": 6,
+        "note": "材质文件（.mtl）和贴图不在一起时只显示白模；打包成 zip 可以带上材质",
+        "ext": "obj",
+        "thumb": false
+      }
+    },
+    {
+      "name": "lantern.zip",
+      "status": 201,
+      "id": 40,
+      "kind": "model3d",
+      "width": null,
+      "meta": {
+        "format": "MMD PMX",
+        "previewable": true,
+        "pmx_version": 2.0,
+        "model_name": "【示例】灯笼",
+        "model_name_en": "Sample Lantern",
+        "comment": "Front 示例生成器制作的演示模型。",
+        "comment_en": "Generated sample model.",
+        "vertices": 6,
+        "triangles": 8,
+        "textures": [
+          "tex/lantern.png"
+        ],
+        "materials": 1,
+        "material_names": [
+          "灯笼"
+        ],
+        "bones": 1,
+        "bundle": true,
+        "main": "灯笼/【示例】灯笼.pmx",
+        "root": "灯笼",
+        "files": 3,
+        "missing": [],
+        "ext": "zip",
+        "thumb": false
+      }
+    },
+    {
+      "name": "live2d.zip",
+      "status": 201,
+      "id": 41,
+      "kind": "live2d",
+      "width": null,
+      "meta": {
+        "bundle": true,
+        "main": "sample_live2d/sample.model3.json",
+        "root": "sample_live2d",
+        "physics": true,
+        "pose": false,
+        "display_info": true,
+        "user_data": false,
+        "groups": {
+          "EyeBlink": 2,
+          "LipSync": 1
+        },
+        "hit_areas": [
+          "头",
+          "身体"
+        ],
+        "cubism": "Cubism 4.0（moc3 v3）",
+        "moc": "sample_live2d/sample.moc3",
+        "textures": [
+          {
+            "path": "sample_live2d/sample.2048/texture_00.png",
+            "size": "256×256"
+          },
+          {
+            "path": "sample_live2d/sample.2048/texture_01.png",
+            "size": "256×256"
+          }
+        ],
+        "motions": {
+          "Idle": 2,
+          "TapBody": 1
+        },
+        "motion_files": {
+          "Idle": [
+            "sample_live2d/motion/idle_01.motion3.json",
+            "sample_live2d/motion/idle_02.motion3.json"
+          ],
+          "TapBody": [
+            "sample_live2d/motion/tap.motion3.json"
+          ]
+        },
+        "expressions": [
+          "微笑",
+          "惊讶"
+        ],
+        "missing": [],
+        "files": 11,
+        "ext": "zip",
+        "thumb": true
+      }
+    },
+    {
+      "name": "note.docx",
+      "status": 201,
+      "id": 42,
+      "kind": "document",
+      "width": null,
+      "meta": {
+        "format": "Word 文档",
+        "title": "Audit",
+        "author": "Front 示例生成器",
+        "created": "2026-10-17T08:00:00Z",
+        "preview": [
+          {
+            "type": "p",
+            "text": "Generated document"
+          }
+        ],
+        "ext": "docx",
+        "thumb": true
+      }
+    },
+    {
+      "name": "reading.pdf",
+      "status": 201,
+      "id": 43,
+      "kind": "pdf",
+      "width": null,
+      "meta": {
+        "pages": 1,
+        "title": "Audit",
+        "author": "Front sample generator",
+        "created": "2026-10-17",
+        "page_size": "210×297 mm",
+        "ext": "pdf",
+        "thumb": true
+      }
+    },
+    {
+      "name": "music.wav",
+      "status": 201,
+      "id": 44,
+      "kind": "audio",
+      "width": null,
+      "meta": {
+        "duration": 1.0,
+        "bitrate": 353,
+        "samplerate": 22050,
+        "channels": 1,
+        "bitdepth": 16,
+        "ext": "wav",
+        "thumb": false
+      }
+    },
+    {
+      "name": "novel.txt",
+      "status": 201,
+      "id": 45,
+      "kind": "novel",
+      "width": null,
+      "meta": {}
+    },
+    {
+      "name": "note.md",
+      "status": 201,
+      "id": 46,
+      "kind": "novel",
+      "width": null,
+      "meta": {}
+    },
+    {
+      "name": "drawing.svg",
+      "status": 201,
+      "id": 47,
+      "kind": "code",
+      "width": null,
+      "meta": {
+        "language": "xml",
+        "lines": 1,
+        "truncated": false,
+        "ext": "svg",
+        "thumb": false
+      }
+    },
+    {
+      "name": "broken.glb",
+      "status": 201,
+      "id": 48,
+      "kind": "model3d",
+      "width": null,
+      "meta": {
+        "format": "glTF 二进制",
+        "previewable": true,
+        "error": "ValueError: 不是 GLB 文件",
+        "ext": "glb",
+        "thumb": false
+      }
+    },
+    {
+      "name": "image.png",
+      "status": 201,
+      "id": 49,
+      "kind": "drawing",
+      "width": 80,
+      "meta": {}
+    },
+    {
+      "name": "image.jpg",
+      "status": 201,
+      "id": 50,
+      "kind": "drawing",
+      "width": 80,
+      "meta": {}
+    },
+    {
+      "name": "image.webp",
+      "status": 201,
+      "id": 51,
+      "kind": "drawing",
+      "width": 80,
+      "meta": {}
+    },
+    {
+      "name": "image.gif",
+      "status": 201,
+      "id": 52,
+      "kind": "drawing",
+      "width": 80,
+      "meta": {}
+    }
+  ],
+  "api_timings": {
+    "/api/stats": {
+      "status": 200,
+      "bytes": 401,
+      "median_ms": 2.41,
+      "p95_ms": 7.06
+    },
+    "/api/assets?limit=200": {
+      "status": 200,
+      "bytes": 1309993,
+      "median_ms": 9.92,
+      "p95_ms": 11.27
+    },
+    "/api/assets?limit=200&offset=200": {
+      "status": 200,
+      "bytes": 1709624,
+      "median_ms": 10.28,
+      "p95_ms": 11.7
+    },
+    "/api/search?q=审计": {
+      "status": 200,
+      "bytes": 3441,
+      "median_ms": 1.44,
+      "p95_ms": 2.29
+    },
+    "/api/notes/tree": {
+      "status": 200,
+      "bytes": 2,
+      "median_ms": 1.59,
+      "p95_ms": 2.81
+    },
+    "/api/graph": {
+      "status": 200,
+      "bytes": 2083,
+      "median_ms": 2.26,
+      "p95_ms": 4.04
+    },
+    "/api/diagrams": {
+      "status": 200,
+      "bytes": 910,
+      "median_ms": 2.3,
+      "p95_ms": 4.25
+    },
+    "/api/galgames": {
+      "status": 200,
+      "bytes": 8816,
+      "median_ms": 2.53,
+      "p95_ms": 4.27
+    },
+    "/api/prompts/1/compare": {
+      "status": 200,
+      "bytes": 24247,
+      "median_ms": 7.34,
+      "p95_ms": 8.61
+    }
+  },
+  "large_upload": {
+    "bytes": 35651584,
+    "status": 201,
+    "elapsed_ms": 125.63,
+    "python_peak_bytes": 107010816
+  },
+  "stats": {
+    "version": "0.6.4",
+    "data_dir": "<isolated audit data>",
+    "assets": 2053,
+    "asset_kinds": {
+      "ai_image": 13,
+      "audio": 1,
+      "cg": 10,
+      "code": 1,
+      "document": 1,
+      "drawing": 14,
+      "live2d": 1,
+      "material": 1,
+      "model3d": 5,
+      "novel": 504,
+      "other": 1,
+      "pdf": 1,
+      "reference": 1500
+    },
+    "characters": 8,
+    "notes": 0,
+    "diagrams": 3,
+    "galgames": 6,
+    "worlds": 1,
+    "works": 5,
+    "relations": 6,
+    "prompts": 2,
+    "sd_models": 3,
+    "cards": 1,
+    "collections": 4,
+    "tags": 18
+  },
+  "delete_rollback_probe": {
+    "row_restored": true,
+    "file_preserved": true
+  },
+  "operation_count": 227,
+  "database": {
+    "integrity_check": "ok",
+    "foreign_key_check": [],
+    "tables": [
+      [
+        "ai_providers"
+      ],
+      [
+        "app_settings"
+      ],
+      [
+        "appearances"
+      ],
+      [
+        "asset_tags"
+      ],
+      [
+        "assets"
+      ],
+      [
+        "character_assets"
+      ],
+      [
+        "character_cards"
+      ],
+      [
+        "character_tags"
+      ],
+      [
+        "characters"
+      ],
+      [
+        "chat_messages"
+      ],
+      [
+        "chat_sessions"
+      ],
+      [
+        "collection_assets"
+      ],
+      [
+        "collections"
+      ],
+      [
+        "diagram_tags"
+      ],
+      [
+        "diagrams"
+      ],
+      [
+        "embeddings"
+      ],
+      [
+        "entry_characters"
+      ],
+      [
+        "galgame_plays"
+      ],
+      [
+        "galgame_tags"
+      ],
+      [
+        "galgames"
+      ],
+      [
+        "generations"
+      ],
+      [
+        "graph_layouts"
+      ],
+      [
+        "lore_entries"
+      ],
+      [
+        "lorebooks"
+      ],
+      [
+        "note_tags"
+      ],
+      [
+        "notes"
+      ],
+      [
+        "prompt_snippet_tags"
+      ],
+      [
+        "prompt_snippets"
+      ],
+      [
+        "prompt_tags"
+      ],
+      [
+        "prompts"
+      ],
+      [
+        "relations"
+      ],
+      [
+        "sd_model_tags"
+      ],
+      [
+        "sd_models"
+      ],
+      [
+        "search_index"
+      ],
+      [
+        "search_index_config"
+      ],
+      [
+        "search_index_content"
+      ],
+      [
+        "search_index_data"
+      ],
+      [
+        "search_index_docsize"
+      ],
+      [
+        "search_index_idx"
+      ],
+      [
+        "tags"
+      ],
+      [
+        "work_tags"
+      ],
+      [
+        "works"
+      ],
+      [
+        "world_entries"
+      ],
+      [
+        "world_entry_tags"
+      ],
+      [
+        "world_tags"
+      ],
+      [
+        "worlds"
+      ]
+    ],
+    "indexes": [
+      [
+        "ix_appearances_character_id",
+        "appearances"
+      ],
+      [
+        "ix_assets_kind",
+        "assets"
+      ],
+      [
+        "ix_assets_sha256",
+        "assets"
+      ],
+      [
+        "ix_assets_title",
+        "assets"
+      ],
+      [
+        "ix_assets_work_date",
+        "assets"
+      ],
+      [
+        "ix_characters_name",
+        "characters"
+      ],
+      [
+        "ix_chat_messages_parent_id",
+        "chat_messages"
+      ],
+      [
+        "ix_diagrams_title",
+        "diagrams"
+      ],
+      [
+        "ix_embeddings_entity",
+        "embeddings"
+      ],
+      [
+        "ix_embeddings_model",
+        "embeddings"
+      ],
+      [
+        "ix_galgame_plays_galgame_id",
+        "galgame_plays"
+      ],
+      [
+        "ix_galgame_plays_played_on",
+        "galgame_plays"
+      ],
+      [
+        "ix_galgames_status",
+        "galgames"
+      ],
+      [
+        "ix_galgames_title",
+        "galgames"
+      ],
+      [
+        "ix_generations_batch",
+        "generations"
+      ],
+      [
+        "ix_lore_entries_lorebook_id",
+        "lore_entries"
+      ],
+      [
+        "ix_lorebooks_world_id",
+        "lorebooks"
+      ],
+      [
+        "ix_notes_parent_id",
+        "notes"
+      ],
+      [
+        "ix_notes_title",
+        "notes"
+      ],
+      [
+        "ix_prompt_snippets_category",
+        "prompt_snippets"
+      ],
+      [
+        "ix_prompt_snippets_title",
+        "prompt_snippets"
+      ],
+      [
+        "ix_prompts_title",
+        "prompts"
+      ],
+      [
+        "ix_sd_models_name",
+        "sd_models"
+      ],
+      [
+        "ix_tags_category",
+        "tags"
+      ],
+      [
+        "ix_works_title",
+        "works"
+      ],
+      [
+        "ix_world_entries_kind",
+        "world_entries"
+      ],
+      [
+        "ix_world_entries_world_id",
+        "world_entries"
+      ],
+      [
+        "ix_worlds_name",
+        "worlds"
+      ],
+      [
+        "sqlite_autoindex_app_settings_1",
+        "app_settings"
+      ],
+      [
+        "sqlite_autoindex_appearances_1",
+        "appearances"
+      ],
+      [
+        "sqlite_autoindex_asset_tags_1",
+        "asset_tags"
+      ],
+      [
+        "sqlite_autoindex_character_assets_1",
+        "character_assets"
+      ],
+      [
+        "sqlite_autoindex_character_tags_1",
+        "character_tags"
+      ],
+      [
+        "sqlite_autoindex_collection_assets_1",
+        "collection_assets"
+      ],
+      [
+        "sqlite_autoindex_diagram_tags_1",
+        "diagram_tags"
+      ],
+      [
+        "sqlite_autoindex_embeddings_1",
+        "embeddings"
+      ],
+      [
+        "sqlite_autoindex_entry_characters_1",
+        "entry_characters"
+      ],
+      [
+        "sqlite_autoindex_galgame_tags_1",
+        "galgame_tags"
+      ],
+      [
+        "sqlite_autoindex_graph_layouts_1",
+        "graph_layouts"
+      ],
+      [
+        "sqlite_autoindex_note_tags_1",
+        "note_tags"
+      ],
+      [
+        "sqlite_autoindex_prompt_snippet_tags_1",
+        "prompt_snippet_tags"
+      ],
+      [
+        "sqlite_autoindex_prompt_tags_1",
+        "prompt_tags"
+      ],
+      [
+        "sqlite_autoindex_sd_model_tags_1",
+        "sd_model_tags"
+      ],
+      [
+        "sqlite_autoindex_tags_1",
+        "tags"
+      ],
+      [
+        "sqlite_autoindex_work_tags_1",
+        "work_tags"
+      ],
+      [
+        "sqlite_autoindex_world_entry_tags_1",
+        "world_entry_tags"
+      ],
+      [
+        "sqlite_autoindex_world_tags_1",
+        "world_tags"
+      ]
+    ]
+  },
+  "bundle": [
+    {
+      "name": "ModelViewer-DHpXvpZm.js",
+      "bytes": 892483,
+      "gzip_bytes": 228405
+    },
+    {
+      "name": "Notes-Bk4G7olZ.js",
+      "bytes": 699630,
+      "gzip_bytes": 246215
+    },
+    {
+      "name": "Graph-B8pojiTf.js",
+      "bytes": 452885,
+      "gzip_bytes": 145355
+    },
+    {
+      "name": "DiagramEditor-P5m01oZw.js",
+      "bytes": 279160,
+      "gzip_bytes": 89825
+    },
+    {
+      "name": "index-BRjpu6Z5.js",
+      "bytes": 211415,
+      "gzip_bytes": 79491
+    },
+    {
+      "name": "CodeView-DjEMrgPx.js",
+      "bytes": 165571,
+      "gzip_bytes": 54794
+    },
+    {
+      "name": "Markdown-CXjT2PiF.js",
+      "bytes": 94192,
+      "gzip_bytes": 38313
+    },
+    {
+      "name": "Assets-CgPbUF1l.js",
+      "bytes": 33311,
+      "gzip_bytes": 12257
+    },
+    {
+      "name": "GalgameDetail-Dp19AlSQ.js",
+      "bytes": 31555,
+      "gzip_bytes": 10903
+    },
+    {
+      "name": "Galgames-B8qtC-nb.js",
+      "bytes": 31364,
+      "gzip_bytes": 11107
+    },
+    {
+      "name": "Settings-C0xzAP3t.js",
+      "bytes": 25918,
+      "gzip_bytes": 9541
+    },
+    {
+      "name": "Models-CFh5D9pq.js",
+      "bytes": 16202,
+      "gzip_bytes": 5956
+    },
+    {
+      "name": "Worlds-C_h-Nblj.js",
+      "bytes": 15791,
+      "gzip_bytes": 5616
+    },
+    {
+      "name": "Generate-CNZFLF0N.js",
+      "bytes": 15621,
+      "gzip_bytes": 6067
+    },
+    {
+      "name": "Prompts-zWuWFTcZ.js",
+      "bytes": 14553,
+      "gzip_bytes": 5413
+    },
+    {
+      "name": "index-6B3RrpIk.js",
+      "bytes": 13003,
+      "gzip_bytes": 5192
+    },
+    {
+      "name": "Chat-BncVu3O6.js",
+      "bytes": 12910,
+      "gzip_bytes": 5198
+    },
+    {
+      "name": "GalAddDialog-D_UTlGMv.js",
+      "bytes": 11276,
+      "gzip_bytes": 4650
+    },
+    {
+      "name": "Lorebooks-DogyF_HN.js",
+      "bytes": 10661,
+      "gzip_bytes": 4007
+    },
+    {
+      "name": "CharacterDetail-DGOZ5YJX.js",
+      "bytes": 10142,
+      "gzip_bytes": 3935
+    },
+    {
+      "name": "Extract-BI-cvBSp.js",
+      "bytes": 9682,
+      "gzip_bytes": 3818
+    },
+    {
+      "name": "Import-CKrvlik6.js",
+      "bytes": 9566,
+      "gzip_bytes": 4016
+    },
+    {
+      "name": "Characters-DOPx9Ptt.js",
+      "bytes": 9463,
+      "gzip_bytes": 3590
+    },
+    {
+      "name": "Snippets-DoSqCJsC.js",
+      "bytes": 8938,
+      "gzip_bytes": 3549
+    },
+    {
+      "name": "Works-7RyQrHys.js",
+      "bytes": 8609,
+      "gzip_bytes": 3546
+    },
+    {
+      "name": "Collections-pMD4nRjR.js",
+      "bytes": 8260,
+      "gzip_bytes": 3344
+    },
+    {
+      "name": "Cards-DZlB-2pd.js",
+      "bytes": 7938,
+      "gzip_bytes": 3331
+    },
+    {
+      "name": "Tags-DufgDwDe.js",
+      "bytes": 7688,
+      "gzip_bytes": 3363
+    },
+    {
+      "name": "punycode.es6-c-iJqvqp.js",
+      "bytes": 7291,
+      "gzip_bytes": 3187
+    },
+    {
+      "name": "Dashboard-De2cBsYp.js",
+      "bytes": 6668,
+      "gzip_bytes": 3418
+    },
+    {
+      "name": "Diagrams-B1f0pUc3.js",
+      "bytes": 6580,
+      "gzip_bytes": 3116
+    },
+    {
+      "name": "AssetThumb-Dn4bONhj.js",
+      "bytes": 6208,
+      "gzip_bytes": 1957
+    },
+    {
+      "name": "api-Ba9GdJJ2.js",
+      "bytes": 4973,
+      "gzip_bytes": 2719
+    },
+    {
+      "name": "Search-CM0goNqp.js",
+      "bytes": 4378,
+      "gzip_bytes": 2304
+    },
+    {
+      "name": "Reader-i9sZIJTy.js",
+      "bytes": 4326,
+      "gzip_bytes": 2148
+    },
+    {
+      "name": "QuickSearch-B9kbsYIQ.js",
+      "bytes": 3297,
+      "gzip_bytes": 1892
+    },
+    {
+      "name": "defs-BWoCjHae.js",
+      "bytes": 3095,
+      "gzip_bytes": 1535
+    },
+    {
+      "name": "CGViewer-BXB_VQ1Y.js",
+      "bytes": 3082,
+      "gzip_bytes": 1590
+    },
+    {
+      "name": "AssetPicker-Btc_8x3I.js",
+      "bytes": 2057,
+      "gzip_bytes": 1313
+    },
+    {
+      "name": "TagPicker-UX1ffh6P.js",
+      "bytes": 1876,
+      "gzip_bytes": 1021
+    },
+    {
+      "name": "JobProgress-BNnNOA8a.js",
+      "bytes": 1520,
+      "gzip_bytes": 948
+    },
+    {
+      "name": "defs-XKIGCUSL.js",
+      "bytes": 1280,
+      "gzip_bytes": 775
+    },
+    {
+      "name": "undo-2-DRR4FzfI.js",
+      "bytes": 1196,
+      "gzip_bytes": 492
+    },
+    {
+      "name": "search-Cp1oQAem.js",
+      "bytes": 867,
+      "gzip_bytes": 352
+    },
+    {
+      "name": "Modal--HfomkXo.js",
+      "bytes": 852,
+      "gzip_bytes": 552
+    },
+    {
+      "name": "pin-C0wuH-zk.js",
+      "bytes": 516,
+      "gzip_bytes": 341
+    },
+    {
+      "name": "TagChips-DprX8w-o.js",
+      "bytes": 507,
+      "gzip_bytes": 355
+    },
+    {
+      "name": "trash-2-Cd3F_IyC.js",
+      "bytes": 498,
+      "gzip_bytes": 319
+    },
+    {
+      "name": "list-ItCmHLvV.js",
+      "bytes": 472,
+      "gzip_bytes": 295
+    },
+    {
+      "name": "book-open-Xfnw3htD.js",
+      "bytes": 449,
+      "gzip_bytes": 310
+    },
+    {
+      "name": "external-link-DDL1q2XU.js",
+      "bytes": 421,
+      "gzip_bytes": 304
+    },
+    {
+      "name": "arrow-left-CrTlLvmq.js",
+      "bytes": 335,
+      "gzip_bytes": 268
+    },
+    {
+      "name": "chevron-right-fnvPpFAu.js",
+      "bytes": 300,
+      "gzip_bytes": 247
+    },
+    {
+      "name": "_commonjsHelpers-CqkleIqs.js",
+      "bytes": 116,
+      "gzip_bytes": 126
+    },
+    {
+      "name": "_plugin-vue_export-helper-DlAUqK2U.js",
+      "bytes": 91,
+      "gzip_bytes": 102
+    }
+  ],
+  "delete_rollback_before_fix": {
+    "row_restored": true,
+    "file_preserved": false
+  }
+}

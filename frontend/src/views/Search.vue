@@ -11,7 +11,7 @@ const error = ref('')
 const meta = ref(null)
 const status = ref(null)
 const NAMES = {
-  asset: ['素材', () => '/assets'], character: ['角色', (id) => `/characters/${id}`], world: ['世界观', (id) => `/worlds?id=${id}`],
+  asset: ['素材', (id) => `/assets?open=${id}`], character: ['角色', (id) => `/characters/${id}`], world: ['世界观', (id) => `/worlds?id=${id}`],
   world_entry: ['百科条目', (id) => `/worlds?entry=${id}`], work: ['作品', (id) => `/works?id=${id}`], prompt: ['提示词', (id) => `/prompts?id=${id}`],
   sd_model: ['SD 模型', () => '/models'], snippet: ['提示词片段', () => '/snippets'], card: ['角色卡', (id) => `/cards?id=${id}`], collection: ['收藏集', (id) => `/collections?id=${id}`],
   lore: ['世界书条目', () => '/lorebooks'],
@@ -20,7 +20,7 @@ const NAMES = {
   galgame: ['游戏库', (id) => `/galgames/${id}`],
 }
 const MODES = [['keyword', '关键词', '精确子串匹配（FTS5）'], ['semantic', '语义', '按意思相近排序'], ['hybrid', '混合', '关键词 + 语义融合排序']]
-const mode = computed(() => route.query.mode || 'keyword')
+const mode = computed(() => MODES.some(([key]) => key === route.query.mode) ? route.query.mode : 'keyword')
 const entity = computed(() => route.query.entity || '')
 const maxScore = computed(() => Math.max(...hits.value.map((h) => h.score || 0), 0.0001))
 

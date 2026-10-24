@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -64,9 +64,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         @app.get("/{full_path:path}", include_in_schema=False)
         def spa(full_path: str) -> FileResponse:
-            candidate = FRONTEND_DIST / full_path
+            # Unknown API paths must not masquerade as successful HTML responses.
+            if full_path == "api" or full_path.startswith("api/"):
+                raise HTTPException(404, "API 不存在")
+            if "\\" in full_path:
+                raise HTTPException(404, "文件不存在")
+            root = FRONTEND_DIST.resolve()
+            candidate = (root / full_path).resolve()
+            if not candidate.is_relative_to(root):
+                raise HTTPException(404, "文件不存在")
             if full_path and candidate.is_file():
                 return FileResponse(candidate)
-            return FileResponse(FRONTEND_DIST / "index.html")
+            return FileResponse(root / "index.html")
 
     return app

@@ -73,3 +73,6 @@
 公开截图均为生成资料，见screenshots/desktop中的collections-390-*、prompts-*、reader-keyboard-after、worlds-mock-failure-after。正常独立页面检查console error为0；故障网关的两次503为预期负向场景，不计作正常无错误结论。
 
 剩余：真实手机/触控/跨浏览器/系统缩放、完整键盘流（拖动排序/世界观chip/若干图片控件等）、所有非空/长文本/错误组合、长时间切换资源回收、前端heap/FPS/TTI。大收藏集全量响应继续属于E后续，不因布局修复而标已解决。
+
+
+最终集成核对：PR #34和所有前置增量已合并，最终Windows run40126359742全部通过；253后端/1跳过、6前端、6 Rust SDK、冻结/打包/CRC/Hash gate成功。真实手机、干净VM、正式签名与安装升级没有从CI成功中外推。

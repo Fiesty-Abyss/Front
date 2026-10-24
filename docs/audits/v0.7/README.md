@@ -129,3 +129,15 @@ cd ..
 - [完整安装验收矩阵](DESKTOP_VALIDATION_MATRIX.md)：区分本机、CI、模拟和未验。
 
 上述原始审计是历史记录；当前已有在线与完整媒体备份、隔离恢复和Windows预览流水线，不能再将旧段落“未实现备份/Windows构建”当成当前事实。正式签名发布与干净系统安装仍不满足验收。
+
+
+## 本轮桌面冲刺报告（生成资料隔离）
+
+- [A 性能与资源生命周期](DESKTOP_PERFORMANCE_A.md)
+- [B 冻结启动与升级回归](DESKTOP_STABILITY_B.md) / [完整安装矩阵](DESKTOP_VALIDATION_MATRIX.md)
+- [C 签名更新与备份屏障](SIGNED_UPDATES_C.md)
+- [D 内部产物与正式发布门槛](BUILD_RELEASE_GATES_D.md)
+- [E 大型库正确性/索引/压力](LARGE_LIBRARY_E.md)
+- [F 界面与键盘/窄屏](UI_AUDIT_F.md)
+
+PR #29–#34已CI成功并合并；每篇区分生成文件、Mock、真实SDK/网络/原生程序和未覆盖环境。当前不是正式v0.7发布。先读NEXT_SESSION再接续，避免重复实现。

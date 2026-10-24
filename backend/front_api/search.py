@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import event, text
+from sqlalchemy import Integer, event, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 
@@ -137,5 +137,22 @@ def search(session: Session, q: str, entity: str | None = None, limit: int = 50)
     ]
 
 
-def matching_ids(session: Session, entity: str, q: str) -> set[int]:
-    return {hit["id"] for hit in search(session, q, entity=entity, limit=10_000)}
+def matching_ids(_session: Session, entity: str, q: str):
+    """Keep list filtering inside SQLite, without truncating hits before pagination.
+
+    Quick-search snippets intentionally remain bounded in search(). Library counts,
+    world/tag filters and deep pages must consider every matching record instead.
+    """
+    q = q.strip()
+    if not q:
+        return text("SELECT entity_id FROM search_index WHERE 0").columns(entity_id=Integer)
+    if len(q) >= 3:
+        predicate = "search_index MATCH :query"
+        query = '"' + q.replace('"', '""') + '"'
+    else:
+        predicate = "(title LIKE :query ESCAPE '\\' OR body LIKE :query ESCAPE '\\')"
+        query = f"%{_escape_like(q)}%"
+    return text(
+        "SELECT CAST(entity_id AS INTEGER) AS entity_id FROM search_index "
+        "WHERE entity=:entity AND " + predicate
+    ).bindparams(entity=entity, query=query).columns(entity_id=Integer)

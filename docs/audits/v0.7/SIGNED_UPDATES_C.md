@@ -96,3 +96,6 @@
 ## 最终CI结论
 
 PR #31 head fb8d6df，backend/frontend/windows-x64全部success，Windows run40119749727。正常合并main4153e1e。Windows后端235通过/1跳过；真实官方SDK/TLS/签名版本及取消竞态6项Rust测试全部通过（无ignored遗漏）。NSIS与便携包生成成功，未运行安装器、未发布Release。测试根公钥缺省None，正式更新保持关闭。
+
+
+原生本机补验：下载run40119749727附件并验证外层digest/内部SHA，新的独立空资料目录正常打开。真实IPC返回桌面0.7.0-preview.1，未配置公钥提示和禁用检查按钮正确；Alt+F4后所属外壳/端口消失。9进程Settings快照RSS合计741.20MiB、PrivateBytes518.08MiB，非同数据集性能对照、非峰值。截图只含生成空库，见`docs/screenshots/desktop/updater-native-disabled.png`。未安装更新。

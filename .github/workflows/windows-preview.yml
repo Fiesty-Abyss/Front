@@ -59,6 +59,12 @@ jobs:
         shell: pwsh
         run: |
           python desktop/license_inventory.py
+      - name: Official updater signature, signed-version and local HTTPS regression (no install)
+        timeout-minutes: 20
+        run: |
+          python -m venv .cache/update-test-runtime
+          .cache/update-test-runtime/Scripts/python.exe -m pip install -r desktop/requirements-update-test.txt
+          .cache/update-test-runtime/Scripts/python.exe desktop/test_updater.py .cache/updater-generated-tests
       - name: Build Tauri x64 NSIS installer
         working-directory: desktop
         run: npm run build

@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, reactive, ref } from 'vue'
+const DesktopUpdates = defineAsyncComponent(() => import('../components/DesktopUpdates.vue'))
 import { api, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
 import Modal from '../components/Modal.vue'
@@ -74,6 +75,7 @@ const role = (p) => [settings.value?.chat_provider_id === p.id && '对话', sett
   settings.value?.tagger_backend === 'vision' && settings.value?.vision_provider_id === p.id && '看图打标签'].filter(Boolean)
 </script>
 <template>
+  <DesktopUpdates />
   <p class="notice">需要可恢复的数据副本？<RouterLink to="/backups">完整媒体备份与恢复</RouterLink> 包含数据库和托管文件，默认不复制外部原件。</p>
   <section class="card grid" style="margin-bottom:14px">
     <h2 style="margin:0">数据导出</h2>

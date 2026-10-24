@@ -1,0 +1,2 @@
+# Certificate generation for isolated HTTPS regression only. Never installed into the sidecar build environment.
+cryptography==50.0.2

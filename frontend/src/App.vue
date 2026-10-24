@@ -1,5 +1,7 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { isDesktop } from './desktopUpdates'
+const DesktopUpdateNotice = defineAsyncComponent(() => import('./components/DesktopUpdateNotice.vue'))
 import { useRoute, useRouter } from 'vue-router'
 import {
   LayoutDashboard, Images, FolderInput, Gamepad2, LibraryBig, Tags, BookUser, Globe, Waypoints,
@@ -100,4 +102,5 @@ const version = __APP_VERSION__
   <Transition :css="false" @enter="enterToast" @leave="leaveToast">
     <div v-if="toastState.msg" class="toast" :class="{ err: toastState.err }">{{ toastState.msg }}</div>
   </Transition>
+  <DesktopUpdateNotice v-if="isDesktop" />
 </template>

@@ -72,12 +72,23 @@ fn start_service(binary: &Path, folder: &Path) -> Result<Service,Box<dyn std::er
         let mut line=String::new();
         // Limit startup handshake to prevent unbounded output memory.
         use std::io::Read;
-        let _=BufReader::new(stdout).take(4096).read_line(&mut line);
+        let mut reader=BufReader::new(stdout);
+        let _=std::io::Read::by_ref(&mut reader).take(4096).read_line(&mut line);
         let _=tx.send(line);
+        let _=std::io::copy(&mut reader,&mut std::io::sink());
     });
     let result=(||{
         let line=rx.recv_timeout(Duration::from_secs(120))?;
-        let ready: Ready=serde_json::from_str(&line).map_err(|_|"Front backend could not initialize. Check data permissions, database compatibility and whether the directory is in use.")?;
+        let value:serde_json::Value=serde_json::from_str(&line)?;
+        if let Some(code)=value.get("error").and_then(|v|v.as_str()) {
+            return Err(std::io::Error::other(match code {
+                "data_directory_in_use"=>"data_directory_in_use",
+                "database_incompatible_or_damaged"=>"database_incompatible_or_damaged",
+                "upgrade_backup_incomplete"=>"upgrade_backup_incomplete",
+                _=>"sidecar_initialization_failed"
+            }).into());
+        }
+        let ready: Ready=serde_json::from_value(value)?;
         if ready.pid!=child.id() || ready.port==0 || ready.token.len()<32 || !ready.token.bytes().all(|c|c.is_ascii_alphanumeric() || c==b'-' || c==b'_') {return Err("Invalid sidecar handshake".into());}
         Ok(ready)
     })();
@@ -88,7 +99,7 @@ fn start_service(binary: &Path, folder: &Path) -> Result<Service,Box<dyn std::er
 }
 
 fn main() {
-    let app=tauri::Builder::default().setup(|app| {
+    let result=tauri::Builder::default().setup(|app| {
         let folder=data_dir(app)?;
         let binary=app.path().resource_dir()?.join("backend/front-backend.exe");
         let service=start_service(&binary,&folder)?;
@@ -102,7 +113,8 @@ fn main() {
             .on_navigation(move|url|url.origin().ascii_serialization()==allowed_origin)
             .build()?;
         Ok(())
-    }).build(tauri::generate_context!()).expect("Front failed to start. See the data directory lifecycle log.");
+    }).build(tauri::generate_context!());
+    let app=match result {Ok(app)=>app,Err(error)=>{startup_error(&error.to_string());return;}};
     app.run(|app,event| {
         if matches!(event,tauri::RunEvent::ExitRequested{..} | tauri::RunEvent::Exit) {
             if let Some(state)=app.try_state::<Mutex<Option<Service>>>() {
@@ -110,4 +122,18 @@ fn main() {
             }
         }
     });
+}
+
+fn startup_error(code:&str) {
+    let text=if code.contains("data_directory_in_use") {"Front 资料目录正在使用中。请先关闭使用该目录的 Front 窗口。"}
+        else if code.contains("database_incompatible_or_damaged") {"Front 检测到不兼容或损坏的资料库，已停止升级。请使用较新版本或在独立目录验证备份。"}
+        else if code.contains("upgrade_backup_incomplete") {"Front 升级前完整备份未通过验证，已保留原资料。请先检查缺失的托管素材和备份报告。"}
+        else {"Front 无法启动。请确认已完整解压程序、WebView2 已安装，资料目录可写。便携版请移到可写目录重试。详情见资料目录 logs/desktop.log。"};
+    #[cfg(windows)] unsafe {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW,MB_OK,MB_ICONERROR};
+        let message:Vec<u16>=text.encode_utf16().chain(Some(0)).collect();
+        let title:Vec<u16>="Front Preview".encode_utf16().chain(Some(0)).collect();
+        MessageBoxW(std::ptr::null_mut(),message.as_ptr(),title.as_ptr(),MB_OK|MB_ICONERROR);
+    }
+    #[cfg(not(windows))] eprintln!("{text}");
 }

@@ -1,11 +1,16 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, Collections, LABELS, Prompts, SDModels, Snippets, thumb, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
 import TagPicker from '../components/TagPicker.vue'
 import { guard } from '../toast'
 
+const props=defineProps({ocProfile:Object,initialRecipe:Object})
+const emit=defineEmits(['generated'])
+const lifecycle=new AbortController()
+onBeforeUnmount(()=>lifecycle.abort())
+const designId=ref('')
 const route = useRoute()
 const status = ref({})
 const prompts = ref([])
@@ -30,6 +35,7 @@ onMounted(async () => {
     api.get('/api/generate/status'), Prompts.list({ limit: 500 }).then((r) => r.items), SDModels.list({ limit: 500 }).then((r) => r.items),
     Snippets.list({ limit: 500 }).then((r) => r.items), Collections.list({ limit: 500 }).then((r) => r.items),
   ])
+  if(props.initialRecipe){Object.assign(form,props.initialRecipe);form.workflowText=props.initialRecipe.workflow?JSON.stringify(props.initialRecipe.workflow,null,2):'';designId.value=props.initialRecipe.oc_design_id||''}
   if (route.query.prompt_id) pickPrompt(Number(route.query.prompt_id))
   if (route.query.draft) {
     const d = JSON.parse(sessionStorage.getItem('front.generateDraft') || '{}')
@@ -86,6 +92,7 @@ async function submit() {
     steps: form.steps, cfg: form.cfg, sampler: form.sampler || null, scheduler: form.scheduler || null, seed: Number(form.seed),
     width: form.width, height: form.height, clip_skip: form.clip_skip ? Number(form.clip_skip) : null, count: form.count,
     model_ids: form.model_ids, loras: form.loras, x: axisOut(ax.x), y: axisOut(ax.y), tag_ids: form.tag_ids, workflow,
+    ...(props.ocProfile?{oc_profile_id:props.ocProfile.id,oc_design_id:designId.value||null,oc_expected_version:props.ocProfile.version}:{}),
     collection_name: form.collection === 'new' ? form.collection_name || null : null,
     collection_id: form.collection === 'existing' ? form.collection_id || null : null,
   }
@@ -93,13 +100,15 @@ async function submit() {
   try {
     const j = await guard(() => api.post('/api/generate', body))
     job.value = j
-    await waitJob(j.id, (x) => (job.value = { ...x, batch: j.batch, prompt_id: j.prompt_id }), 700)
+    await waitJob(j.id, (x) => (job.value = { ...x, batch: j.batch, prompt_id: j.prompt_id }), 700, lifecycle.signal)
+    if(lifecycle.signal.aborted)return
+    if(props.ocProfile)emit('generated')
     prompts.value = (await Prompts.list({ limit: 500 })).items
   } finally { running.value = false }
 }
 </script>
 <template>
-  <div class="grid" style="grid-template-columns: 1fr 380px; align-items:start">
+  <div class="grid generation-layout">
     <section class="grid" style="align-content:start">
       <div class="card grid">
         <div class="row">
@@ -161,7 +170,7 @@ async function submit() {
       <div v-if="form.backend === 'comfyui'" class="card grid">
         <div class="row"><h2 style="margin:0">ComfyUI 工作流</h2><span class="small muted">默认用内置文生图模板</span><span class="spacer" /><a class="small" @click="showWorkflow = !showWorkflow">{{ showWorkflow ? '收起' : '使用自定义工作流' }}</a></div>
         <template v-if="showWorkflow">
-          <div class="small muted">粘贴 ComfyUI「保存（API 格式）」导出的 JSON，用占位符代替参数：<code v-pre>{{positive}} {{negative}} {{seed}} {{steps}} {{cfg}} {{width}} {{height}} {{sampler}} {{scheduler}} {{model}}</code></div>
+          <div class="small muted">自定义工作流的节点决定实际模型、LoRA和采样设置；只有使用对应占位符才采用表单参数，LoRA需在工作流节点显式配置。保存配方与实际提交图，便于核对。粘贴 ComfyUI「保存（API 格式）」导出的 JSON，用占位符代替参数：<code v-pre>{{positive}} {{negative}} {{seed}} {{steps}} {{cfg}} {{width}} {{height}} {{sampler}} {{scheduler}} {{model}}</code></div>
           <textarea v-model="form.workflowText" class="mono" style="min-height:140px" placeholder='{"3": {"class_type": "KSampler", "inputs": {"seed": "{{seed}}", ...}}}' />
         </template>
       </div>
@@ -170,7 +179,7 @@ async function submit() {
     <aside class="grid" style="align-content:start;position:sticky;top:14px">
       <div class="card grid">
         <h2 style="margin:0">入库</h2>
-        <div class="small muted">每张图都会存进素材库（AI 生成），出图参数写进 PNG，并记录到提示词的对比视图。</div>
+<label v-if="ocProfile" class="field">生成结果关联造型<select v-model="designId"><option value="">默认方案</option><option v-for="d in ocProfile.designs" :key="d.id" :value="d.id">{{d.name}}</option></select></label><div class="small muted">每张图都会存进素材库（AI 生成），出图参数写进 PNG，并记录到提示词的对比视图。</div>
         <TagPicker v-model="form.tag_ids" />
         <label class="field">收藏集<select v-model="form.collection"><option value="none">不加入</option><option value="new">新建收藏集</option><option value="existing">加入已有收藏集</option></select></label>
         <input v-if="form.collection === 'new'" v-model="form.collection_name" placeholder="收藏集名称" />
@@ -191,6 +200,8 @@ async function submit() {
   </div>
 </template>
 <style scoped>
+.generation-layout{grid-template-columns:minmax(0,1fr) 300px;align-items:start}.generation-layout>*{min-width:0}@media(max-width:1250px){.generation-layout{grid-template-columns:minmax(0,1fr)}.generation-layout>aside{position:static!important}}
+
 .pick { padding: 4px 8px; border-radius: 8px; background: var(--panel2); }
 .thumb { aspect-ratio: 4/5; border-radius: 8px; background: var(--sunken) center/cover; position: relative; }
 .thumb span { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px; background: #000a; border-radius: 0 0 8px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

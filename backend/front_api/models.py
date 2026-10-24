@@ -386,6 +386,28 @@ class OCProfile(TimestampMixin, Base):
     tags: Mapped[list[Tag]] = relationship(secondary=oc_profile_tags,lazy='selectin')
 
 
+class ImageService(TimestampMixin, Base):
+    """Explicit image API contract; a chat provider alone never implies image support."""
+    __tablename__='image_services'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider_id: Mapped[int] = mapped_column(ForeignKey('ai_providers.id',ondelete='CASCADE'))
+    name: Mapped[str] = mapped_column(String(100))
+    model: Mapped[str] = mapped_column(String(200))
+    legacy_b64: Mapped[bool] = mapped_column(Boolean,default=False)
+    verified_at: Mapped[str | None] = mapped_column(String(50))
+
+
+class OCGenerationBatch(TimestampMixin, Base):
+    __tablename__='oc_generation_batches'
+    id: Mapped[str] = mapped_column(String(40),primary_key=True)
+    profile_id: Mapped[int | None] = mapped_column(ForeignKey('oc_profiles.id',ondelete='SET NULL'),index=True)
+    profile_identity: Mapped[str] = mapped_column(String(50))
+    scope: Mapped[dict] = mapped_column(JSON)
+    design_id: Mapped[str | None] = mapped_column(String(80))
+    recipe: Mapped[dict] = mapped_column(JSON)
+    job_id: Mapped[str | None] = mapped_column(String(40))
+
+
 class SDModel(TimestampMixin, Base):
     """Stable Diffusion 模型登记。只存元数据与本地路径，模型文件本身永远不进仓库。"""
 

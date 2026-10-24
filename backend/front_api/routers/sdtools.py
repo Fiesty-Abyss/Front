@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .. import civitai, jobs, modelscan, sdgen, sdparams
+from .. import civitai, jobs, modelscan, sdgen, sdparams, ocgeneration
 from .. import models as m
 from .. import schemas as s
 from ..config import get_settings
@@ -410,6 +410,9 @@ class GenerateRequest(BaseModel):
     collection_name: str | None = None
     workflow: dict[str, Any] | None = None
     save_prompt: bool = True
+    oc_profile_id: int | None = None
+    oc_design_id: str | None = None
+    oc_expected_version: int | None = Field(default=None,ge=1)
 
 
 MAX_IMAGES = 100
@@ -423,6 +426,9 @@ def _model_label(mdl: m.SDModel | None) -> str:
 def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> dict[str, Any]:
     """提交一次出图任务（后台运行）。多个模型 / XY 轴会展开成网格，每张图自动入库并记录为一次出图，
     同一次任务共享批次号，可在提示词页按网格查看。"""
+    batch = uuid.uuid4().hex[:12]
+    oc_batch = ocgeneration.prepare(session,req,batch)
+    if req.workflow and len(__import__('json').dumps(req.workflow).encode())>1024*1024:raise HTTPException(413,'工作流超过1MiB')
     url = None
     try:
         url = sdgen.backend_url(req.backend)
@@ -438,8 +444,10 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
             ax.search = str(ax.values[0])
     model_ids = set(req.model_ids) | {int(v) for ax in (x, y) if ax and ax.param == "model" for v in ax.values}
     mdls = {i: get_or_404(session, m.SDModel, i) for i in model_ids}
+    if any(mdl.kind!='checkpoint' for mdl in mdls.values()):raise HTTPException(422,'Checkpoint请选择对应模型类型')
     loras = [(get_or_404(session, m.SDModel, lp.model_id), lp.weight) for lp in req.loras]
     for mdl, _ in loras:
+        if mdl.kind not in ('lora','lycoris'):raise HTTPException(422,'LoRA请选择LoRA或LyCORIS档案')
         if not mdl.file_name:
             raise HTTPException(422, f"LoRA「{mdl.name}」没有登记文件名")
     cells = sdgen.axis_cells(x.model_dump() if x else None, y.model_dump() if y else None)
@@ -470,7 +478,6 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
     session.commit()
     prompt_id = prompt.id if prompt else None
     prompt_title = (prompt.title if prompt else req.title) or "出图"
-    batch = uuid.uuid4().hex[:12]
     base_seed = sdgen.resolve_seed(req.seed)
     fixed_model = mdls.get(req.model_ids[0]) if len(req.model_ids) == 1 else None
 
@@ -509,6 +516,7 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
                         job.step(f"失败：{exc}")
                         continue
                     for png, used_seed in images:
+                        job.check()
                         n += 1
                         title = f"{prompt_title} × {_model_label(model)}" + (f" · {label}" if label else "")
                         asset, created = ingest(ses, png, f"front_{batch}_{n:03d}.png", kind="ai_image", title=title,
@@ -517,10 +525,11 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
                                                 extra_meta={"generation": {"backend": req.backend, "batch": batch}})
                         ses.flush()
                         params = {**spec.params(), "seed": used_seed, "model": _model_label(model) if model else None,
-                                  "prompt": spec.positive, "negative": spec.negative, "backend": req.backend}
+                                  "prompt": spec.positive, "negative": spec.negative, "backend": req.backend, "checkpoint_snapshot": {"id":model.id,"name":model.name,"sha256":model.sha256,"file":model.file_name} if model else None, "lora_snapshots":[{"id":lm.id,"name":lm.name,"file":lm.file_name,"sha256":lm.sha256,"weight":spec.loras[j]["weight"]} for j,(lm,_) in enumerate(loras)], "workflow": (sdgen.fill_workflow(req.workflow,spec) if req.workflow else sdgen.comfy_graph(spec)) if req.backend=="comfyui" else None}
                         gen = m.Generation(prompt_id=prompt_id, model_id=model.id if model else None, asset_id=asset.id,
                                            params={k: v for k, v in params.items() if v is not None}, batch=batch, xy=xy)
-                        ses.add(gen)
+                        ses.add(gen);ses.flush()
+                        ocgeneration.attach_output(ses,batch,asset,gen,job)
                         if collection_id:
                             exists = ses.execute(select(m.collection_assets.c.asset_id).where(
                                 m.collection_assets.c.collection_id == collection_id, m.collection_assets.c.asset_id == asset.id)).first()
@@ -537,6 +546,7 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
             raise RuntimeError(job.errors[-1])
 
     job = jobs.start("generate", f"出图：{prompt_title}（{total} 张）", total, work)
+    ocgeneration.bind_job(session,batch,job)
     out = job.to_dict()
     out["batch"] = batch
     out["prompt_id"] = prompt_id
@@ -547,6 +557,8 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)) -> d
 def gen_norm(session: Session, g: m.Generation, cache: dict[int, m.SDModel | None]) -> dict[str, Any]:
     norm = sdparams.normalize(g.params)
     norm.pop("backend", None)
+    for metadata in ('checkpoint_snapshot','lora_snapshots','workflow'):
+        norm.pop(metadata,None)
     if g.model_id:
         if g.model_id not in cache:
             cache[g.model_id] = session.get(m.SDModel, g.model_id)

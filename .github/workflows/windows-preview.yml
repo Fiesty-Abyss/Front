@@ -74,7 +74,11 @@ jobs:
           python -m venv .cache/update-test-runtime
           .cache/update-test-runtime/Scripts/python.exe -m pip install -r desktop/requirements-update-test.txt
           .cache/update-test-runtime/Scripts/python.exe desktop/test_updater.py .cache/updater-generated-tests
-      - name: Build Tauri x64 NSIS installer
+      - name: Test bounded startup protocol and local navigation origin
+        # Compile/run the bounded startup protocol and origin checks separately
+        # from the real updater tests; neither launches an installer.
+        run: cargo test --release --locked --manifest-path desktop/src-tauri/Cargo.toml startup_tests
+      - name: Build Tauri x64 NSIS installer and bundle shared resources
         working-directory: desktop
         run: npm run build -- --ci -- --locked
       - name: Package portable preview and hashes

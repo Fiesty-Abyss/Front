@@ -88,7 +88,8 @@ class ManagedFileIntegrityError(HTTPException):
         self.code = code
         detail = {'code': code, 'message': '已托管文件缺失、不可读或内容不一致，未覆盖原文件；请在备份后检查资源'}
         if asset_id is not None:
-            detail['asset_id'] = asset_id
+            # asset_id is reserved by existing upload UIs for a healthy duplicate.
+            detail['damaged_asset_id'] = asset_id
         super().__init__(409, detail)
 
 

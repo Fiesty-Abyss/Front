@@ -51,7 +51,8 @@ def test_damaged_duplicate_is_refused_without_repairs(client, data_dir, damage):
         with pytest.raises(ManagedFileIntegrityError) as error:
             ingest(session, payload, 'duplicate.bin')
         assert error.value.status_code == 409
-        assert error.value.detail['asset_id'] == aid
+        assert error.value.detail['damaged_asset_id'] == aid
+        assert 'asset_id' not in error.value.detail
         assert str(data_dir) not in str(error.value.detail)
         assert len(session.scalars(select(m.Asset)).all()) == 1
         assert session.get(m.Asset, aid).file_path == rel
@@ -68,6 +69,8 @@ def test_duplicate_upload_reports_integrity_instead_of_normal_duplicate(client, 
     response = client.post('/api/assets/upload', files={'file': ('sample.bin', payload)})
     assert response.status_code == 409
     assert response.json()['detail']['code'] == 'managed_file_hash_mismatch'
+    assert response.json()['detail']['damaged_asset_id'] == aid
+    assert 'asset_id' not in response.json()['detail']
 
 
 def test_orphan_content_path_is_verified_before_registering(client, data_dir):

@@ -78,7 +78,10 @@ async function uploadPicked() {
     if (form.tag_ids.length) fd.append('tag_ids', form.tag_ids.join(','))
     if (form.use_mtime) fd.append('work_date', new Date(f.lastModified).toISOString().slice(0, 10))
     try { await api.upload('/api/assets/upload', fd); progress.created++ }
-    catch (e) { e.status === 409 ? progress.dup++ : progress.failed++ }
+    catch (e) {
+      if (e.status === 409 && e.data?.detail?.asset_id && !e.data.detail.code) progress.dup++
+      else { progress.failed++; toast(`${f.name}：${e.message}`, true) }
+    }
     progress.done++
   }
   if (form.cg_mode && workId) await api.post(`/api/works/${workId}/cg/regroup`)

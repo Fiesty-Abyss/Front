@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { api, Collections, LABELS, Prompts, SDModels, Snippets, thumb, waitJob } from '../api'
+import { api, LABELS, Prompts, SDModels, Snippets, thumb, waitJob } from '../api'
 import JobProgress from '../components/JobProgress.vue'
 import TagPicker from '../components/TagPicker.vue'
 import { guard } from '../toast'
@@ -33,7 +33,7 @@ const ax = reactive({ x: { param: '', text: '', models: [] }, y: { param: '', te
 onMounted(async () => {
   ;[status.value, prompts.value, models.value, snippets.value, collections.value] = await Promise.all([
     api.get('/api/generate/status'), Prompts.list({ limit: 500 }).then((r) => r.items), SDModels.list({ limit: 500 }).then((r) => r.items),
-    Snippets.list({ limit: 500 }).then((r) => r.items), Collections.list({ limit: 500 }).then((r) => r.items),
+    Snippets.list({ limit: 500 }).then((r) => r.items), api.get('/api/collections/summaries', { limit: 500 }).then((r) => r.items),
   ])
   if(props.initialRecipe){Object.assign(form,props.initialRecipe);form.workflowText=props.initialRecipe.workflow?JSON.stringify(props.initialRecipe.workflow,null,2):'';designId.value=props.initialRecipe.oc_design_id||''}
   if (route.query.prompt_id) pickPrompt(Number(route.query.prompt_id))

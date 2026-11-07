@@ -104,6 +104,9 @@ class WorldRead(WorldBase, Timestamps):
 # ---------- Asset ----------
 class AssetBase(BaseModel):
     title: str = Field(min_length=1, max_length=300)
+    favorite: bool = False
+    stars: int = Field(default=0, ge=0, le=5)
+    preference: int = Field(default=0, ge=0, le=100)
     kind: AssetKind = "other"
     description: str | None = None
     content: str | None = None
@@ -119,6 +122,9 @@ class AssetCreate(AssetBase):
 
 
 class AssetUpdate(BaseModel):
+    favorite: bool = False
+    stars: int = Field(default=0, ge=0, le=5)
+    preference: int = Field(default=0, ge=0, le=100)
     title: str | None = None
     kind: AssetKind | None = None
     description: str | None = None
@@ -167,6 +173,7 @@ class CollectionUpdate(BaseModel):
 
 class CollectionRead(CollectionBase, Timestamps):
     id: int
+    members_revision: int = 0
     assets: list[AssetRead] = []
 
     @computed_field  # type: ignore[prop-decorator]

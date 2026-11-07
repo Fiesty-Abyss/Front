@@ -35,9 +35,11 @@ def preview(session, asset_id):
 @router.get('/{asset_id}/chapter-plan')
 def get_plan(asset_id: int, session: Session = Depends(get_session)):
     asset, text, toc, latest, digest = preview(session, asset_id)
+    # preview already detected the source when no compatible manual plan exists.
+    detected = chapters.split_chapters(text) if latest and latest.text_hash == digest else toc
     history = session.scalars(select(m.ChapterRevision).where(m.ChapterRevision.asset_id == asset_id).options(defer(m.ChapterRevision.chapters)).order_by(m.ChapterRevision.id.desc()).limit(100))
     return {'title': asset.title, 'length': len(text), 'text_hash': digest, 'base_revision': latest.id if latest else 0,
-            'chapters': toc, 'detected': chapters.split_chapters(text),
+            'chapters': toc, 'detected': detected,
             'stale': bool(latest and latest.text_hash != digest),
             'source': '原文件全文' if (asset.meta or {}).get('text_truncated') or (asset.original_name or '').lower().endswith('.epub') else '已保存正文',
             'history': [{'id': r.id, 'note': r.note, 'created_at': r.created_at.isoformat(), 'compatible': r.text_hash == digest} for r in history]}

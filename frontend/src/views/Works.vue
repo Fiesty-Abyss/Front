@@ -33,7 +33,7 @@ async function select(w) {
   cgs.value = (await api.get(`/api/works/${w.id}/cg`)).groups
   chars.value = await api.get(`/api/works/${w.id}/characters`)
   assets.value = (await Assets.list({ work_id: w.id, limit: 500 })).items.filter((a) => a.kind !== 'cg')
-  collections.value = (await Collections.list({ limit: 500 })).items.filter((c) => c.work_id === w.id)
+  collections.value = (await api.get('/api/collections/summaries', { limit: 500 })).items.filter((c) => c.work_id === w.id)
 }
 function edit(w) { editing.value = w ? { ...w, tag_ids: w.tags.map((t) => t.id) } : { title: '', kind: 'galgame', tag_ids: [] } }
 async function save() {
@@ -102,7 +102,7 @@ async function newCollection() {
       </div>
       <div class="card">
         <div class="row"><h2 style="margin:0">收藏集</h2><span class="spacer" /><button @click="newCollection"><Ico g="＋" />新建收藏集</button></div>
-        <RouterLink v-for="c in collections" :key="c.id" :to="{ path: '/collections', query: { id: c.id } }" class="row" style="margin-top:8px"><b>{{ c.name }}</b><span class="small muted">{{ c.assets.length }} 项 · {{ c.description }}</span></RouterLink>
+        <RouterLink v-for="c in collections" :key="c.id" :to="{ path: '/collections', query: { id: c.id } }" class="row" style="margin-top:8px"><b>{{ c.name }}</b><span class="small muted">{{ c.member_count }} 项 · {{ c.description }}</span></RouterLink>
         <div v-if="assets.length" class="small muted" style="margin-top:10px">关联素材：{{ assets.map((a) => a.title).join('、') }}</div>
       </div>
     </section>

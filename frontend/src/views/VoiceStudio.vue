@@ -4,6 +4,8 @@ import { api } from '../api'
 import VersionPanel from '../components/VersionPanel.vue'
 const AssetPicker = defineAsyncComponent(() => import('../components/AssetPicker.vue'))
 const AudioPlayer = defineAsyncComponent(() => import('../viewers/AudioPlayer.vue'))
+const VoiceProjects = defineAsyncComponent(() => import('./VoiceProjects.vue'))
+const projectMode = ref(false)
 const tab = ref('profiles'), rows = ref([]), total = ref(0), offset = ref(0), q = ref(''), error = ref(''), busy = ref(false)
 const draft = ref(null), current = ref(null), picker = ref(false), sample = ref(null), diagnose = ref(null)
 let disposed = false, sequence = 0
@@ -56,8 +58,9 @@ onBeforeUnmount(() => {disposed=true; sequence++; sample.value=null})
   <div class="voice grid">
     <header><div class="eyebrow">CREATION · VOICE</div><h1>AI Voice Studio</h1><p class="muted">声线、模型与授权资料管理。当前未连接 TTS 引擎，不会启动推理服务或下载模型。</p></header>
     <p v-if="error" class="notice" role="alert">{{ error }}</p>
-    <nav class="row" aria-label="Voice 工作区"><button v-for="(label,key) in labels" :key="key" :disabled="busy" :aria-pressed="tab===key" @click="run(()=>changeTab(key))">{{ label }}</button><RouterLink to="/audio">音声收藏</RouterLink><RouterLink to="/characters">角色百科</RouterLink><RouterLink to="/oc">OC Studio</RouterLink></nav>
-    <div class="workspace">
+    <nav class="row" aria-label="Voice 工作区"><button v-for="(label,key) in labels" :key="key" :disabled="busy" :aria-pressed="!projectMode&&tab===key" @click="projectMode=false;run(()=>changeTab(key))">{{ label }}</button><button :disabled="busy" :aria-pressed="projectMode" @click="projectMode=true;sample=null;picker=false">配音工程</button><RouterLink to="/audio">音声收藏</RouterLink><RouterLink to="/characters">角色百科</RouterLink><RouterLink to="/oc">OC Studio</RouterLink></nav>
+    <VoiceProjects v-if="projectMode"/>
+    <div v-else class="workspace">
       <aside class="card grid">
         <form class="row" @submit.prevent="offset=0; run(load)"><input v-model="q" aria-label="搜索名称" maxlength="200" placeholder="搜索名称"/><button :disabled="busy">搜索</button></form>
         <button :disabled="busy" @click="create">新建{{ labels[tab] }}</button>

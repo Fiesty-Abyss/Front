@@ -2,6 +2,12 @@
 
 ## 当前 RC 会话
 
+PR #36已通过backend/frontend/python310-compat/windows-x64并正常合并，当前已同步main=`425d789ac6155ee022640d2bfafea5188548c61b`。RC B分支`codex/mixed-reliability-rc`完成261本机后端/8前端/构建及完整混合工具、浏览器生成资料，待本阶段PR/CI。报告RC_MIXED_B.md；.cache/rc-mixed-final-01保留101201条生成素材，HTTP8002启动器30964（停机前重新核对实际归属）。
+
+Windows真实ACL草测发现TemporaryFile无限式重试（观察超过60秒后停止已核对的测试进程）；原ACL在finally恢复，原生成哨兵仍在，恢复写入成功。待独立C修复prepare_folder为有界独占新建探测，并补真实ACL/Frozen验收。`.cache/rc-acl-probe-01`是生成目录，不是用户目录。主机Windows11家庭版22631，尚无经过验证的干净VM/快照，真实安装/卸载/升级不可用日常主机测试替代。
+
+以下“接管”及上轮段落保留历史语境，不将过时SHA作为最新。后续继续C/D/E及内部候选包，正式信任根和公开Release仍未授权。
+
 接管已fetch确认origin/main=`d2a14d41cc1b256133978d127624b353ace4e606`，无开放PR；以下RC A独立分支`codex/collection-pagination-rc`，尚待本轮最终CI与合并，后续合并状态会再更新，不能把下方上轮历史main当最新。
 
 RC A摘要/游标/批量/排序及隔离10k/50k/100k、真实浏览器/390px已完成；本机259后端、8前端和构建通过，最终回归进行中。报告`audits/v0.7/RC_COLLECTIONS_A.md`。生成库与HTTP测试服务在.cache/rc-collections-*，不在private/front-data；原始世界观、WebUI、Live2D及私人库未启动或改动。原8000当前未运行，不能沿用上轮“服务持续返回200”的结论。

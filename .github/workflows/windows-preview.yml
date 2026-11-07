@@ -59,6 +59,11 @@ jobs:
       - name: Frozen startup and migration regression (minimal PATH, generated data)
         timeout-minutes: 8
         run: python desktop/regression_sidecar.py .cache/desktop-stage/backend/front-backend.exe .cache/desktop-regression
+      - name: Frozen sidecar refuses a real Windows ACL denial without a retry loop
+        # Actual deny-ACE, not chmod/Mock; restores its own generated folder ACL.
+        shell: pwsh
+        run: |
+          ./desktop/validate_windows_acl.ps1 -NewOutput (Join-Path $PWD '.cache/desktop-acl-denied') -Sidecar '.cache/desktop-stage/backend/front-backend.exe'
       - name: Collect license inventory
         shell: pwsh
         run: |

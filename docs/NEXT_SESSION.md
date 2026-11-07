@@ -2,6 +2,10 @@
 
 ## 当前 RC 会话
 
+PR #37全部四项CI通过并正常合并，当前main=`10eb0a71dd8785b91cb2985a4a73f672f9eab32d`。C工作树`.cache/worktrees/windows-acl-rc`/分支codex/windows-acl-rc已同步main并完成真实源/本机冻结ACL及启动/迁移组件回归，最终262后端/8前端和构建通过，等待独立PR和Windows CI。C之前本机PyInstaller首次使用默认用户缓存，已固定项目cache和TEMP并重建，没有额外清理用户默认缓存；不是私人资料迁移。
+
+下一步：C完整CI后普通合并；D启动可视进度草稿在.cache/startup-draft（尚未编译或验收），同步最新main后独立开发。E继续真实SDK网络中断/取消测试；F内部候选和完整门槛文档。没有干净VM/正式签名根，不能发布公开正式版。主机原8000仍未启动，真实个人库未动。
+
 PR #36已通过backend/frontend/python310-compat/windows-x64并正常合并，当前已同步main=`425d789ac6155ee022640d2bfafea5188548c61b`。RC B分支`codex/mixed-reliability-rc`完成261本机后端/8前端/构建及完整混合工具、浏览器生成资料，待本阶段PR/CI。报告RC_MIXED_B.md；.cache/rc-mixed-final-01保留101201条生成素材，HTTP8002启动器30964（停机前重新核对实际归属）。
 
 Windows真实ACL草测发现TemporaryFile无限式重试（观察超过60秒后停止已核对的测试进程）；原ACL在finally恢复，原生成哨兵仍在，恢复写入成功。待独立C修复prepare_folder为有界独占新建探测，并补真实ACL/Frozen验收。`.cache/rc-acl-probe-01`是生成目录，不是用户目录。主机Windows11家庭版22631，尚无经过验证的干净VM/快照，真实安装/卸载/升级不可用日常主机测试替代。

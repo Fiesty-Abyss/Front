@@ -12,7 +12,6 @@ import secrets
 import socket
 import sys
 import threading
-import tempfile
 import time
 
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -23,8 +22,18 @@ def prepare_folder(folder: Path):
     try:
         for path in (folder, folder/'logs', folder/'media', folder/'thumbs'):
             path.mkdir(parents=True, exist_ok=True)
-            with tempfile.TemporaryFile(dir=path, prefix='.front-write-check-') as probe:
-                probe.write(b'Front'); probe.flush(); os.fsync(probe.fileno())
+            # Windows tempfile can mistake an ACL denial for a filename collision
+            # and retry TMP_MAX times because os.access ignores that ACL.
+            # Exclusive create once; never unlink a path we didn't create.
+            probe_path = path / ('.front-write-check-' + secrets.token_hex(16))
+            created = False
+            try:
+                with probe_path.open('xb') as probe:
+                    created = True
+                    probe.write(b'Front'); probe.flush(); os.fsync(probe.fileno())
+            finally:
+                if created:
+                    probe_path.unlink()
     except OSError as exc:
         raise RuntimeError('data_directory_unwritable') from exc
 

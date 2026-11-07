@@ -1,5 +1,6 @@
 """Build only the public Python package and production Vue assets; no workspace-wide collection."""
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
@@ -8,13 +9,17 @@ import uuid
 root=Path(__file__).resolve().parents[1]
 stage=root/'.cache/desktop-stage'
 assert stage.resolve().is_relative_to(root), 'Build staging must stay inside the project'
+build_tmp=root/'.cache/build-tmp'
+build_tmp.mkdir(parents=True,exist_ok=True)
+build_env={**os.environ,'PYINSTALLER_CONFIG_DIR':str(root/'.cache/pyinstaller'),
+    'TEMP':str(build_tmp),'TMP':str(build_tmp),'TMPDIR':str(build_tmp)}
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onedir','--console',
     '--name','front-backend','--distpath',str(stage/'dist'),'--workpath',str(stage/'build'),
     '--specpath',str(stage),'--paths',str(root/'backend'),
     '--add-data',f'{root / "frontend/dist"}:frontend/dist',
     '--collect-all','pypdfium2','--collect-all','pypdfium2_raw','--collect-submodules','uvicorn',
     '--hidden-import','sqlalchemy.dialects.sqlite','--copy-metadata','front-api',
-    str(root/'desktop/sidecar_entry.py')],check=True,cwd=root)
+    str(root/'desktop/sidecar_entry.py')],check=True,cwd=root,env=build_env)
 source=stage/'dist/front-backend';target=stage/'backend'
 if target.exists():
     retired=stage/('backend-retired-'+uuid.uuid4().hex)

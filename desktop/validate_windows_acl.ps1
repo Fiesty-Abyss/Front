@@ -54,6 +54,18 @@ try {
     $env:PYTHONPATH = $previousPythonPath
 }
 [IO.File]::WriteAllText((Join-Path $deniedPath 'restored-write.txt'), 'ACL restored')
+$beforeRaw = [Security.AccessControl.RawSecurityDescriptor]::new($originalAcl.Sddl)
+$afterRaw = [Security.AccessControl.RawSecurityDescriptor]::new((Get-Acl -LiteralPath $deniedPath).Sddl)
+$beforeRules = [byte[]]::new($beforeRaw.DiscretionaryAcl.BinaryLength)
+$afterRules = [byte[]]::new($afterRaw.DiscretionaryAcl.BinaryLength)
+$beforeRaw.DiscretionaryAcl.GetBinaryForm($beforeRules, 0)
+$afterRaw.DiscretionaryAcl.GetBinaryForm($afterRules, 0)
+# Windows may recompute the AI metadata flag after Set-Acl. Preserve every ACE,
+# owner/group and all other control flags (including inheritance protection).
+$metadataMask = -bnot [int][Security.AccessControl.ControlFlags]::DiscretionaryAclAutoInherited
+if ($beforeRaw.Owner -ne $afterRaw.Owner -or $beforeRaw.Group -ne $afterRaw.Group -or
+    (([int]$beforeRaw.ControlFlags -band $metadataMask) -ne ([int]$afterRaw.ControlFlags -band $metadataMask)) -or
+    [Convert]::ToBase64String($beforeRules) -ne [Convert]::ToBase64String($afterRules)) { throw 'ACL restoration descriptor mismatch' }
 if ((Get-FileHash -LiteralPath $samplePath -Algorithm SHA256).Hash -ne $beforeHash) { throw 'Generated sentinel changed' }
 $report = @{ generated_only=$true; clean_vm=$false; actual_deny_ace=$true; acl_restored=$true; sentinel_sha256_unchanged=$true; private_originals_modified=$false; frozen=[bool]$Sidecar }
 $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $probeRoot 'report.json') -Encoding utf8

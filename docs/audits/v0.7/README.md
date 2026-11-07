@@ -141,3 +141,14 @@ cd ..
 - [F 界面与键盘/窄屏](UI_AUDIT_F.md)
 
 PR #29–#34已CI成功并合并；每篇区分生成文件、Mock、真实SDK/网络/原生程序和未覆盖环境。当前不是正式v0.7发布。先读NEXT_SESSION再接续，避免重复实现。
+
+## 2026-11-07 RC可靠性冲刺
+
+- [A 大收藏分页/并发与性能](RC_COLLECTIONS_A.md)
+- [B 混合数据与真实任务中断](RC_MIXED_B.md)
+- [C Windows ACL与安装覆盖边界](RC_WINDOWS_C.md)
+- [D 可见启动阶段与生命周期](RC_STARTUP_D.md)
+- [E 官方Updater传输与兼容性回归](RC_UPDATES_E.md)
+- [当前候选结论、性能和许可证门槛](../../RELEASE_CANDIDATE_STATUS.md)
+
+各报告明确生成文件/Mock/真实SDK和主机范围。正式RC仍需干净系统安装升级、真实更新安装与程序恢复、生产信任根/许可及完整性能验收；不覆盖或删除旧审计证据。

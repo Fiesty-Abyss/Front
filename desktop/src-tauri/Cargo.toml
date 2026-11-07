@@ -1,6 +1,6 @@
 [package]
 name = "front-desktop"
-version = "0.7.0-preview.1"
+version = "0.7.0-preview.2"
 description = "Front local creative library"
 authors = ["Front contributors"]
 edition = "2021"

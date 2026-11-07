@@ -116,11 +116,16 @@ def validate(session, obj, data):
         if obj.id and obj.character_id == data.get('character_id') and obj.oc_id == data.get('oc_id') and obj.binding != scope:
             raise HTTPException(409, '角色归属已变化；请先解除绑定再确认新的关联')
         data['binding'] = scope
-        data['sample_ref'] = sample(session, data.get('sample_ref') or {})
-        if data['sample_ref'] and scope.get('world'):
-            asset = session.get(m.Asset, data['sample_ref']['id'])
-            if asset.world_id and asset.world_id != scope['world'][0]:
-                raise HTTPException(422, '试听素材属于不同世界观，请明确选择同范围或无归属的音频')
+        data['sample_ref'] = scoped_sample(session, data.get('sample_ref') or {}, scope)
+
+
+def scoped_sample(session, ref, scope):
+    ref = sample(session, ref)
+    if ref and scope.get('world'):
+        asset = session.get(m.Asset, ref['id'])
+        if asset.world_id and asset.world_id != scope['world'][0]:
+            raise HTTPException(409, '试听素材属于不同世界观，请明确选择同范围或无归属的音频')
+    return ref
 
 
 def validate_restore(session, obj, data):
@@ -131,7 +136,7 @@ def validate_restore(session, obj, data):
         target = binding(session, data.get('character_id'), data.get('oc_id'))
         if target != data.get('binding') or current != data.get('_voice_scope'):
             raise HTTPException(409, '历史声线关联的角色或世界观已变化，请手动审核')
-        sample(session, data.get('sample_ref') or {})
+        scoped_sample(session, data.get('sample_ref') or {}, target)
 
 
 def diagnostics(session, obj):
@@ -139,7 +144,7 @@ def diagnostics(session, obj):
     try:
         if obj.binding != binding(session, obj.character_id, obj.oc_id):
             issues.append('角色或世界观关联已变化，请审核')
-        sample(session, obj.sample_ref)
+        scoped_sample(session, obj.sample_ref, obj.binding)
     except HTTPException as exc:
         issues.append(str(exc.detail))
     return issues

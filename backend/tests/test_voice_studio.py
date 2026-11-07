@@ -185,3 +185,16 @@ def test_voice_history_and_sample_survive_existing_isolated_backup_restore(clien
         assert db.execute('SELECT count(*) FROM entity_versions').fetchone()[0]>=2
         assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
     assert client.get(f'/api/voice/profiles/{profile["id"]}').json()['uid']==profile['uid']
+
+
+def test_sample_world_move_is_diagnosed_and_history_cannot_rebind(client):
+    a,ref=upload_wav(client)
+    world=client.post('/api/worlds',json={'name':'声线世界'}).json()['id']
+    other=client.post('/api/worlds',json={'name':'另一世界'}).json()['id']
+    char=client.post('/api/characters',json={'name':'测试角色','world_id':world}).json()['id']
+    profile=create(client,'profiles',character_id=char,sample_ref=ref)
+    client.patch(f'/api/assets/{a["id"]}',json={'world_id':other})
+    assert client.get(f'/api/voice/profiles/{profile["id"]}').json()['issues']
+    assert put(client,'profiles',profile,notes='不能静默接受移动后的音频').status_code==409
+    url=f'/api/versions/voice_profile/{profile["id"]}/{profile["version"]}/restore'
+    assert client.post(url,json={'expected_latest':profile['version']}).status_code==409

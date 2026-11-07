@@ -113,7 +113,7 @@ def validate(session, obj, data):
             get_or_404(session, m.VoiceModel, data['model_id'])
         scope = binding(session, data.get('character_id'), data.get('oc_id'))
         # Re-saving the same binding cannot silently accept a world move.
-        if obj.id and obj.character_id == data.get('character_id') and obj.oc_id == data.get('oc_id') and obj.binding != scope:
+        if obj.id and scope and obj.character_id == data.get('character_id') and obj.oc_id == data.get('oc_id') and obj.binding != scope:
             raise HTTPException(409, '角色归属已变化；请先解除绑定再确认新的关联')
         data['binding'] = scope
         data['sample_ref'] = scoped_sample(session, data.get('sample_ref') or {}, scope)

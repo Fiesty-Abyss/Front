@@ -198,3 +198,25 @@ def test_sample_world_move_is_diagnosed_and_history_cannot_rebind(client):
     assert put(client,'profiles',profile,notes='不能静默接受移动后的音频').status_code==409
     url=f'/api/versions/voice_profile/{profile["id"]}/{profile["version"]}/restore'
     assert client.post(url,json={'expected_latest':profile['version']}).status_code==409
+
+
+
+def test_deleted_character_or_oc_binding_can_be_explicitly_cleared(client):
+    for owner in ('character','oc'):
+        if owner=='character':
+            char=client.post('/api/characters',json={'name':'可删除的生成角色'}).json()['id']
+            profile=create(client,'profiles',character_id=char)
+            assert client.delete(f'/api/characters/{char}').status_code==204
+        else:
+            oc=client.post('/api/oc',json={'title':'可删除的生成OC'}).json()['id']
+            profile=create(client,'profiles',oc_id=oc)
+            assert client.delete(f'/api/oc/{oc}').status_code==204
+        current=client.get(f'/api/voice/profiles/{profile["id"]}').json()
+        assert current['issues'] and current['character_id'] is None and current['oc_id'] is None
+        cleared=put(client,'profiles',current,character_id=None,oc_id=None,notes='明确保留为独立声线')
+        assert cleared.status_code==200,cleared.text
+        assert cleared.json()['binding']=={} and cleared.json()['issues']==[]
+        assert cleared.json()['uid']==profile['uid'] and cleared.json()['version']!=profile['version']
+        history=f'/api/versions/voice_profile/{profile["id"]}'
+        # Clearing a missing association must not silently resurrect its old ID.
+        assert client.post(history+f'/{profile["version"]}/restore',json={'expected_latest':cleared.json()['version']}).status_code in (404,409)

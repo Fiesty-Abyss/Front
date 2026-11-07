@@ -10,6 +10,7 @@ import Modal from '../components/Modal.vue'
 import NoteEditor from '../components/NoteEditor.vue'
 import TagPicker from '../components/TagPicker.vue'
 import { guard, toast } from '../toast'
+import { noteAncestry, visibleNotes } from '../noteAncestry'
 
 const editingTags = ref(false)
 
@@ -37,15 +38,12 @@ const byParent = computed(() => {
 const flat = computed(() => {
   // 展开后的可见行（带缩进层级）；搜索时直接平铺匹配项
   if (filter.value.trim()) return tree.value.filter((n) => n.title.toLowerCase().includes(filter.value.trim().toLowerCase())).map((n) => ({ ...n, depth: 0 }))
-  const out = []
-  const walk = (pid, depth) => { for (const n of byParent.value.get(pid) || []) { out.push({ ...n, depth, kids: (byParent.value.get(n.id) || []).length }); if (open.value.has(n.id)) walk(n.id, depth + 1) } }
-  walk(0, 0)
-  return out
+  return visibleNotes(tree.value, open.value)
 })
 function toggle(id) { const s = new Set(open.value); s.has(id) ? s.delete(id) : s.add(id); open.value = s }
 function expandTo(id) {
-  const s = new Set(open.value); let n = tree.value.find((x) => x.id === id); s.add(id) // 打开的页面也展开它的子页面
-  while (n?.parent_id) { s.add(n.parent_id); n = tree.value.find((x) => x.id === n.parent_id) }
+  const s = new Set(open.value); s.add(id)
+  for (const parent of noteAncestry(tree.value, id).parents) s.add(parent.id)
   open.value = s
 }
 
@@ -97,11 +95,13 @@ async function remove() {
 }
 function pickAsset(a) { picking.value = false; editorRef.value?.insertAsset(a) }
 function pickNote(n) { pickingNote.value = false; editorRef.value?.insertNoteLink(n) }
-const crumbs = computed(() => {
-  const out = []; let n = note.value && tree.value.find((x) => x.id === note.value.parent_id)
-  while (n) { out.unshift(n); n = tree.value.find((x) => x.id === n.parent_id) }
-  return out
-})
+const ancestry = computed(() => noteAncestry(tree.value, note.value?.id))
+const crumbs = computed(() => ancestry.value.parents)
+async function detachParent() {
+  if (!note.value) return
+  await guard(() => api.post(`/api/notes/${note.value.id}/move`, {parent_id:null}), '已移到根目录，正文保留')
+  await loadTree(); expandTo(note.value.id)
+}
 const roots = computed(() => byParent.value.get(0) || [])
 const when = (s) => (s ? new Date(s.endsWith('Z') || s.includes('+') ? s : s + 'Z').toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
 const saveNow = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); clearTimeout(timer); save() } }
@@ -138,6 +138,7 @@ watch(() => route.params.id, async (id) => {
     </aside>
 
     <section v-if="note" class="nb-main">
+      <div v-if="ancestry.issue" class="notice" role="alert">目录存在循环或父页已失效；正文保留。<button @click="detachParent">将此页移到根目录</button></div>
       <div class="nb-crumbs small faint">
         <RouterLink to="/notes">笔记本</RouterLink>
         <template v-for="c in crumbs" :key="c.id"><ChevronRight :size="12" /><RouterLink :to="`/notes/${c.id}`">{{ c.icon }} {{ c.title }}</RouterLink></template>

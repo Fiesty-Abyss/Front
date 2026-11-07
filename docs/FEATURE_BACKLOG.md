@@ -127,3 +127,6 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 - VOICE-A：部分实现。/voice懒加载、三类档案/许可/试听/偏好/角色绑定/版本、六表结构及备份复用；工程三表仅结构预留。具体见VOICE_STUDIO；合成/克隆/训练/真实硬件未验证。
 - NOTE-FILTER接管纠正：通用CRUD已转换过滤器ValueError为422，撤回未经回归的500判断；下一步验证move和普通PATCH目录循环约束，不为增加提交重复修已捕获异常。
 - VOICE-B/C/D/F仍待开发，长期Live2D/绘画/桌面/真实AI计划不变。
+
+
+- NOTE-TREE：修复普通PATCH/历史恢复绕过目录环检查及move异常输入；复用现有Note/版本，不改架构或数据表。生成样本API回归，Actions确认；私人库修复/自动重排不在范围。

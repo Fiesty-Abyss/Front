@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,7 @@ from .. import models as m
 from .. import schemas as s
 from ..crud import get_or_404, make_crud_router, qp
 from ..db import get_session
+from ..notegraph import validate_parent
 
 
 def _filters(stmt, request):
@@ -23,9 +25,20 @@ def _filters(stmt, request):
     return stmt
 
 
+def validate_note(session, data, note_id=None):
+    # Serialize all API parent edits before checking the graph. Ordinary PATCH
+    # must have the same protection as drag/move and historical restore.
+    session.connection().exec_driver_sql('BEGIN IMMEDIATE')
+    if 'parent_id' in data:
+        validate_parent(session, data['parent_id'], note_id)
+    for key in ('title', 'content', 'pinned', 'position'):
+        if key in data and data[key] is None:
+            raise HTTPException(422, f'{key} 不能为 null')
+
+
 crud = make_crud_router(
     prefix="/api/notes", model=m.Note, create_schema=s.NoteCreate, update_schema=s.NoteUpdate, read_schema=s.NoteRead,
-    tag_name="笔记本", filters=_filters, order_by=(m.Note.pinned.desc(), m.Note.position, m.Note.updated_at.desc()),
+    tag_name="笔记本", filters=_filters, validate=validate_note, validate_with_id=True, order_by=(m.Note.pinned.desc(), m.Note.position, m.Note.updated_at.desc()),
 )
 extra = APIRouter(prefix="/api/notes", tags=["笔记本"])
 ASSET_REF = re.compile(r"/api/assets/(\d+)/|asset:(\d+)|/assets\?open=(\d+)")
@@ -41,19 +54,20 @@ def tree(session: Session = Depends(get_session)) -> list[dict[str, Any]]:
              "updated_at": r.updated_at.isoformat() if r.updated_at else None} for r in rows]
 
 
+class Move(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    parent_id: int | None = Field(default=None, gt=0)
+    position: int = 0
+
+
 @extra.post("/{note_id}/move")
-def move(note_id: int, body: dict[str, Any], session: Session = Depends(get_session)) -> dict[str, Any]:
+def move(note_id: int, body: Move, session: Session = Depends(get_session)) -> dict[str, Any]:
+    session.connection().exec_driver_sql('BEGIN IMMEDIATE')
     note = get_or_404(session, m.Note, note_id)
-    parent = body.get("parent_id")
-    if parent is not None:
-        p = get_or_404(session, m.Note, int(parent))
-        while p is not None:  # 不能移到自己的子孙下面
-            if p.id == note.id:
-                raise HTTPException(422, "不能把笔记移到它自己的子页面里")
-            p = session.get(m.Note, p.parent_id) if p.parent_id else None
-    note.parent_id = parent
-    if "position" in body:
-        note.position = int(body["position"])
+    validate_parent(session, body.parent_id, note.id)
+    note.parent_id = body.parent_id
+    if 'position' in body.model_fields_set:
+        note.position = body.position
     session.commit()
     return {"id": note.id, "parent_id": note.parent_id, "position": note.position}
 

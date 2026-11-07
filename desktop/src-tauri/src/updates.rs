@@ -67,7 +67,7 @@ fn trusted_download(url:&reqwest::Url)->bool{
         &&url.username().is_empty()&&url.password().is_none()&&url.fragment().is_none()
         &&url.path().starts_with("/Fiesty-Abyss/Front/releases/download/")
 }
-fn validate(update:&Update,channel:&str,target:&str)->Result<(),String>{
+pub(super) fn validate(update:&Update,channel:&str,target:&str)->Result<(),String>{
     if !trusted_download(&update.download_url){return Err("update_source_invalid".into());}
     let version=semver::Version::parse(&update.version).map_err(|_|"update_version_invalid")?;
     let current=semver::Version::parse(&update.current_version).map_err(|_|"update_version_invalid")?;

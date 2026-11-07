@@ -1,1 +1,13 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Front</title><body style="background:#17141f;color:#ddd2ed;font:18px system-ui;padding:3rem">Front 正在初始化本机资料库…</body></html>
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Front · 正在启动</title>
+<style>body{margin:0;background:#17141f;color:#e7def5;font:16px/1.7 system-ui;min-height:100vh;display:grid;place-items:center}main{max-width:38rem;padding:2rem}h1{font-size:1.8rem;margin:0 0 1rem}.mark{color:#b89adf}p{margin:.6rem 0}.hint{color:#b8aec7;font-size:.9rem}progress{width:100%;accent-color:#ab80d2}.error{border-left:3px solid #e99ab0;padding-left:1rem}[hidden]{display:none!important}</style></head>
+<body><main><h1><span class="mark">F</span> Front</h1><p id="status" role="status" aria-live="polite">正在检查本机资料…</p><progress id="progress" hidden></progress><p class="hint" id="hint">首次启动或升级可能需要备份和验证。请保留原始素材；关闭窗口可停止本实例初始化。</p></main>
+<script>
+window.frontStartup=(view)=>{
+ const status=document.getElementById('status'),progress=document.getElementById('progress');
+ status.textContent=view.message;status.classList.toggle('error',view.failed);status.setAttribute('role',view.failed?'alert':'status');
+ progress.hidden=!(view.total>0&&view.done!==null&&!view.failed);
+ if(!progress.hidden){progress.max=view.total;progress.value=view.done;progress.setAttribute('aria-label','当前阶段文件进度');}
+ if(view.failed)document.getElementById('hint').textContent='初始化已停止。本窗口不重置资料库，请关闭窗口后检查原因再重试。';
+};
+</script></body></html>

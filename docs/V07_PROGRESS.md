@@ -235,3 +235,10 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 正式8000仍为private/web-runtime-176e59c稳定快照，返回200；没有切换、迁移或压力写入正式个人库。五个自有QA服务/标签页已关闭，生成库完整性ok；本机最终包校验/交付位置与精确后续main见忽略的private/DESKTOP_SPRINT_STATUS.json。日志、生成库、模型和密钥不进入Git。
 
 剩余优先级：大收藏摘要/成员分页及安全跨页排序；E混合长篇/角色/模型/音频/复杂标签、队列取消重启与前端heap/FPS；A真正冷/热启动与标准首屏交互；B干净Windows/权限/安装卸载升级；C/D正式信任根/签名feed、真实安装失败恢复、发布审批；F真实设备/完整键盘与非空复杂状态。长期创作功能全部保留。约5小时为本轮工作窗口，收尾后不宣称后台持续开发。
+
+
+## Voice foundation · 2026-11-07
+
+PR #43文档已正常合并，三项远程CI成功，接管main ff3049775f0d527661e6948d386309072b47bfbc。新增声线基础代码：/voice按需入口、引擎/模型/声线资料、来源许可与试听、角色/OC身份隔离、偏好、版本及隔离备份回归。VoiceProject/Segment/Render目前仅结构，不称完成配音工程。
+
+本阶段测试/构建由Actions执行，结果及后续修复见PR；不运行本机Front/模型或私人数据。本机只暂存远程编辑载荷，无真实TTS/GUI/硬件/干净Windows验收。没有TTS依赖或网络推理调用。撤回接管文档对笔记过滤器500的误判：crud已捕获；树移动/PATCH另验证。

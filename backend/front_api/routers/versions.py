@@ -112,6 +112,9 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
         raise HTTPException(409,'学习集的世界观/作品归属已变化，请审核后再恢复')
     if isinstance(obj,m.BonusItem) and data.get('_bonus_scope')!=v.payload(session,obj).get('_bonus_scope'):
         raise HTTPException(409,'特典归属已变化，请审核后再恢复')
+    if isinstance(obj, (m.VoiceProvider, m.VoiceModel, m.VoiceProfile)):
+        from ..voicestudio import validate_restore
+        validate_restore(session, obj, data)
     for key,created_at in data.get('_references',{}).items():
         column=obj.__table__.c[key]
         for fk in column.foreign_keys:

@@ -10,6 +10,7 @@ from . import models as m
 
 ENTITIES = dict(asset=m.Asset, character=m.Character, entry=m.WorldEntry, note=m.Note,
                 world=m.World, work=m.Work, relation=m.Relation,oc=m.OCProfile,study=m.OCStudy,bonus=m.BonusArchive,bonus_item=m.BonusItem)
+ENTITIES.update(voice_provider=m.VoiceProvider, voice_model=m.VoiceModel, voice_profile=m.VoiceProfile)
 KINDS = {v:k for k,v in ENTITIES.items()}
 SKIP = {'id','created_at','updated_at'}
 
@@ -47,6 +48,9 @@ def payload(session, obj):
                 created=session.connection().scalar(select(table.c.created_at).where(fk.column==identity))
                 references[col.key]=created.isoformat() if created else None
     value['_references']=references
+    if isinstance(obj,m.VoiceProfile):
+        from .voicestudio import binding
+        value['_voice_scope'] = binding(session, obj.character_id, obj.oc_id)
     if isinstance(obj,m.OCProfile):
         char=session.get(m.Character,obj.character_id) if obj.character_id else None
         value['_oc_scope']={'character_id':char.id if char else None,'world_id':char.world_id if char else None,'work_id':char.work_id if char else None}

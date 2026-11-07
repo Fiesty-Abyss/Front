@@ -1,11 +1,9 @@
-# Voice Studio本轮接续 · 2026-11-07
+# Voice Studio foundation 接续 · 2026-11-07
 
-文档接管基线main `3aaa9e1731185046bee1f26a7eef1119514f8e33`，无开放PR，原main CI42355716567成功。当前文档分支codex/voice-studio-prd-intake，尚待本PR CI/合并；不得提前标Voice实现。
+已核对文档PR #43三项CI通过并正常合并；当前功能分支基于main ff3049775f0d527661e6948d386309072b47bfbc。功能PR待Actions，准确head/PR与后续结果由GitHub查询，不提前宣称通过。
 
-原始Voice v1.0已完整纳入AI_VOICE_STUDIO_PRD.md，并区分原规划交接语句与用户最新执行任务；复用/状态/缺陷证据见audits/voice/FOUNDATION_REUSE.md。ROADMAP/ARCHITECTURE已纠正任务持久化/完整媒体备份/桌面预览旧描述。没有改源程序/数据库。
+已实现代码范围见VOICE_STUDIO：三类档案、角色/OC隔离、试听引用、偏好/标签、版本/恢复与六表结构。Project/Segment/Render仅预留，尚无台词工程或合成API。新增生成WAV/隔离DB回归及备份恢复测试；未执行本机应用/GUI/硬件/真实TTS。
 
-下一步：本PR三项CI通过并正常合并后取最新main；独立提交Voice基础（六对象、档案/授权/身份引用、版本/备份与/voice懒加载）和已定位笔记错误参数422修复。再按用户顺序对白项目→TTS协议/Mock→有声小说。不重复现有素材、播放器或队列，不启动本机引擎。
+工作方式：无已保存Codex Cloud，GitHub集成写403；用户后续允许读取本机PRD，现有gh登录拥有写权限。源checkout不变，只在Front缓存暂存API提交载荷，Actions运行测试。不启动本机服务、不用私人素材，不发布Release。
 
-本轮通过GitHub API远程编辑，Actions生成样本验证；没有已保存Codex Cloud配置，GitHub集成写入403，已有CLI具有push权限。用户后来允许读取指定PRD，仅使用Front缓存暂存提交载荷，不改本机源checkout或启动本机服务/硬件/安装器。真实音频/训练/克隆/Windows验收仍待，生产签名/既有RC结论不变。所有长期任务保留FEATURE_BACKLOG。
-
-上轮preview.2与RC记录保留在RELEASE_CANDIDATE_STATUS、V07_PROGRESS及相关审计；本轮不会使用私人项目、声线、模型或数据库测试。停止时记录实际PR/head/CI和准确下一步，不承诺离线继续执行。
+下一步：检查功能PR的backend/python310/frontend以及路径触发的Windows CI，修复后普通合并，取remote main再开独立分支。优先复现并修复笔记move/PATCH树约束；通用CRUD已捕获过滤器ValueError，不再误报该点。之后推进台词工程、TTS协议/Mock、有声小说；官方适配器需先核对固定版本的API，不猜接口。保留全部长期路线与既有RC未通过的验收边界。

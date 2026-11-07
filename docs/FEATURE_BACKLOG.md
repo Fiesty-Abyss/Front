@@ -120,3 +120,10 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 | NOTE-FILTER | 非数字parent/work筛选导致异常 | notes/crud及API回归 | 低；无额外常驻资源 | 错参应422，保留有效过滤行为 | P0，源码定位，未修复/待回归 |
 
 现有Live2D、Krita/数位板、OC/真实生图、小说语义、3D、游戏/特典、Windows/签名及完整性能项目保持原状态。旧历史段落中的待办不能替代此时源码事实。
+
+
+### Voice foundation 代码增量
+
+- VOICE-A：部分实现。/voice懒加载、三类档案/许可/试听/偏好/角色绑定/版本、六表结构及备份复用；工程三表仅结构预留。具体见VOICE_STUDIO；合成/克隆/训练/真实硬件未验证。
+- NOTE-FILTER接管纠正：通用CRUD已转换过滤器ValueError为422，撤回未经回归的500判断；下一步验证move和普通PATCH目录循环约束，不为增加提交重复修已捕获异常。
+- VOICE-B/C/D/F仍待开发，长期Live2D/绘画/桌面/真实AI计划不变。

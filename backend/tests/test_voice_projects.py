@@ -32,7 +32,7 @@ def test_manual_candidate_adoption_and_only_changed_segment_becomes_stale(client
     accepted=client.post(url+f'/renders/{r["id"]}/accept',json=token(p))
     assert accepted.status_code==200,accepted.text
     p=accepted.json()['project']
-    edited=client.put(url,json={**token(p),'text':'修改第一句','speaker':'甲','profile_id':voice['id']})
+    edited=client.put(url,json={**token(p),'expected_segment_version':a['version'],'text':'修改第一句','speaker':'甲','profile_id':voice['id']})
     assert edited.status_code==200,edited.text
     p=edited.json()['project']
     assert client.get(url+'/renders').json()['items'][0]['stale'] is True
@@ -107,7 +107,7 @@ def test_candidate_audio_identity_and_scope_rechecked_on_adoption(client):
 
 def test_segment_history_restore_changes_project_cursor_and_keeps_new_versions(client):
     p=project(client);p,a=add(client,p,'旧台词');url=base(p)+f'/segments/{a["id"]}'
-    r=client.put(url,json={**token(p),'text':'新台词'});assert r.status_code==200,r.text
+    r=client.put(url,json={**token(p),'expected_segment_version':a['version'],'text':'新台词'});assert r.status_code==200,r.text
     p=r.json()['project'];current=r.json()['segment']
     path=f'/api/versions/voice_segment/{a["id"]}'
     restore=client.post(path+f'/{a["version"]}/restore',json={'expected_latest':current['version']})
@@ -140,7 +140,7 @@ def test_backup_keeps_dialogue_candidates_and_audio_versions(client):
 def test_text_restore_after_reorder_preserves_current_order(client):
     p=project(client);p,a=add(client,p,'旧台词');p,b=add(client,p,'第二条')
     url=base(p)+f'/segments/{a["id"]}'
-    edit=client.put(url,json={**token(p),'text':'新台词'});assert edit.status_code==200,edit.text
+    edit=client.put(url,json={**token(p),'expected_segment_version':a['version'],'text':'新台词'});assert edit.status_code==200,edit.text
     p=edit.json()['project']
     moved=client.post(url+'/move',json={**token(p),'direction':1});assert moved.status_code==200,moved.text
     p=moved.json()['project'];current=client.get(url).json()
@@ -149,6 +149,17 @@ def test_text_restore_after_reorder_preserves_current_order(client):
     rows=client.get(base(p)+'/segments').json()['items']
     assert [r['uid'] for r in rows]==[b['uid'],a['uid']]
     assert rows[1]['text']=='旧台词'
+
+
+def test_refreshing_project_page_cannot_overwrite_a_stale_segment_draft(client):
+    p=project(client);p,a=add(client,p,'两个窗口最初读到的台词')
+    url=base(p)+f'/segments/{a["id"]}'
+    newer=client.put(url,json={**token(p),'expected_segment_version':a['version'],'text':'另一窗口已提交的新内容'})
+    assert newer.status_code==200,newer.text
+    refreshed_project=client.get(base(p)).json()
+    old_draft=client.put(url,json={**token(refreshed_project),'expected_segment_version':a['version'],'text':'旧窗口未合并的草稿'})
+    assert old_draft.status_code==409,old_draft.text
+    assert client.get(url).json()['text']=='另一窗口已提交的新内容'
 
 
 @pytest.mark.parametrize('changes',[{'speed':0},{'speed':5},{'text':'a'*20001},{'unexpected':'not-a-TTS-param'}])

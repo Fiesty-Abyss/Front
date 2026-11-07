@@ -70,6 +70,8 @@ def append(project_id:int,body:vp.SegmentDraft,session:Session=Depends(get_sessi
 @router.put('/{project_id}/segments/{segment_id}')
 def edit(project_id:int,segment_id:int,body:vp.SegmentDraft,session:Session=Depends(get_session)):
     project=vp.start(session,project_id,body);obj=vp.segment(session,project,segment_id);vp.editable(obj)
+    if body.expected_segment_version!=vs.version_id(session,obj):
+        raise HTTPException(409,'台词已被其他窗口修改，请重新加载该片段后合并')
     vp.apply(session,project,obj,body);vp.touch(session,project,'修改台词');session.commit()
     return {'project':vs.serialize(session,project),'segment':vp.describe(session,obj)}
 

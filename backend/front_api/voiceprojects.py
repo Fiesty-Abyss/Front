@@ -16,6 +16,7 @@ class Mutation(BaseModel):
     model_config = ConfigDict(extra='forbid')
     project_uid: str = Field(min_length=32, max_length=32)
     expected_project_version: int = Field(gt=0)
+    expected_segment_version: int | None = Field(default=None, gt=0)
 
 
 class SegmentDraft(Mutation):

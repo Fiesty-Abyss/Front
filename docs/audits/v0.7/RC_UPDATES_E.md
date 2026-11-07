@@ -12,6 +12,6 @@
 
 ## 实测状态
 
-本机已通过official signer、真实Python HTTPS完整/中断传输和受限测试夹检查（transport-only），以及两项输出边界负向测试。**本机没有MSVC，Rust新增八项回归必须以Windows CI结果确认**；transport-only输出明确rust_sdk_tests=not run、installation_executed=false。
+本机最终265后端/8前端测试及生产构建通过；已通过official signer、真实Python HTTPS完整/中断传输和受限测试夹检查（transport-only），以及两项输出边界负向测试。**本机没有MSVC，Rust新增八项回归必须以Windows CI结果确认**；transport-only输出明确rust_sdk_tests=not run、installation_executed=false。
 
 CI执行真实SDK网络/签名测试，不调用install。安装过程异常退出、断电/安装器回滚、旧/新程序二进制恢复和真实便携替换尚未验收，依赖干净隔离环境。现有生成DB/媒体完整备份和恢复测试不能替代这些场景；正式信任根与公开Release仍需独立授权。

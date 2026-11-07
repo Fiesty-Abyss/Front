@@ -1,6 +1,6 @@
 # Front 接续记录 · 2026-11-07
 
-当前功能main：`3f8e5700d6cdaa3c75a3945f6290dade4ef2acd1`（已合并PR #36/#37/#38，四项CI均通过）。本记录来自后续独立启动进度分支；接管先fetch最新main和PR，不能把文档内的基线当成以后最新SHA。
+当前功能main：`745b7cad94e044a306e443b1874d058302404dfb`（已合并PR #36/#37/#38/#39，四项CI均通过）。本记录来自后续独立启动进度分支；接管先fetch最新main和PR，不能把文档内的基线当成以后最新SHA。
 
 ## 本轮已完成
 
@@ -22,3 +22,11 @@
 生成源服务8001（启动器35700/后端33276）和8002（30964/4620），PID必须重新核对归属后再停止；浏览器仅代理自建QA标签。原生基线27772已正常退出，不按旧PID盲目结束进程。最终精确运行状态记private/RC_SPRINT_STATUS.json。
 
 本机首次C PyInstaller构建曾用默认用户cache，检查时已完成；随后build_sidecar强制项目.cache和TEMP并重建，没有额外清理默认用户cache。后续受控输出留E盘。未公开Release、未配置正式密钥、未接受Cubism协议。长期Live2D/Krita/数位板/OC/真实AI/3D/特典和插件路线继续保留。
+
+## E提交时补充
+
+D Windows run42351228491全部通过（262后端/1跳过、6真实Updater+2启动Rust、冻结ACL/迁移、两包Hash）。已下载核验外层digest/内层Hash。未来生成库原生错误提示实际可见，冻结复核DBHash不变。正常空库native日志621/2164/2495ms分别是窗口创建/服务ready/document load，非TTI，150%缩放。后续激活/捕获多次返回最小化/用户输入提示，停止反复激活；点击取消、完整原生导航和多DPI不标通过。私有截图含桌宠叠层，不公开。
+
+1GiB生成媒体迁移真实中途强制结束壳，源DB/媒体Hash不变；重启产生完整备份/隔离恢复并完成迁移，ready5540ms/document5837ms，非GUI/TTI；.cache/rc-native-migration-01/report.json。原生测试PID31604/35184/35572/34744均已结束，仍须复核无所属后端，不能按旧PID盲杀。
+
+独立E已265后端/8前端/生产构建通过，待PR与真实Rust八项Windows CI；通过后普通合并，再同步F分支codex/candidate-docs-rc。F草稿含preview.2版本与安装/备份/许可/RC不放行说明，不得未验收公开Release。

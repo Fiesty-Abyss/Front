@@ -131,6 +131,9 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
             media_path(data['file_path'])
         elif data.get('sha256')!=obj.sha256 or data.get('_indexed')!=bool(session.get(m.ExternalAssetFile,obj.id)):
             raise HTTPException(409,'索引历史原字节未保存；不能伪装恢复旧文件，请先定位/导入对应原件')
+    if isinstance(obj, m.Note):
+        from ..notegraph import validate_parent
+        validate_parent(session, data.get('parent_id'), obj.id)
     try:
         for c in obj.__table__.columns:
             if c.key in v.SKIP or c.key not in data:continue

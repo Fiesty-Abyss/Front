@@ -242,3 +242,10 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 PR #43文档已正常合并，三项远程CI成功，接管main ff3049775f0d527661e6948d386309072b47bfbc。新增声线基础代码：/voice按需入口、引擎/模型/声线资料、来源许可与试听、角色/OC身份隔离、偏好、版本及隔离备份回归。VoiceProject/Segment/Render目前仅结构，不称完成配音工程。
 
 本阶段测试/构建由Actions执行，结果及后续修复见PR；不运行本机Front/模型或私人数据。本机只暂存远程编辑载荷，无真实TTS/GUI/硬件/干净Windows验收。没有TTS依赖或网络推理调用。撤回接管文档对笔记过滤器500的误判：crud已捕获；树移动/PATCH另验证。
+
+
+## 笔记目录可靠性
+
+已核对普通PATCH直接写parent_id且不调用move的祖先检查；历史恢复也可能把当前父目录移到自己的后代。move使用未验证的dict/int转换且异常旧循环无visited终止。统一校验并加写锁，格式校验改为Pydantic；拒绝父目录自环/后代环、失效父ID和必填字段null。此项没有重置/迁移/删除旧笔记，旧异常目录仅报错，需人工选择正确父目录。
+
+新增生成笔记的API回归覆盖PATCH绕过、restore成环、move非法参数、既有异常循环和正常重挂；不以Mock冒充真实AI/个人小说测试。适用远程CI和构建，以GitHub当前PR结果为准。

@@ -1018,3 +1018,16 @@ class VoiceChapterImport(VoiceIdentity, Base):
     status: Mapped[str] = mapped_column(String(30),default='queued')
     job_id: Mapped[str | None] = mapped_column(String(40))
     error_code: Mapped[str] = mapped_column(String(100),default='')
+
+
+
+class VoiceExport(VoiceIdentity, Base):
+    """Immutable request snapshot and durable export status over shared Asset files."""
+    __tablename__ = 'voice_exports'
+    project_id: Mapped[int] = mapped_column(ForeignKey('voice_projects.id',ondelete='CASCADE'),index=True)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    snapshot: Mapped[dict] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(30),default='queued')
+    job_id: Mapped[str | None] = mapped_column(String(40))
+    error_code: Mapped[str] = mapped_column(String(100),default='')
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id',ondelete='SET NULL'))

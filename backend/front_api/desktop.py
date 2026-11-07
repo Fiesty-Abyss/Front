@@ -65,7 +65,7 @@ def data_lock(folder: Path):
                 fcntl.flock(lock, fcntl.LOCK_UN)
 
 
-def prepare_data(settings):
+def prepare_data(settings, progress=None):
     """Reject downgrades; verify a full recoverable package before changing existing schema."""
     if not settings.db_path.is_file():
         return
@@ -86,14 +86,27 @@ def prepare_data(settings):
             if table in tables and column not in {r[1] for r in db.execute(f'PRAGMA table_info("{table}")')}:
                 missing = True
     if missing:
-        job = jobs.Job('full-backup', '桌面升级前完整备份')
+        class StartupJob(jobs.Job):
+            def __init__(self, kind, title, phase):
+                super().__init__(kind, title)
+                self.phase, self.last_progress = phase, 0.0
+                if progress: progress(phase, 0, None)
+            def step(self, message=None):
+                super().step(message)
+                now = time.monotonic()
+                if progress and (now - self.last_progress >= 1 or self.done == self.total):
+                    progress(self.phase, self.done, self.total)
+                    self.last_progress = now
+        job = StartupJob('full-backup', '桌面升级前完整备份', 'backup')
         backups.create(job)
         package = backups.package_for(job.result['backup_id'])
+        if progress: progress('verify_backup', None, None)
         manifest, issues = backups.verify(package)
         if issues or manifest['status'] != 'complete':
             raise RuntimeError('upgrade_backup_incomplete')
         # Does not switch or replace the active database. Its isolated migration must pass first.
-        backups.restore(jobs.Job('full-restore', '桌面升级前隔离恢复验证'), package)
+        backups.restore(StartupJob('full-restore', '桌面升级前隔离恢复验证', 'restore'), package)
+        return True
 
 
 BOOTSTRAP = """<!doctype html><html lang="zh-CN"><meta charset="utf-8">
@@ -171,7 +184,8 @@ def protect(app, *, token: str, port: int, stop):
         return response
 
 
-def serve(folder: Path):
+def serve(folder: Path, progress=None):
+    if progress: progress('checking_data', None, None)
     prepare_folder(folder)
     os.environ['FRONT_DATA_DIR'] = str(folder.resolve())
     from .config import get_settings
@@ -190,9 +204,11 @@ def serve(folder: Path):
         logger.addHandler(handler)
         logger.info('Preparing local data')
         try:
-            prepare_data(settings)
+            if progress: progress('checking_database', None, None)
+            migration_needed = prepare_data(settings, progress)
             from .main import create_app
             import uvicorn
+            if progress: progress('migrating' if migration_needed else 'initializing_database', None, None)
             app=create_app(settings)
             with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as listener:
                 listener.bind(('127.0.0.1',0));listener.listen(128)
@@ -200,6 +216,7 @@ def serve(folder: Path):
                 token=secrets.token_urlsafe(32)
                 server=uvicorn.Server(uvicorn.Config(app,log_config=None,access_log=False,workers=1))
                 protect(app,token=token,port=port,stop=lambda:setattr(server,'should_exit',True))
+                if progress: progress('starting_service', None, None)
                 async def runner():
                     async def ready():
                         while not server.started:
@@ -222,9 +239,13 @@ def main():
     import argparse
     parser=argparse.ArgumentParser()
     parser.add_argument('--data-dir',required=True)
+    parser.add_argument('--startup-events',action='store_true')
     args=parser.parse_args()
     try:
-        serve(Path(args.data_dir))
+        def progress(phase, done, total):
+            # Fixed phase IDs and counters only; never filenames, paths or credentials.
+            print(json.dumps({'phase':phase,'done':done,'total':total}),flush=True)
+        serve(Path(args.data_dir), progress if args.startup_events else None)
     except Exception as exc:
         # Only stable codes cross the shell pipe; never raw paths, tokens or provider exceptions.
         known={'data_directory_in_use','data_directory_unwritable','database_incompatible_or_damaged','upgrade_backup_incomplete'}

@@ -163,3 +163,21 @@ def test_file_changed_during_verification_is_refused(client, data_dir, monkeypat
     with new_session() as session:
         with pytest.raises(ManagedFileIntegrityError): ingest(session, payload, 'sample.bin')
     assert_unchanged_staging(data_dir)
+
+
+def test_descriptor_and_path_stat_representations_need_not_match(client, data_dir, monkeypatch):
+    from types import SimpleNamespace
+    from front_api import ingest as module
+    payload = b'generated Windows stat compatibility'; aid, _ = save(payload)
+    original = module.os.fstat
+    def different_representation(fd):
+        value = original(fd)
+        return SimpleNamespace(st_mode=value.st_mode, st_size=value.st_size,
+            st_dev=value.st_dev + 1, st_ino=0,
+            st_mtime_ns=(value.st_mtime_ns // 1000000000) * 1000000000,
+            st_ctime_ns=(value.st_ctime_ns // 1000000000) * 1000000000)
+    monkeypatch.setattr(module.os, 'fstat', different_representation)
+    with new_session() as session:
+        asset, created = ingest(session, payload, 'duplicate.bin')
+        assert not created and asset.id == aid
+    assert_unchanged_staging(data_dir)

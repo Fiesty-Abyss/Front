@@ -116,14 +116,17 @@ def _verify_managed(path: Path, sha: str, size: int, asset_id: int | None = None
         digest = hashlib.sha256()
         total = 0
         with resolved.open('rb') as handle:
-            if signature(os.fstat(handle.fileno())) != signature(before):
+            opened = os.fstat(handle.fileno())
+            # Compare each API with itself. Windows stat(path) and fstat(fd)
+            # need not expose identical file-ID or timestamp representations.
+            if not stat.S_ISREG(opened.st_mode) or opened.st_size != size:
                 fail()
             while chunk := handle.read(min(1024 * 1024, size + 1 - total)):
                 total += len(chunk)
                 if total > size:
                     fail()
                 digest.update(chunk)
-            if signature(os.fstat(handle.fileno())) != signature(before):
+            if signature(os.fstat(handle.fileno())) != signature(opened):
                 fail()
         if signature(resolved.stat()) != signature(before) or path.resolve() != resolved:
             fail()

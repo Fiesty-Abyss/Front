@@ -118,7 +118,7 @@ DELETE /api/<资源>/{id}
 | `POST /api/sd-models/{id}/civitai`、`/civitai-all` | 按 SHA256 查询 Civitai，可写回名称、底模、触发词并下载预览图 |
 | `POST /api/prompt-snippets/compose` | 拼接基准提示词与片段（权重、去重） |
 | `GET /api/generate/status`、`POST /api/generate` | SD 后端状态（模型、采样器、LoRA）；提交出图任务（多模型、LoRA、XY 轴，最多 100 张） |
-| `GET /api/jobs`、`/api/jobs/{id}`、`POST /api/jobs/{id}/cancel` | 后台任务进度与取消（任务保存在内存中，重启后清空） |
+| `GET /api/jobs`、`/api/jobs/{id}`、`POST /api/jobs/{id}/cancel` | 后台任务进度与取消（SQLite持久历史，重启活动任务标为interrupted，不自动重放） |
 | `POST /api/cards/import` | 导入 JSON / PNG 角色卡 |
 | `GET /api/cards/{id}/export.json`、`export.png` | 导出 V2 角色卡 |
 | `POST /api/cards/from-character/{id}` | 从百科角色生成角色卡 |
@@ -163,13 +163,13 @@ DELETE /api/<资源>/{id}
 - **模型扫描**（`modelscan.py`）：遍历 `.safetensors / .ckpt / .pt / .pth / .bin / .gguf`，按所在文件夹（`Stable-diffusion`、`checkpoints`、`Lora`、`loras`、`VAE`、`embeddings`、`ESRGAN`、`upscale_models`、`ControlNet` …）判断类型，读取 safetensors 头部元数据推断底模，查找同名预览图和 `.civitai.info` / `.json` 说明。哈希一次读完文件同时算出：SHA256（整个文件）、AutoV1（偏移 1 MiB 起 64 KiB 的 SHA256 前 8 位）、AutoV2（SHA256 前 10 位）、AutoV3（safetensors 去掉头部后的张量数据 SHA256）。
 - **Civitai**（`civitai.py`）：`GET /api/v1/model-versions/by-hash/<sha256>`，只取模型 / 版本名、类型、底模、触发词、链接与预览图地址；预览图只允许从 `image.civitai.com` / `imagecache.civitai.com` 下载，最大 20 MB。
 - **出图**（`sdgen.py`）：WebUI 走 `/sdapi/v1/txt2img`（`override_settings` 切换模型，LoRA 写成 `<lora:名称:权重>`），返回的 PNG 补写 A1111 格式的 `parameters`；ComfyUI 走 `/prompt` → 轮询 `/history` → `/view` 取图，内置 Checkpoint → LoRA 链 → KSampler → VAEDecode 模板，也接受用户的 API 格式工作流（`{{prompt}}` `{{negative}}` `{{seed}}` `{{steps}}` `{{cfg}}` `{{width}}` `{{height}}` `{{sampler}}` `{{scheduler}}` `{{model}}` 占位符）。每张图都走 `ingest()` 入库，因而和手动上传的 AI 图一样能被解析、检索。
-- **后台任务**（`jobs.py`）：线程 + 内存登记表，支持进度与取消；前端轮询。
+- **后台任务**（`jobs.py`）：按需2worker与32排队上限，jobs.sqlite3持久快照/进度与取消；重启活动任务转interrupted，由业务明确恢复，前端限频轮询。
 - **参数归一化**（`sdparams.py`）：把 WebUI / ComfyUI / 手填的参数名统一（`Sampler`→`sampler`、`width`+`height`→`size` …），对比视图和 XY 网格都基于它。
 - **模拟后端**（`mock_sd.py`）：实现上述 WebUI / ComfyUI 接口的子集，返回带“模拟出图”角标的占位图，用于测试、示例数据与截图。
 
 ## 数据库迁移（`migrate.py`）
 
-`create_all` 只会建新表。`migrate.py` 在启动时检查已有表，缺少的新列用 `ALTER TABLE ... ADD COLUMN` 补齐，老版本的数据库可以直接升级。
+`create_all` 只会建新表。`migrate.py` 在启动时检查已有表，缺少的新列用 `ALTER TABLE ... ADD COLUMN` 补齐，已识别旧结构按迁移账本补齐；启动前兼容检查与备份见dbbackup/desktop，不对所有历史私人库作未经验证的升级承诺。
 
 ## 全文检索
 
@@ -265,3 +265,11 @@ BonusArchive以Work ID关联任意作品与Galgame；BonusItem引用Asset/素材
 ### Windows桌面Sidecar
 
 Tauri 2仅管理窗口、自有子进程及数据目录，公共Vue页面通过随机127.0.0.1端口加载同一FastAPI业务。桌面会话保护仅在desktop入口启用，不改变Web自托管入口。Python onedir资源、WebView缓存、数据库与素材目录分离；迁移复用完整备份/隔离恢复与既有upgrade，进程生命周期由Windows Job Object约束。
+
+## AI Voice Studio（设计落点，代码待独立PR）
+
+`/voice`动态加载，VoiceProvider仅保存适配器与显式服务配置，凭据引用既有AIProviderConfig，不复制明文Key。VoiceModel登记外部权重及来源/许可，不复制或加载；VoiceProfile引用Character/OC/Asset样本、授权、语言和模型身份。VoiceProject/Segment保存独立台词/朗读稿/原文区间证据；VoiceRender引用现有Asset音频及不可变请求/模型/声线快照。不存在第二套文件库、播放器或voice_jobs。
+
+业务通过现有versions、完整备份、jobs和AudioPlayer闭环。推理与训练是独立按需适配层；默认不连接服务、不初始化GPU/麦克风、不下载权重。能力未知不能假定支持零样本/情绪/音高/训练；零样本任务须核验参考音频使用权。请求按句指纹化，仅受影响片段标旧，旧音频保留可听。
+
+GPT-SoVITS适配须先锁定官方提交与API契约，模拟协议测试和真实合成分别标注。云端API明确配置/发送范围与费用确认后才调用，长期训练不进入Sidecar依赖。参见[原PRD](AI_VOICE_STUDIO_PRD.md)与[复用/状态表](audits/voice/FOUNDATION_REUSE.md)。

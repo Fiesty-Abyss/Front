@@ -208,9 +208,9 @@ def test_deleted_character_or_oc_binding_can_be_explicitly_cleared(client):
             profile=create(client,'profiles',character_id=char)
             assert client.delete(f'/api/characters/{char}').status_code==204
         else:
-            oc=client.post('/api/oc',json={'title':'可删除的生成OC'}).json()['id']
-            profile=create(client,'profiles',oc_id=oc)
-            assert client.delete(f'/api/oc/{oc}').status_code==204
+            oc=client.post('/api/oc',json={'title':'可删除的生成OC'}).json()
+            profile=create(client,'profiles',oc_id=oc['id'])
+            assert client.delete(f'/api/oc/{oc["id"]}',params={'expected_version':oc['version']}).status_code==204
         current=client.get(f'/api/voice/profiles/{profile["id"]}').json()
         assert current['issues'] and current['character_id'] is None and current['oc_id'] is None
         cleared=put(client,'profiles',current,character_id=None,oc_id=None,notes='明确保留为独立声线')

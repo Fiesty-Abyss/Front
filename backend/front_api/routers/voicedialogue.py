@@ -98,6 +98,8 @@ def merge(project_id:int,segment_id:int,body:vp.Mutation,session:Session=Depends
     project=vp.start(session,project_id,body);obj=vp.segment(session,project,segment_id);vp.editable(obj)
     other=following(session,project,obj)
     if not other:raise HTTPException(422,'没有下一条台词')
+    if obj.source.get('book') or other.source.get('book'):
+        raise HTTPException(422,'小说来源片段暂不跨段合并；可独立编辑朗读稿，原文证据保留')
     if obj.recipe!=other.recipe or obj.profile_id!=other.profile_id or obj.source.get('speaker')!=other.source.get('speaker'):
         raise HTTPException(422,'合并前请确认两片段的说话人、声线及参数一致')
     text=obj.text+'\n'+other.text

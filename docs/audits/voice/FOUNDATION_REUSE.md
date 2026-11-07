@@ -11,7 +11,7 @@
 | 音声收藏/播放器 | 证据实现、部分；routers/audio、AudioPlayer、test_audio_library | 复用音轨Range、进度/字幕/波形；编码降级和压缩波形/转码仍待 |
 | 后台任务 | 证据实现、部分；jobs.Manager=2worker+32排队，SQLite账本，test_foundation/test_mixed_benchmark | 已持久化历史；重启queued/running转interrupted，不自动重发收费/推理请求，不宣称所有任务自动续跑 |
 | 版本/完整备份 | 证据实现、部分；versions/backups、test_versions/test_backups | 不可变快照/恢复追加；托管文件备份及隔离恢复；不在线覆盖当前库，不默认复制外部原件 |
-| 笔记 | 证据实现、部分；routers/notes、crud.make_crud_router、test_v061_notebook | 纠正接管误判：通用CRUD已捕获过滤器ValueError/OverflowError并返回422；不能把该处认定为500。move及普通PATCH的树约束另作验证 |
+| 笔记 | 证据实现、部分；routers/notes、crud.make_crud_router、test_v061_notebook | 纠正接管误判：通用CRUD已捕获过滤器ValueError/OverflowError并返回422；不能把该处认定为500。#45已统一PATCH/move/restore祖先检查，包含旧环恢复及10000层迭代前端逻辑测试；实际GUI仍待 |
 | 小说章节 | 证据实现、部分；chapterplans、test_chapter_plans | 复用确认目录、原文Hash/区间；朗读稿独立，单次只取选中章/分页片段 |
 | 世界观/角色/百科 | 证据实现、部分；encyclopedia/extractionreview、隔离/证据测试 | 稳定ID与created_at身份；禁止同名跨世界合并；真实AI语义冲突仍待 |
 | OC档案 | 证据实现、部分；ocstudio/routers/oc、test_oc | 角色/造型/引用/版本已存在；声线只引用OC，不另建百科 |
@@ -19,7 +19,7 @@
 | 游戏/特典/画布/角色卡 | 证据实现、部分；对应router及test_bonuses/test_v062_diagrams/test_v063_galgame/test_cards_ai | 保持现有职责；平台元数据、DRM/授权和外部工具边界不变 |
 | Live2D | 档案证据实现；渲染/面捕未开发，LIVE2D_STUDIO | 无Core/追踪引擎初始化；第三方SDK和素材许可仍待 |
 | Windows/Updater | 部分、生成包/真实SDK证据；preview.2、RC报告 | 包已构建；干净系统安装/真实更新回滚、正式签名feed尚未验收 |
-| Voice Studio | 部分实现；/voice、voicestudio、test_voice_studio | 三类档案/试听引用/历史；六表中工程、片段、生成表仅预留；CI结果以对应PR为准，无真实TTS |
+| Voice Studio | 部分实现；/voice、voicestudio、test_voice_studio | 三类档案、配音工程/片段/候选/历史和有限Mock队列均有生成样本及CI；GPT只有固定合同MockTransport验证，无真实TTS。小说来源增量以本PR CI为准 |
 | 零样本克隆/训练/高级时间轴 | 仅设计、未开发 | 不自动下载权重/安装训练环境；未经授权录音不创建克隆任务 |
 
 ## 新模块落点

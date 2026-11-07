@@ -7,7 +7,7 @@ from sqlalchemy import select, update, func
 from . import models as m, jobs, versions as v, voiceprojects as vp, voicestudio as vs
 from .config import get_settings
 from .db import new_session
-from .ingest import ingest_stream
+from .ingest import ingest_stream, ManagedFileIntegrityError
 
 
 def request_uid(project,segment,key):
@@ -93,7 +93,10 @@ def run(job,uid):
     except jobs.Cancelled:
         terminal(uid,'cancelled','cancelled');raise
     except Exception as exc:
-        code=str(exc) if isinstance(exc,AdapterError) else 'render_failed'
+        if isinstance(exc,ManagedFileIntegrityError):
+            code='stored_audio_hash_mismatch' if exc.code=='managed_file_hash_mismatch' else 'stored_audio_unavailable'
+        else:
+            code=str(exc) if isinstance(exc,AdapterError) else 'render_failed'
         terminal(uid,'error',code);raise
 
 

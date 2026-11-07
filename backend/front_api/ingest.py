@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import stat
+from fastapi import HTTPException
 import io
 import mimetypes
 import os
@@ -79,6 +81,65 @@ def find_duplicate(session: Session, sha: str) -> m.Asset | None:
     return session.scalar(select(m.Asset).where(m.Asset.sha256 == sha))
 
 
+class ManagedFileIntegrityError(HTTPException):
+    """Do not adopt or silently repair a damaged managed duplicate."""
+
+    def __init__(self, code: str, asset_id: int | None = None):
+        self.code = code
+        detail = {'code': code, 'message': '已托管文件缺失、不可读或内容不一致，未覆盖原文件；请在备份后检查资源'}
+        if asset_id is not None:
+            detail['asset_id'] = asset_id
+        super().__init__(409, detail)
+
+
+def _verify_managed(path: Path, sha: str, size: int, asset_id: int | None = None) -> None:
+    """Bounded-memory verification of existing bytes, never a repair operation.
+
+    Compare with the freshly staged input, not the possibly stale DB size.
+    Size mismatch avoids reading a damaged oversized file. Identity/stat checks
+    also reject a file replaced or modified during verification.
+    """
+    def fail(code='managed_file_hash_mismatch'):
+        raise ManagedFileIntegrityError(code, asset_id)
+
+    try:
+        root = get_settings().media_dir.resolve()
+        resolved = path.resolve()
+        if not resolved.is_relative_to(root):
+            fail('managed_file_unavailable')
+        before = resolved.stat()
+        if not stat.S_ISREG(before.st_mode):
+            fail('managed_file_unavailable')
+        if before.st_size != size:
+            fail()
+        signature = lambda value: (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+        digest = hashlib.sha256()
+        total = 0
+        with resolved.open('rb') as handle:
+            if signature(os.fstat(handle.fileno())) != signature(before):
+                fail()
+            while chunk := handle.read(min(1024 * 1024, size + 1 - total)):
+                total += len(chunk)
+                if total > size:
+                    fail()
+                digest.update(chunk)
+            if signature(os.fstat(handle.fileno())) != signature(before):
+                fail()
+        if signature(resolved.stat()) != signature(before) or path.resolve() != resolved:
+            fail()
+        if total != size or digest.hexdigest() != sha:
+            fail()
+    except (OSError, ValueError, RuntimeError):
+        fail('managed_file_unavailable')
+
+
+def _verify_duplicate(asset: m.Asset, sha: str, size: int) -> None:
+    path = Path(asset.file_path)
+    if path.is_absolute():
+        raise ManagedFileIntegrityError('managed_file_unavailable', asset.id)
+    _verify_managed(get_settings().data_dir / path, sha, size, asset.id)
+
+
 def ingest_stream(
     session: Session,
     data: BinaryIO,
@@ -96,7 +157,7 @@ def ingest_stream(
     extra_meta: dict[str, Any] | None = None,
     expected_sha: str | None = None,
 ) -> tuple[m.Asset, bool]:
-    """返回 (素材, 是否新建)。相同内容的文件已存在时直接返回旧素材，不重复写盘。
+    """返回 (素材, 是否新建)。相同内容已存在时先分块校验托管文件，损坏时拒绝采用且不自动修复。
     调用方负责 commit；缩略图在 commit 后用 make_thumb 生成。"""
     settings = get_settings()
     staging = settings.data_dir / '.staging'
@@ -121,12 +182,15 @@ def ingest_stream(
             raise HTTPException(409, '原文件内容与预览不一致，请重新预览')
         dup = find_duplicate(session, sha)
         if dup and dup.file_path:
+            _verify_duplicate(dup, sha, size)
             return dup, False
         ext = Path(name).suffix.lower()
         rel = Path('media') / date.today().strftime('%Y/%m') / f'{sha}{ext}'
         dest = settings.data_dir / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
-        if not dest.exists():
+        if dest.exists() or dest.is_symlink():
+            _verify_managed(dest, sha, size)
+        else:
             os.replace(staged, dest)
     finally:
         if staged is not None:
@@ -219,6 +283,8 @@ def index_file(session, path: Path, root: Path, expected_sha: str, check=lambda:
         raise HTTPException(409,'原文件内容与预览不一致，请重新预览')
     asset = find_duplicate(session, expected_sha)
     if asset:
+        if asset.file_path:
+            _verify_duplicate(asset, expected_sha, before[0])
         if not asset.file_path:
             binding=session.get(m.ExternalAssetFile,asset.id)
             if binding is not None:

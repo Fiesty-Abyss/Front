@@ -1,5 +1,11 @@
 # Windows 桌面测试交付
 
+## 2026-11-07 RC权限回归
+
+真实Windows Deny ACE揭示TemporaryFile长重试，已改为单次独占写探测。源进程约0.357秒、冻结Sidecar约0.517秒拒绝权限，ACL恢复和生成原件Hash不变；同一冻结实例最小PATH、旧库完整备份与隔离恢复通过。不是干净系统安装验收。见[RC Windows](audits/v0.7/RC_WINDOWS_C.md)；后续完整CI和PR状态以NEXT_SESSION为准。
+
+## 早前检查点（历史）
+
 最新检查点：PR #29–#34全部经CI成功普通合并，功能main9e1096e；最终Windows run40126359742通过253后端/1跳过、6前端、6 Rust SDK、冻结回归和内部包完整性gate。当前默认未注入正式更新公钥，更新功能关闭；代码已有官方Updater/备份保护，尚未真实安装更新或正式发布。当前实现与限制以V07_PROGRESS、NEXT_SESSION及audits/v0.7各A–F报告为准，下面旧数值不当作新测量。
 
 Front 使用独立 Tauri 2 外壳加载同一份 Vue 生产构建，Python 业务通过 PyInstaller onedir 冻结为 Sidecar。Rust 直接管理资源目录中的可执行文件，不向 Vue 页面开放 Shell 或文件系统 IPC。打包输入只包含公共后端包、前端 dist、图标和依赖许可，不归档整个工作目录或用户资料。

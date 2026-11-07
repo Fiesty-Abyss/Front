@@ -1,3 +1,9 @@
+## 2026-11-07 · Voice PRD接管与远程编辑
+
+基线main3aaa9e1，无开放PR，main CI42355716567成功。用户原Voice v1.0完整入库并附SHA/provenance与最新任务范围；新增源码/测试/既有验证的状态表，纠正路线图/架构中持久任务、完整备份和桌面预览的过时描述。本PR只改文档，Voice功能未实现；下一独立基础PR复用Asset/Audio/OC/版本和安全迁移。
+
+GitHub集成写入403且无已保存Codex Cloud配置；用户随后允许读取指定PRD，使用已有CLI权限经GitHub API远程编辑，Actions负责测试，不称已运行Codex Cloud虚拟电脑。本轮未启动本机Front/模型/硬件/GUI，未操作个人资料。真实TTS/安装等继续待验。
+
 ## 2026-11-07：RC A 大收藏分页
 
 RC最终交接：PR #36–#41均四项CI成功并普通合并，功能main6de5504。preview.2/run42354113723两包及Hash核验、本机最小PATH隔离运行/所属进程清理通过，265本机后端/8前端/构建，Windows264通过/1跳过、8SDK+2启动Rust。正式RC仍未通过，无公开Release；见NEXT_SESSION与RELEASE_CANDIDATE_STATUS。

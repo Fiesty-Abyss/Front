@@ -106,6 +106,8 @@ def enqueue(session,project,segment,body):
         return existing
     vs.guard(session,project,body.project_uid,body.expected_project_version)
     vp.editable(segment)
+    if segment.source.get('suggestion') and not segment.source.get('speaker_confirmed'):
+        raise HTTPException(409,'请先人工确认本片段的说话人')
     if not segment.text.strip():raise HTTPException(422,'请先填写朗读台词')
     digest,snapshot=vp.fingerprint(session,segment)
     if digest!=body.fingerprint:raise HTTPException(409,'台词或参数已变化，请刷新后排队')

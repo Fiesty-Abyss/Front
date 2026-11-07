@@ -999,3 +999,22 @@ class VoiceRender(VoiceIdentity, Base):
     snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
     audio_asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id', ondelete='SET NULL'))
     status: Mapped[str] = mapped_column(String(30), default='candidate')
+
+
+class VoiceBookSource(Base):
+    """Immutable confirmed novel source, not another copy of the novel file."""
+    __tablename__ = 'voice_book_sources'
+    project_id: Mapped[int] = mapped_column(ForeignKey('voice_projects.id',ondelete='CASCADE'),primary_key=True)
+    snapshot: Mapped[dict] = mapped_column(JSON)
+
+
+class VoiceChapterImport(VoiceIdentity, Base):
+    __tablename__ = 'voice_chapter_imports'
+    __table_args__ = (UniqueConstraint('project_id','chapter_index'),)
+    project_id: Mapped[int] = mapped_column(ForeignKey('voice_projects.id',ondelete='CASCADE'),index=True)
+    chapter_index: Mapped[int] = mapped_column(Integer)
+    cursor: Mapped[int] = mapped_column(Integer)
+    end: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(30),default='queued')
+    job_id: Mapped[str | None] = mapped_column(String(40))
+    error_code: Mapped[str] = mapped_column(String(100),default='')

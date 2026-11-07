@@ -2,6 +2,7 @@
 import {defineAsyncComponent,onBeforeUnmount,onMounted,ref} from 'vue'
 import {api} from '../api'
 import VersionPanel from '../components/VersionPanel.vue'
+const VoiceBookPanel=defineAsyncComponent(()=>import('./VoiceBookPanel.vue'))
 const AssetPicker=defineAsyncComponent(()=>import('../components/AssetPicker.vue'))
 const AudioPlayer=defineAsyncComponent(()=>import('../viewers/AudioPlayer.vue'))
 const projects=ref([]),project=ref(null),segments=ref([]),total=ref(0),offset=ref(0),archived=ref(false),projectOffset=ref(0),projectTotal=ref(0)
@@ -18,7 +19,7 @@ async function findVoices(){const data=await api.get('/api/voice/profiles',{q:vo
 async function loadSegments(){const data=await api.get(base()+'/segments',{limit:30,offset:offset.value,archived:archived.value});if(!disposed){project.value=data.project;segments.value=data.items;total.value=data.total}}
 async function openProject(row){project.value=await api.get(`/api/voice/projects/${row.id}`);if(disposed)return;offset.value=0;archived.value=false;selected.value=null;draft.value=null;audio.value=null;await loadSegments()}
 async function createProject(){const row=await api.post('/api/voice/projects',{title:title.value,world_id:world.value||null});if(disposed)return;title.value='';await openProject(row);await loadProjects()}
-function adoptSegment(row){selected.value=row;draft.value={text:row.text,speaker:row.speaker,profile_id:row.profile_id,language:row.recipe.language||'',speed:row.recipe.speed||1};audio.value=null}
+function adoptSegment(row){selected.value=row;draft.value={text:row.text,speaker:row.speaker,profile_id:row.profile_id,language:row.recipe.language||'',speed:row.recipe.speed||1,confirm_speaker:row.source?.speaker_confirmed||false};audio.value=null}
 async function loadRenders(){const data=await api.get(segmentUrl()+'/renders',{limit:20,offset:renderOffset.value});if(!disposed){renders.value=data.items;renderTotal.value=data.total}}
 async function openSegment(row){const value=await api.get(`${base()}/segments/${row.id}`);if(disposed)return;adoptSegment(value);renderOffset.value=0;await loadRenders()}
 function newSegment(){selected.value=null;draft.value={text:'',speaker:'旁白',profile_id:null,language:'',speed:1};renders.value=[];audio.value=null}
@@ -34,6 +35,7 @@ onMounted(()=>run(loadProjects));onBeforeUnmount(()=>{disposed=true;audio.value=
   <section class="grid dialogue">
     <p class="notice">台词工程与手动音频候选管理。没有执行 AI 合成；语言与速度仅记录为后续请求参数，不会改变已关联音频。</p>
     <p v-if="error" class="notice" role="alert">{{error}}</p>
+    <VoiceBookPanel :key="project?.uid||'new'" :project="project" @created="row=>run(async()=>{await openProject(row);await loadProjects()})" @changed="row=>project=row"/>
     <div class="projects">
       <aside class="card grid">
         <form class="grid" @submit.prevent="projectOffset=0;run(loadProjects)"><label class="field">搜索工程<input v-model="search" maxlength="200"/></label><button :disabled="busy">搜索</button></form>
@@ -55,6 +57,7 @@ onMounted(()=>run(loadProjects));onBeforeUnmount(()=>{disposed=true;audio.value=
             <p v-if="selected?.archived" class="notice">此片段由拆分或合并保留，原文、历史及旧音频可查；编辑当前有效片段。</p>
             <p v-if="selected?.issue" class="notice">{{selected.issue}}</p>
             <form class="grid" @submit.prevent="run(save)">
+              <div v-if="selected?.source?.book&&selected?.source?.suggestion" class="notice grid"><b>原文证据 · 第{{selected.source.book.chapter_index+1}}章 · 区间 {{selected.source.book.start}}–{{selected.source.book.end}}（Unicode字符）</b><p style="white-space:pre-wrap;overflow-wrap:anywhere">{{selected.source.suggestion.evidence}}</p><small>标点/姓名标签规则候选，未执行AI语义归因。朗读文本可独立修改，引用仍指向原文。</small><label class="row"><input v-model="draft.confirm_speaker" type="checkbox" :disabled="selected.archived"/>我已人工核对说话人</label></div>
               <div class="fields"><label class="field">人物/旁白<input v-model="draft.speaker" maxlength="200" :disabled="selected?.archived"/></label><label class="field">声线档案 ID<input v-model.number="draft.profile_id" type="number" min="1" :disabled="selected?.archived" @change="draft.profile_id ||= null"/></label></div>
               <div v-if="!selected?.archived" class="grid"><div class="row"><input v-model="voiceSearch" aria-label="搜索声线名称" maxlength="200" placeholder="查找已登记声线"/><button type="button" :disabled="busy" @click="run(findVoices)">查找声线</button></div><div class="row"><button v-for="voice in voiceChoices" :key="voice.uid" type="button" @click="draft.profile_id=voice.id">{{voice.title}} · #{{voice.id}}</button></div></div>
               <small class="muted">选择绑定角色/OC的声线；未设声线时仍可整理台词和手动音频。不同世界观的声线不会自动混用。</small>

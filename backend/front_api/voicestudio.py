@@ -165,6 +165,9 @@ def serialize(session, obj, detail=True):
     omitted = set() if detail else {'notes', 'license', 'binding', 'sample_ref'}
     value = {c.key: getattr(obj, c.key) for c in obj.__table__.columns if c.key not in omitted}
     value['version'] = version_id(session, obj)
+    if isinstance(obj, m.VoiceProject):
+        source=session.get(m.VoiceBookSource,obj.id)
+        value['book_source']=source.snapshot if source else None
     if isinstance(obj, m.VoiceProfile):
         value['tag_ids'] = [t.id for t in obj.tags]
         if detail:

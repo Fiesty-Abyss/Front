@@ -49,6 +49,9 @@ def payload(session, obj):
                 created=session.connection().scalar(select(table.c.created_at).where(fk.column==identity))
                 references[col.key]=created.isoformat() if created else None
     value['_references']=references
+    if isinstance(obj,m.VoiceProject):
+        source=session.get(m.VoiceBookSource,obj.id)
+        value['_book_source']=source.snapshot if source else None
     if isinstance(obj,m.VoiceProfile):
         from .voicestudio import binding
         value['_voice_scope'] = binding(session, obj.character_id, obj.oc_id)

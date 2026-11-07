@@ -29,6 +29,7 @@ from .routers import ocimages
 from .routers import ocdrawing
 from .routers import audio,referenceimports
 from .routers import bonuses, modelassets, voice, voicedialogue, voicetasks
+from .routers import voicebooks as voicebooks_router
 
 FRONTEND_DIST = (Path(sys._MEIPASS) if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[2]) / "frontend" / "dist"
 _hooks_installed = False
@@ -53,6 +54,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     recover_library(engine)
     from .voicerenders import recover as recover_voice
     recover_voice(engine)
+    from .voicebooks import recover as recover_voice_books
+    recover_voice_books(engine)
     ensure_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()
@@ -91,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         voice.router,
         voicedialogue.router,
         voicetasks.router,
+        voicebooks_router.router,
         exports.router,
         library.tag_extra, library.tags, library.works, library.worlds,
         encyclopedia.extra, encyclopedia.entries, encyclopedia.appearances,

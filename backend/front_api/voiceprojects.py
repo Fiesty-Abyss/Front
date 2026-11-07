@@ -25,6 +25,7 @@ class SegmentDraft(Mutation):
     profile_id: int | None = Field(default=None, gt=0)
     language: str = Field(default='', max_length=40)
     speed: float = Field(default=1, ge=0.25, le=4, allow_inf_nan=False)
+    confirm_speaker: bool = False
 
 
 class Split(Mutation):
@@ -72,6 +73,8 @@ def recipe(session, project, body):
         issues=vs.diagnostics(session,profile)
         if issues:
             raise HTTPException(409,'声线关联异常，请在声线档案审核后重试')
+        from .voicebooks import check_work
+        check_work(session,project,profile)
         world=profile.binding.get('world')
         if world and project.world_id!=world[0]:
             raise HTTPException(422,'声线与工程世界观不同；不自动跨世界引用')
@@ -83,7 +86,8 @@ def apply(session, project, obj, body):
     obj.text=body.text
     obj.profile_id=body.profile_id
     obj.recipe=recipe(session,project,body)
-    obj.source={**(obj.source or {}),'speaker':body.speaker,'archived':False}
+    obj.source={**(obj.source or {}),'speaker':body.speaker,'archived':False,
+        'speaker_confirmed':body.confirm_speaker if (obj.source or {}).get('suggestion') else True}
 
 
 def fingerprint(session,obj):
@@ -97,6 +101,8 @@ def fingerprint(session,obj):
         if issues:
             raise HTTPException(409,'声线绑定或试听引用异常，请审核档案')
         project=session.get(m.VoiceProject,obj.project_id)
+        from .voicebooks import check_work
+        check_work(session,project,profile)
         world=profile.binding.get('world')
         if world and (not project or project.world_id!=world[0]):
             raise HTTPException(409,'工程与声线的世界观归属不同')

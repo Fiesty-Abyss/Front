@@ -15,6 +15,24 @@ struct Ready { port: u16, token: String, pid: u32 }
 struct StartupLifecycle(Arc<AtomicBool>);
 #[derive(Clone, serde::Serialize)]
 struct StartupView { message: &'static str, done: Option<u64>, total: Option<u64>, failed: bool }
+#[derive(Default,serde::Serialize)]
+struct StartupTimings { process_id:u32, window_created_ms:Option<u64>, service_ready_ms:Option<u64>, document_loaded_ms:Option<u64>,
+    display_scale_factor:Option<f64>, initial_inner_width:Option<u32>, initial_inner_height:Option<u32> }
+fn record_startup(folder:&Path,timings:&Arc<Mutex<StartupTimings>>,stage:&str,started:Instant) {
+    let bytes={
+        let mut value=timings.lock().unwrap();let elapsed=started.elapsed().as_millis().min(u64::MAX as u128) as u64;
+        match stage {"window"=>value.window_created_ms=Some(elapsed),"service"=>value.service_ready_ms=Some(elapsed),
+            "document"=>{if value.document_loaded_ms.is_some(){return;}value.document_loaded_ms=Some(elapsed);},_=>return}
+        serde_json::to_vec(&*value).unwrap()
+    };
+    let logs=folder.join("logs");
+    if fs::create_dir_all(&logs).is_err(){return;}
+    let (Ok(root),Ok(target))=(folder.canonicalize(),logs.canonicalize())else{return;};
+    let file=target.join("native-startup.json");
+    if !target.starts_with(root)||fs::symlink_metadata(&file).is_ok_and(|m|m.file_type().is_symlink()){return;}
+    // Three bounded writes per launch, numeric stage timings only. Not a TTI signal.
+    let _=fs::write(file,bytes);
+}
 
 fn local_splash(url:&tauri::Url)->bool {
     url.username().is_empty() && url.password().is_none() && url.port().is_none() &&
@@ -173,9 +191,10 @@ fn start_service(binary: &Path, folder: &Path, cancelled:&AtomicBool, progress:i
 }
 
 fn main() {
+    let started=Instant::now();
     let result=tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![updates::desktop_update])
-    .setup(|app| {
+    .setup(move|app| {
         if let Some(key)=option_env!("FRONT_UPDATE_PUBLIC_KEY").filter(|v|!v.trim().is_empty()) {
             app.handle().plugin(tauri_plugin_updater::Builder::new().pubkey(key).build())?;
         }
@@ -186,7 +205,9 @@ fn main() {
         app.manage(Mutex::new(None::<Service>));
         let view=Arc::new(Mutex::new(StartupView{message:"正在检查本机资料…",done:None,total:None,failed:false}));
         let origin=Arc::new(Mutex::new(None::<String>));
-        let navigation_origin=origin.clone();let loaded_view=view.clone();
+        let timings=Arc::new(Mutex::new(StartupTimings{process_id:std::process::id(),..Default::default()}));
+        let navigation_origin=origin.clone();let loaded_origin=origin.clone();let loaded_view=view.clone();
+        let loaded_timings=timings.clone();let timing_folder=folder.clone();
         // One WebView is reused for the splash and the shared Vue application.
         let window=WebviewWindowBuilder::new(app,"main",WebviewUrl::App("index.html".into()))
             .title("Front Preview").inner_size(1280.0,850.0).min_inner_size(720.0,540.0)
@@ -199,8 +220,17 @@ fn main() {
                 if matches!(payload.event(),tauri::webview::PageLoadEvent::Finished) && local_splash(payload.url()) {
                     render_startup(&window,&loaded_view);
                 }
+                if matches!(payload.event(),tauri::webview::PageLoadEvent::Finished) && payload.url().path()=="/"
+                    &&loaded_origin.lock().unwrap().as_ref().is_some_and(|o|payload.url().origin().ascii_serialization()==*o){
+                    record_startup(&timing_folder,&loaded_timings,"document",started);
+                }
             })
             .build()?;
+        {
+            let mut value=timings.lock().unwrap();value.display_scale_factor=window.scale_factor().ok();
+            if let Ok(size)=window.inner_size(){value.initial_inner_width=Some(size.width);value.initial_inner_height=Some(size.height);}
+        }
+        record_startup(&folder,&timings,"window",started);
         let handle=app.handle().clone();
         std::thread::spawn(move||{
             let result:Result<(),Box<dyn std::error::Error>>=(||{
@@ -208,6 +238,7 @@ fn main() {
                     *view.lock().unwrap()=StartupView{message,done,total,failed:false};
                     render_startup(&window,&view);
                 })?;
+                record_startup(&folder,&timings,"service",started);
                 let port=service.ready.port;
                 let url=format!("http://127.0.0.1:{}/_desktop/bootstrap#{}",port,service.ready.token);
                 let allowed_origin=format!("http://127.0.0.1:{}",port);

@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{fs, io::{BufRead, BufReader, Write}, net::TcpStream, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::{mpsc, Mutex}, time::{Duration, Instant}};
+use std::{fs, io::{BufRead, BufReader, Write}, net::TcpStream, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::{mpsc, Arc, Mutex, atomic::{AtomicBool, Ordering}}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 use serde::Deserialize;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 mod updates;
@@ -11,6 +11,77 @@ use std::os::windows::process::CommandExt;
 
 #[derive(Deserialize)]
 struct Ready { port: u16, token: String, pid: u32 }
+
+struct StartupLifecycle(Arc<AtomicBool>);
+#[derive(Clone, serde::Serialize)]
+struct StartupView { message: &'static str, done: Option<u64>, total: Option<u64>, failed: bool }
+#[derive(Default,serde::Serialize)]
+struct StartupTimings { process_id:u32, window_created_ms:Option<u64>, service_ready_ms:Option<u64>, document_loaded_ms:Option<u64>,
+    display_scale_factor:Option<f64>, initial_inner_width:Option<u32>, initial_inner_height:Option<u32> }
+fn record_startup(folder:&Path,timings:&Arc<Mutex<StartupTimings>>,stage:&str,started:Instant) {
+    let bytes={
+        let mut value=timings.lock().unwrap();let elapsed=started.elapsed().as_millis().min(u64::MAX as u128) as u64;
+        match stage {"window"=>value.window_created_ms=Some(elapsed),"service"=>value.service_ready_ms=Some(elapsed),
+            "document"=>{if value.document_loaded_ms.is_some(){return;}value.document_loaded_ms=Some(elapsed);},_=>return}
+        serde_json::to_vec(&*value).unwrap()
+    };
+    let logs=folder.join("logs");
+    if fs::create_dir_all(&logs).is_err(){return;}
+    let (Ok(root),Ok(target))=(folder.canonicalize(),logs.canonicalize())else{return;};
+    let file=target.join("native-startup.json");
+    if !target.starts_with(root)||fs::symlink_metadata(&file).is_ok_and(|m|m.file_type().is_symlink()){return;}
+    // Three bounded writes per launch, numeric stage timings only. Not a TTI signal.
+    let _=fs::write(file,bytes);
+}
+
+fn local_splash(url:&tauri::Url)->bool {
+    url.username().is_empty() && url.password().is_none() && url.port().is_none() &&
+        ((url.scheme()=="tauri" && url.host_str()==Some("localhost")) ||
+         (url.scheme()=="http" && url.host_str()==Some("tauri.localhost")))
+}
+fn render_startup(window:&tauri::WebviewWindow, view:&Arc<Mutex<StartupView>>) {
+    let data=serde_json::to_string(&*view.lock().unwrap()).unwrap();
+    let _=window.eval(format!("if(window.frontStartup) window.frontStartup({data});"));
+}
+fn progress_message(phase:&str)->Option<&'static str> {
+    Some(match phase {
+        "checking_data"=>"正在检查资料目录和写入权限…",
+        "checking_database"=>"正在检查资料库兼容性…",
+        "initializing_database"=>"正在初始化本机资料库…",
+        "backup"=>"正在生成升级前完整备份…请勿关闭电源。",
+        "verify_backup"=>"正在校验备份中的文件…",
+        "restore"=>"正在独立目录验证恢复和迁移…",
+        "migrating"=>"正在初始化或安全升级资料库…",
+        "starting_service"=>"正在启动本机服务…",
+        _=>return None,
+    })
+}
+
+enum StartupMessage { Progress(&'static str,Option<u64>,Option<u64>,bool), Ready(Ready), Error(&'static str) }
+fn startup_message(line:&str, child_pid:u32)->Result<StartupMessage,&'static str> {
+    if line.len()>4096 {return Err("sidecar_initialization_failed");}
+    let value:serde_json::Value=serde_json::from_str(line).map_err(|_|"sidecar_initialization_failed")?;
+    if let Some(phase)=value.get("phase").and_then(|v|v.as_str()) {
+        let message=progress_message(phase).ok_or("sidecar_initialization_failed")?;
+        let total=value["total"].as_u64().filter(|v|*v>0);
+        let done=value["done"].as_u64().filter(|v|total.is_some_and(|n|*v<=n));
+        let extended=matches!(phase,"backup"|"verify_backup"|"restore"|"migrating");
+        return Ok(StartupMessage::Progress(message,done,total,extended));
+    }
+    if let Some(code)=value.get("error").and_then(|v|v.as_str()) {
+        return Ok(StartupMessage::Error(match code {
+            "data_directory_in_use"=>"data_directory_in_use",
+            "data_directory_unwritable"=>"data_directory_unwritable",
+            "database_incompatible_or_damaged"=>"database_incompatible_or_damaged",
+            "upgrade_backup_incomplete"=>"upgrade_backup_incomplete",
+            _=>"sidecar_initialization_failed",
+        }));
+    }
+    let ready:Ready=serde_json::from_value(value).map_err(|_|"sidecar_initialization_failed")?;
+    if ready.pid!=child_pid || ready.port==0 || !(32..=128).contains(&ready.token.len())
+        || !ready.token.bytes().all(|c|c.is_ascii_alphanumeric() || c==b'-' || c==b'_') {return Err("sidecar_initialization_failed");}
+    Ok(StartupMessage::Ready(ready))
+}
 
 // Closing our Job Object kills only descendants assigned by this shell, including on shell crash.
 #[cfg(windows)]
@@ -61,41 +132,57 @@ fn data_dir(app: &tauri::App) -> Result<PathBuf,Box<dyn std::error::Error>> {
         else if parent.join("Front.portable").is_file(){parent.join("FrontData")}
         else{app.path().app_local_data_dir()?};
     fs::create_dir_all(&folder).map_err(|_|"data_directory_unwritable")?;
+    // Check before WebView writes its cache. A collision never overwrites a file.
+    let probe=folder.join(format!(".front-shell-check-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()));
+    let mut created=false;
+    let access=(||->std::io::Result<()>{
+        let mut file=fs::OpenOptions::new().write(true).create_new(true).open(&probe)?;created=true;
+        file.write_all(b"Front")?;file.sync_all()?;Ok(())
+    })();
+    let cleaned=if created{fs::remove_file(&probe)}else{Ok(())};
+    if access.is_err() || cleaned.is_err(){return Err("data_directory_unwritable".into());}
     Ok(folder)
 }
 
-fn start_service(binary: &Path, folder: &Path) -> Result<Service,Box<dyn std::error::Error>> {
+fn start_service(binary: &Path, folder: &Path, cancelled:&AtomicBool, progress:impl Fn(&'static str,Option<u64>,Option<u64>)) -> Result<Service,Box<dyn std::error::Error>> {
+    if cancelled.load(Ordering::SeqCst){return Err("startup_cancelled".into());}
     let mut command=Command::new(binary);
-    command.arg("--data-dir").arg(folder).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
+    command.arg("--data-dir").arg(folder).arg("--startup-events").stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
     #[cfg(windows)] command.creation_flags(0x08000000); // CREATE_NO_WINDOW
     let mut child=command.spawn()?;
     #[cfg(windows)] let job=match OwnedJob::assign(&child){Ok(v)=>v,Err(e)=>{let _=child.kill();let _=child.wait();return Err(e.into());}};
     let stdout=child.stdout.take().ok_or("No sidecar pipe")?;
-    let (tx,rx)=mpsc::channel();
+    let (tx,rx)=mpsc::sync_channel(8);
     std::thread::spawn(move || {
-        let mut line=String::new();
-        // Limit startup handshake to prevent unbounded output memory.
         use std::io::Read;
         let mut reader=BufReader::new(stdout);
-        let _=std::io::Read::by_ref(&mut reader).take(4096).read_line(&mut line);
-        let _=tx.send(line);
+        loop {
+            let mut line=String::new();
+            match std::io::Read::by_ref(&mut reader).take(4097).read_line(&mut line) {
+                Ok(0)|Err(_)=>break,
+                Ok(_)=>{
+                    let continuing=line.len()<=4096 && serde_json::from_str::<serde_json::Value>(&line).ok().is_some_and(|v|v.get("phase").is_some());
+                    if tx.send(line).is_err() || !continuing{break;}
+                }
+            }
+        }
         let _=std::io::copy(&mut reader,&mut std::io::sink());
     });
     let result=(||{
-        let line=rx.recv_timeout(Duration::from_secs(120))?;
-        let value:serde_json::Value=serde_json::from_str(&line)?;
-        if let Some(code)=value.get("error").and_then(|v|v.as_str()) {
-            return Err(std::io::Error::other(match code {
-                "data_directory_in_use"=>"data_directory_in_use",
-                "data_directory_unwritable"=>"data_directory_unwritable",
-                "database_incompatible_or_damaged"=>"database_incompatible_or_damaged",
-                "upgrade_backup_incomplete"=>"upgrade_backup_incomplete",
-                _=>"sidecar_initialization_failed"
-            }).into());
+        let start=Instant::now();let mut extended=false;
+        loop {
+            if cancelled.load(Ordering::SeqCst){return Err("startup_cancelled".into());}
+            if start.elapsed()>Duration::from_secs(if extended{1800}else{120}){return Err("startup_timeout".into());}
+            match rx.recv_timeout(Duration::from_millis(250)) {
+                Ok(line)=>match startup_message(&line,child.id()).map_err(std::io::Error::other)? {
+                    StartupMessage::Progress(message,done,total,migration)=>{extended|=migration;progress(message,done,total);},
+                    StartupMessage::Ready(ready)=>return Ok(ready),
+                    StartupMessage::Error(code)=>return Err(std::io::Error::other(code).into()),
+                },
+                Err(mpsc::RecvTimeoutError::Timeout)=>{if child.try_wait()?.is_some(){return Err("sidecar_initialization_failed".into());}},
+                Err(mpsc::RecvTimeoutError::Disconnected)=>return Err("sidecar_initialization_failed".into()),
+            }
         }
-        let ready: Ready=serde_json::from_value(value)?;
-        if ready.pid!=child.id() || ready.port==0 || ready.token.len()<32 || !ready.token.bytes().all(|c|c.is_ascii_alphanumeric() || c==b'-' || c==b'_') {return Err("Invalid sidecar handshake".into());}
-        Ok(ready)
     })();
     match result {
         Ok(ready)=>Ok(Service{child,ready,#[cfg(windows)] _job:job}),
@@ -104,33 +191,85 @@ fn start_service(binary: &Path, folder: &Path) -> Result<Service,Box<dyn std::er
 }
 
 fn main() {
+    let started=Instant::now();
     let result=tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![updates::desktop_update])
-    .setup(|app| {
+    .setup(move|app| {
         if let Some(key)=option_env!("FRONT_UPDATE_PUBLIC_KEY").filter(|v|!v.trim().is_empty()) {
             app.handle().plugin(tauri_plugin_updater::Builder::new().pubkey(key).build())?;
         }
         let folder=data_dir(app)?;
         let binary=app.path().resource_dir()?.join("backend/front-backend.exe");
-        let service=start_service(&binary,&folder)?;
-        let port=service.ready.port;
-        let url=format!("http://127.0.0.1:{}/_desktop/bootstrap#{}",port,service.ready.token);
-        app.manage(Mutex::new(Some(service)));
-        let allowed_origin=format!("http://127.0.0.1:{}",port);
-        app.manage(updates::Updates::new(folder.clone(),allowed_origin.clone(),app.package_info().version.to_string())?);
-        app.add_capability(tauri::ipc::CapabilityBuilder::new("front-updates")
-            .local(false).window("main").remote(format!("{allowed_origin}/*"))
-            .permission("allow-desktop-update"))?;
-        WebviewWindowBuilder::new(app,"main",WebviewUrl::External(url.parse()?))
+        let cancelled=Arc::new(AtomicBool::new(false));
+        app.manage(StartupLifecycle(cancelled.clone()));
+        app.manage(Mutex::new(None::<Service>));
+        let view=Arc::new(Mutex::new(StartupView{message:"正在检查本机资料…",done:None,total:None,failed:false}));
+        let origin=Arc::new(Mutex::new(None::<String>));
+        let timings=Arc::new(Mutex::new(StartupTimings{process_id:std::process::id(),..Default::default()}));
+        let navigation_origin=origin.clone();let loaded_origin=origin.clone();let loaded_view=view.clone();
+        let loaded_timings=timings.clone();let timing_folder=folder.clone();
+        // One WebView is reused for the splash and the shared Vue application.
+        let window=WebviewWindowBuilder::new(app,"main",WebviewUrl::App("index.html".into()))
             .title("Front Preview").inner_size(1280.0,850.0).min_inner_size(720.0,540.0)
             .data_directory(folder.join("webview"))
-            .on_navigation(move|url|url.origin().ascii_serialization()==allowed_origin)
+            .on_navigation(move|url|{
+                let allowed=navigation_origin.lock().unwrap();
+                allowed.as_ref().map_or_else(||local_splash(url),|o|url.origin().ascii_serialization()==*o)
+            })
+            .on_page_load(move|window,payload|{
+                if matches!(payload.event(),tauri::webview::PageLoadEvent::Finished) && local_splash(payload.url()) {
+                    render_startup(&window,&loaded_view);
+                }
+                if matches!(payload.event(),tauri::webview::PageLoadEvent::Finished) && payload.url().path()=="/"
+                    &&loaded_origin.lock().unwrap().as_ref().is_some_and(|o|payload.url().origin().ascii_serialization()==*o){
+                    record_startup(&timing_folder,&loaded_timings,"document",started);
+                }
+            })
             .build()?;
+        {
+            let mut value=timings.lock().unwrap();value.display_scale_factor=window.scale_factor().ok();
+            if let Ok(size)=window.inner_size(){value.initial_inner_width=Some(size.width);value.initial_inner_height=Some(size.height);}
+        }
+        record_startup(&folder,&timings,"window",started);
+        let handle=app.handle().clone();
+        std::thread::spawn(move||{
+            let result:Result<(),Box<dyn std::error::Error>>=(||{
+                let service=start_service(&binary,&folder,&cancelled,|message,done,total|{
+                    *view.lock().unwrap()=StartupView{message,done,total,failed:false};
+                    render_startup(&window,&view);
+                })?;
+                record_startup(&folder,&timings,"service",started);
+                let port=service.ready.port;
+                let url=format!("http://127.0.0.1:{}/_desktop/bootstrap#{}",port,service.ready.token);
+                let allowed_origin=format!("http://127.0.0.1:{}",port);
+                handle.manage(updates::Updates::new(folder.clone(),allowed_origin.clone(),handle.package_info().version.to_string())?);
+                handle.add_capability(tauri::ipc::CapabilityBuilder::new("front-updates")
+                    .local(false).window("main").remote(format!("{allowed_origin}/*"))
+                    .permission("allow-desktop-update"))?;
+                {
+                    let state=handle.state::<Mutex<Option<Service>>>();let mut slot=state.lock().unwrap();
+                    if cancelled.load(Ordering::SeqCst){return Err("startup_cancelled".into());}
+                    *slot=Some(service);
+                }
+                *origin.lock().unwrap()=Some(allowed_origin);
+                if !cancelled.load(Ordering::SeqCst){window.navigate(url.parse()?)?;}
+                Ok(())
+            })();
+            if let Err(error)=result {
+                let state=handle.state::<Mutex<Option<Service>>>();
+                if let Some(mut service)=state.lock().unwrap().take(){service.stop();}
+                if !cancelled.load(Ordering::SeqCst){
+                    *view.lock().unwrap()=StartupView{message:startup_error_text(&error.to_string()),done:None,total:None,failed:true};
+                    render_startup(&window,&view);
+                }
+            }
+        });
         Ok(())
     }).build(tauri::generate_context!());
     let app=match result {Ok(app)=>app,Err(error)=>{startup_error(&error.to_string());return;}};
     app.run(|app,event| {
         if matches!(event,tauri::RunEvent::ExitRequested{..} | tauri::RunEvent::Exit) {
+            if let Some(state)=app.try_state::<StartupLifecycle>(){state.0.store(true,Ordering::SeqCst);}
             if let Some(state)=app.try_state::<Mutex<Option<Service>>>() {
                 if let Ok(mut guard)=state.lock(){if let Some(mut service)=guard.take(){service.stop();}}
             }
@@ -138,12 +277,16 @@ fn main() {
     });
 }
 
-fn startup_error(code:&str) {
-    let text=if code.contains("data_directory_in_use") {"Front 资料目录正在使用中。请先关闭使用该目录的 Front 窗口。"}
+fn startup_error_text(code:&str)->&'static str {
+    if code.contains("data_directory_in_use") {"Front 资料目录正在使用中。请先关闭使用该目录的 Front 窗口。"}
         else if code.contains("data_directory_unwritable") {"Front 无法写入资料目录。请检查磁盘空间和文件夹权限；便携版可移到可写目录，或通过 FRONT_DATA_DIR 指定独立目录。原有资料未被覆盖。"}
         else if code.contains("database_incompatible_or_damaged") {"Front 检测到不兼容或损坏的资料库，已停止升级。请使用较新版本或在独立目录验证备份。"}
         else if code.contains("upgrade_backup_incomplete") {"Front 升级前完整备份未通过验证，已保留原资料。请先检查缺失的托管素材和备份报告。"}
-        else {"Front 无法启动。请确认已完整解压程序、WebView2 已安装，资料目录可写。便携版请移到可写目录重试。详情见资料目录 logs/desktop.log。"};
+        else if code.contains("startup_timeout") {"Front 初始化等待超时，已停止本实例服务。原资料和已生成的备份保留，请检查磁盘及资料目录日志后重试。"}
+        else {"Front 无法启动。请确认已完整解压程序、WebView2 已安装，资料目录可写。便携版请移到可写目录重试。详情见资料目录 logs/desktop.log。"}
+}
+fn startup_error(code:&str) {
+    let text=startup_error_text(code);
     #[cfg(windows)] unsafe {
         use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW,MB_OK,MB_ICONERROR};
         let message:Vec<u16>=text.encode_utf16().chain(Some(0)).collect();
@@ -151,4 +294,28 @@ fn startup_error(code:&str) {
         MessageBoxW(std::ptr::null_mut(),message.as_ptr(),title.as_ptr(),MB_OK|MB_ICONERROR);
     }
     #[cfg(not(windows))] eprintln!("{text}");
+}
+
+#[cfg(test)]
+mod startup_tests {
+    use super::*;
+    #[test]
+    fn startup_tests_bound_messages_and_never_display_raw_phase_or_error() {
+        assert!(matches!(startup_message(r#"{"phase":"backup","done":3,"total":10}"#,42),Ok(StartupMessage::Progress(_,Some(3),Some(10),true))));
+        assert!(startup_message(r#"{"phase":"arbitrary private filename"}"#,42).is_err());
+        assert!(startup_message(&"X".repeat(4097),42).is_err());
+        assert!(matches!(startup_message(r#"{"error":"arbitrary private path"}"#,42),Ok(StartupMessage::Error("sidecar_initialization_failed"))));
+        assert!(matches!(startup_message(r#"{"phase":"backup","done":99,"total":10}"#,42),Ok(StartupMessage::Progress(_,None,Some(10),true))));
+    }
+    #[test]
+    fn startup_tests_validate_owned_pid_token_and_navigation_origin() {
+        let valid=serde_json::json!({"port":23456,"pid":42,"token":"generated_test_token_with_32_characters"}).to_string();
+        assert!(matches!(startup_message(&valid,42),Ok(StartupMessage::Ready(_))));
+        assert!(startup_message(&valid,43).is_err());
+        assert!(startup_message(r#"{"port":123,"pid":42,"token":"short"}"#,42).is_err());
+        assert!(local_splash(&"http://tauri.localhost/index.html".parse().unwrap()));
+        assert!(local_splash(&"tauri://localhost/index.html".parse().unwrap()));
+        assert!(!local_splash(&"http://tauri.localhost.evil.example/".parse().unwrap()));
+        assert!(!local_splash(&"http://127.0.0.1:8000/".parse().unwrap()));
+    }
 }

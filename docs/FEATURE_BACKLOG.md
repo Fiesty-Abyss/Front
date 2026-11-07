@@ -130,3 +130,7 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 
 
 - NOTE-TREE：修复普通PATCH/历史恢复绕过目录环检查及move异常输入；复用现有Note/版本，不改架构或数据表。生成样本API回归，Actions确认；私人库修复/自动重排不在范围。
+
+
+- VOICE-B：部分实现。配音工程/台词编辑/旁白与声线/拆分合并排序/单片失效/候选采纳/历史闭环，生成WAV API回归及Actions构建；无真实TTS。字幕/整章成片导出、人物选择体验及任务生成待后续。
+- VOICE-C下一阶段：统一TTSAdapter、能力与Mock协议/取消/幂等；已只读核对官方GPT-SoVITS api_v2.py提交04a44eb977586645f33594b72af13a035a2056c6，不能猜测其不存在的voices/health/cancel接口，也不能调用全局control充当单任务取消。尚未适配/推理。

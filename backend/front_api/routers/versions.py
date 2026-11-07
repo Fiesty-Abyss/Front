@@ -115,6 +115,9 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
     if isinstance(obj, (m.VoiceProvider, m.VoiceModel, m.VoiceProfile)):
         from ..voicestudio import validate_restore
         validate_restore(session, obj, data)
+    if isinstance(obj, (m.VoiceProject, m.VoiceSegment)):
+        from ..voiceprojects import validate_restore
+        validate_restore(session, obj, data)
     for key,created_at in data.get('_references',{}).items():
         column=obj.__table__.c[key]
         for fk in column.foreign_keys:
@@ -137,6 +140,7 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
     try:
         for c in obj.__table__.columns:
             if c.key in v.SKIP or c.key not in data:continue
+            if isinstance(obj, m.VoiceSegment) and c.key == 'position':continue
             value=data[c.key]
             if value is not None and isinstance(c.type,Date):value=date.fromisoformat(value)
             setattr(obj,c.key,value)
@@ -154,6 +158,9 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
                 session.add(m.ChapterRevision(asset_id=obj.id,parent_revision=latest.id if latest else 0,text_hash=plan['text_hash'],chapters=plan['chapters'],note=body.note))
                 session.flush()
         rid=v.record(session,obj,body.note,f'restore:{version_id}',force=True)
+        if isinstance(obj, m.VoiceSegment):
+            from ..voiceprojects import after_restore
+            after_restore(session, obj)
         session.commit()
     except IntegrityError:
         session.rollback();raise HTTPException(409,'历史关联已失效，未执行恢复') from None

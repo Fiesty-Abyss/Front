@@ -1,5 +1,7 @@
 ## 2026-11-07：RC A 大收藏分页
 
+RC最终交接：PR #36–#41均四项CI成功并普通合并，功能main6de5504。preview.2/run42354113723两包及Hash核验、本机最小PATH隔离运行/所属进程清理通过，265本机后端/8前端/构建，Windows264通过/1跳过、8SDK+2启动Rust。正式RC仍未通过，无公开Release；见NEXT_SESSION与RELEASE_CANDIDATE_STATUS。
+
 RC F：PR #36–#40全部四项CI通过并正常合并，F基线main=15cc1a3。内部preview.2准备两包/Hash/许可及安装资料说明；RC验收不放行，明确干净VM、真实安装恢复、完整性能和正式信任根等门槛。详细[候选结论](RELEASE_CANDIDATE_STATUS.md)，F测试与CI另核对，不提前声称产物通过。
 
 RC E：已同步PR #39合并后的main=745b7ca；独立补官方SDK取消/断流/降级和生产manifest拒绝测试。265后端/8前端及生产构建通过，本机official signer/Python TLS通过；八项Rust测试等待Windows CI，不启动安装器。见[RC E](audits/v0.7/RC_UPDATES_E.md)。

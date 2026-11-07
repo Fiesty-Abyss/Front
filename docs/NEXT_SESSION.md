@@ -1,34 +1,50 @@
-# Front 接续记录 · 2026-11-07
+# Front 最终接续记录 · 2026-11-07
 
-本F分支提交前最新main：`15cc1a30bf4af3b9b3f9dbe9e747c22c67a7eae7`，PR #36–#40全部四项CI通过并正常合并。本记录是后续独立候选分支的一部分，接管先fetch再查询最新main/PR/CI；最终合并SHA、附件和本机状态记private/RC_SPRINT_STATUS.json，不把文档基线冒充未来提交自身SHA。
+本交接写入时最新功能main：`6de5504479607bf450c29df1f2e311a11b4f7c37`。PR #36–#41均已通过全部四项检查并普通合并；本交接PR仅更正文档，不改变程序/包。合并后的精确main保存在本机private/RC_SPRINT_STATUS.json；接管先fetch再读origin/main和开放PR，不能将静态文档基线当成以后提交自身SHA。
 
-## 已完成
+## 当前交付与结论
 
-| PR | 范围 | 证据 |
+**0.7.0-preview.2内部测试候选已构建、校验并本机隔离运行；正式RC验收仍未通过，无公开Release。**
+
+Windows run `42354113723`（job128348312041）四项PR检查通过：264后端通过/1跳过、8前端及生产构建、8项官方Updater及2项启动Rust、冻结起停/迁移/最小PATH/真实ACL与恢复、安装器/便携/PE版本/CRC/Hash门槛全部通过。本机最终265后端/8前端/生产构建通过；3.10仅兼容专项，不称全后端。
+
+包内BUILD_MANIFEST源提交：`5c912b1057540bb13b14343aea4ae5be2a86b510`（CI合并测试提交），PR #41 head8309372和功能main6de5504的Git tree均为`4cf2292589e085eaefd21c0d15afa2c0fc58ff59`，已核对相同。后续交接只改文档，没有重打包；不能把新文档提交冒充包的构建SHA。
+
+- Artifact ID13567885058，外层digest、内层CRC/SHA均已核验。
+- 安装器SHA256：`f62f5442b26075a2012d843685b921ce8d16a84c97f51da865f12287ae962959`。
+- 便携ZIP SHA256：`8e709285b5ccd42cc0e66c25be9b758873a0059ab86fd4aa749a242f9db9a32c`。
+- 本机独立交付：private/deliveries/front-0.7.0-preview.2-42354113723，files为原始六附件，portable为解压原包，无FrontData/测试素材复制进去；ISOLATED_SMOKE/DELIVERY记录验证。根目录不是私人主库。
+- 最终包最小System32 PATH、去除Python环境、独立生成空库启动：窗口670ms/服务2410ms/文档2753ms，150%缩放，**非TTI/冷缓存分布**。强制退出后壳/后端/WebView所属进程均不存在，DB完整性正常。未操作GUI或运行NSIS；不是干净VM/无开发工具系统。
+- 正式公钥为空，生产Updater禁用；测试密钥没有作为生产根。Web共享核心/侧栏历史版本仍0.6.4，桌面身份以设置/PE/manifest为准。
+
+## 本轮完成范围
+
+| PR | 范围 | 报告 |
 | --- | --- | --- |
-| #36 | 大收藏摘要/成员游标/跨页选择/批量/事务CAS排序 | 10k/50k/100k、完整游标走查、真实浏览器拖拽/评分/390px；RC_COLLECTIONS_A.md |
-| #37 | 混合规模与真实任务中断、章节识别复用、收藏选择器减负 | 20世界/2000人物/3960关系/1000章，1000 PNG/200 WAV/OC/模型元数据；RC_MIXED_B.md |
-| #38 | 真实Windows ACL预检长重试修复/冻结门槛 | 源/本机冻结和CI真实Deny及恢复；RC_WINDOWS_C.md |
-| #39 | 可见启动阶段、有界握手、单WebView及数值启动日志 | Windows42351228491，6真实Updater+2启动Rust；RC_STARTUP_D.md |
-| #40 | SDK取消/断流/降级和manifest拒绝、私有测试Key夹 | Windows42352769584，8真实Updater+2启动Rust；RC_UPDATES_E.md |
+| #36 | 大收藏摘要/稳定游标/筛选/跨页选择/批量/CAS事务排序 | RC_COLLECTIONS_A.md |
+| #37 | 混合规模、真实队列取消/进程中断/重试、减少首次章节重复识别 | RC_MIXED_B.md |
+| #38 | Windows ACL拒写长重试修复、冻结真实Deny门槛 | RC_WINDOWS_C.md |
+| #39 | 单窗口可见启动阶段、有界握手/取消实现、数值阶段日志 | RC_STARTUP_D.md |
+| #40 | 真实SDK HTTPS取消/断流/降级、通道/格式/最低版本拒绝、私有Key夹 | RC_UPDATES_E.md |
+| #41 | preview.2身份/两包及随包安装/数据/备份/许可/验收说明 | RELEASE_CANDIDATE_STATUS.md |
 
-本F分支同步基线后全量265后端/8前端/生产构建通过。Windows #40为264通过/1跳过；3.10仅兼容专项，不称全后端。Starlette/httpx弃用警告保留，不为消警告迁移依赖。所有公开截图/压力数据为生成样本；SDK测试是生成HTTPS源与真实签名/网络，未调用install/真实AI。
+100k收藏旧全量64.86MB/3569.72ms，摘要312B/4.67ms、页面13.24KB/5.53ms（暖态ASGI，不是TTI）。同DB1000章首次预览交替配对362.48→186.23ms。真实浏览器跨页评分、本页拖拽、390px、101201生成素材分页/末章/作品摘要通过，公开截图只含生成样本。
 
-D同一已验CI包实际未来库错误窗口，DBHash复核不变；空库窗口621ms/服务2164ms/document2495ms，150%缩放，非TTI/冷缓存。9进程RSS633.83/PrivateBytes443.45MiB、专用GPU66.33/共享63.93MiB为单次最小化状态；非峰值/长期优化证明。1GiB生成托管媒体实际复制中强制结束壳，源DB/媒体Hash不变；重启完成完整备份/独立恢复/迁移。不是点击关闭取消或安装故障恢复。
+20世界/2000人物/3960关系、1000真实生成PNG/缩略图、200短WAV、1000章、OC/模型/提示词元数据及34任务积压验证。不是10万真实图片/真实AI。原生1GiB生成托管媒体实际备份复制中强制结束壳，源DB和媒体Hash不变，重启完成完整备份/隔离恢复/迁移；不是点击关闭取消或真实安装失败恢复。
 
-## 当前F与下一步
+## 未完成与下一步准确操作
 
-1. 独立分支codex/candidate-docs-rc（.cache/worktrees/candidate-docs-rc）已同步上述main；preview.2配置/Node/Rust锁身份一致，随包README和RELEASE_CANDIDATE_STATUS已整理。本机265后端/8前端/生产构建已通过；等待PR和Windows全部门槛，不能提前把候选产物标成功。
-2. 成功后下载对应源SHA的内部Artifact，核对外层digest、内层SHA/CRC/版本，隔离新目录最小PATH启动；不运行NSIS安装器或公开Release。最终包放private/deliveries独立新目录，不能覆盖旧包/FrontData。
-3. F正常合并后补最终交接。正式RC仍未放行；干净VM安装/旧二进制升级/卸载重装、缺少/离线WebView2、真正只读磁盘、真实更新安装中断/二进制恢复、TTI/Heap/长期GPU/多DPI和点击关闭取消待验。
-4. 正式信任根/签名feed、Authenticode、依赖许可及公开发布需人工条件，见HUMAN_ACTIONS_REQUIRED；测试根不编译为生产根，不要求现在提供Key/接受SDK协议。
+1. 核对新main/PR/CI，保留已合并工作；不用重做分页、备份或Updater。若验证本交付，先检查DELIVERY/BUILD_MANIFEST和上述Hash，不运行旧版本替换活动库。
+2. 真正干净Windows/快照：安装/无开发工具启动/卸载重装/旧二进制升级、缺少及离线WebView2、真只读磁盘、权限、数据保留矩阵。日常主机/runner不替代。
+3. 独立系统做测试签名更新实际安装/取消/断网/安装中断/二进制恢复和便携替换；不要编译测试根到正式包，不从测试payload宣称安装回滚完成。
+4. 补稳定原生交互会话下的正常导航/点击关闭取消、多实例完整UI、多DPI、真实冷/热TTI、长时CPU/内存/Heap/GPU及媒体循环。工具在最小化/用户输入恢复失败后已停止反复激活，不伪称通过；私有原生截图含桌宠，未公开。
+5. 许可清单最终715项（Python46/npm211/Cargo458），3项缺声明但有文本，107项无复制文本（含未安装跨平台可选构建包）；按实际分发内容逐项审查。正式签名、保护Secret、许可和公开发布见HUMAN_ACTIONS_REQUIRED，不要求现在提供Key/接受SDK协议。
+6. 按价值继续独立小PR：Live2D/SDK/作者用途、Krita/数位板、真实AI/OC/小说语义、3D动画、游戏音声/特典和插件均保留FEATURE_BACKLOG。
 
-## 运行与资料边界
+## 进程、资料与缓存
 
-日常主机Windows11家庭中文版22631，有开发工具，无经验证干净VM。原8000本轮未运行；private/front-data、原创项目、第三方模型和旧WebUI原件未启动/改动，没有远程AI发送。
+源测试8001/8002已按命令/父子/端口核验后停止，100000/101201生成库integrity_check=ok、外键无异常；自建浏览器页关闭，用户8000页未动。所有自有原生实例已退出，无所属进程遗留；原8000本轮未运行。PID只作取证，不能按旧PID盲杀。生成库/报告/私有截图保留.cache供复测。
 
-自建8001/8002服务经命令/父子/端口复核后已停止；100000及101201生成库integrity_check=ok、外键无异常。自建浏览器页已关闭，用户8000页未动。D原生Front/Sidecar/WebView自有进程已退出。PID记录只取证，不能按旧PID盲杀。生成库/私有截图保留.cache；截图含桌宠叠层未公开。
+private/front-data、原创世界观、第三方Live2D及旧WebUI原件未启动/修改，没有发送私人内容到远程AI。故意未来结构库的报错属于.cache测试，DBHash复核不变，不是私人库损坏。
 
-首次C本机PyInstaller曾完成于默认用户cache，随后固定项目.cache和TEMP重建，没有额外清理默认用户cache。所有后续受控输出在E盘项目，未删除用户资料。原始素材不进入Git或安装包。长期Live2D/Krita/数位板/真实AI/OC/小说语义/3D/游戏音声特典及插件继续保留FEATURE_BACKLOG。
-
-不虚构离线后台持续运行；当前状态以实际进程和private/RC_SPRINT_STATUS.json为准。
+首次C本机PyInstaller曾完成于默认用户cache，后续固定项目.cache和TEMP重建，没有额外清理默认用户cache。所有后续受控输出在E盘；不删除个人资料/签名根，不强推或绕过保护，不虚构离线后台运行。停止后接续状态以实际Git/进程和private/RC_SPRINT_STATUS.json为准。

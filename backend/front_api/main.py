@@ -28,7 +28,7 @@ from .routers import oc as oc_router
 from .routers import ocimages
 from .routers import ocdrawing
 from .routers import audio,referenceimports
-from .routers import bonuses, modelassets
+from .routers import bonuses, modelassets, voice
 
 FRONTEND_DIST = (Path(sys._MEIPASS) if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[2]) / "frontend" / "dist"
 _hooks_installed = False
@@ -86,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         audio.router,referenceimports.router,
         bonuses.router,
         modelassets.router,
+        voice.router,
         exports.router,
         library.tag_extra, library.tags, library.works, library.worlds,
         encyclopedia.extra, encyclopedia.entries, encyclopedia.appearances,

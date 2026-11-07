@@ -11,6 +11,7 @@ const routes = [
   { path: '/audio', component: () => import('./views/AudioLibrary.vue'), meta: { title: 'Audio Library' } },
   { path: '/assets', component: () => import('./views/Assets.vue'), meta: { title: '素材库' } },
   { path: '/live2d', component: () => import('./views/Live2DStudio.vue'), meta: { title: 'Live2D Studio' } },
+  { path: '/voice', component: () => import('./views/VoiceStudio.vue'), meta: { title: 'AI Voice Studio' } },
   { path: '/oc', component: () => import('./views/OCStudio.vue'), meta: { title: 'OC Studio' } },
   { path: '/galgames', component: () => import('./views/Galgames.vue'), meta: { title: '游戏库' } },
   { path: '/galgames/:id', component: () => import('./views/GalgameDetail.vue'), meta: { title: '游戏库' } },

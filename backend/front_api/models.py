@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+import uuid
 from typing import Any
 
 from sqlalchemy import (
@@ -922,3 +923,79 @@ class GalgamePlay(Base):
     played_on: Mapped[str] = mapped_column(String(10), index=True)
     minutes: Mapped[int] = mapped_column(Integer)
     note: Mapped[str | None] = mapped_column(Text)
+
+
+
+# Voice Studio metadata only. Engines and weights are external, never initialized here.
+voice_profile_tags = _tag_link('voice_profile_tags', 'voice_profile')
+
+
+class VoiceIdentity(TimestampMixin):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uid: Mapped[str] = mapped_column(String(32), unique=True, default=lambda: uuid.uuid4().hex)
+
+
+class VoiceProvider(VoiceIdentity, Base):
+    __tablename__ = 'voice_providers'
+    title: Mapped[str] = mapped_column(String(200))
+    engine: Mapped[str] = mapped_column(String(40), default='unconfigured')
+    endpoint: Mapped[str] = mapped_column(String(2000), default='')
+    credential_id: Mapped[int | None] = mapped_column(ForeignKey('ai_providers.id', ondelete='SET NULL'))
+    notes: Mapped[str] = mapped_column(Text, default='')
+
+
+class VoiceModel(VoiceIdentity, Base):
+    __tablename__ = 'voice_models'
+    title: Mapped[str] = mapped_column(String(200))
+    provider_id: Mapped[int | None] = mapped_column(ForeignKey('voice_providers.id', ondelete='SET NULL'), index=True)
+    file_path: Mapped[str] = mapped_column(String(2000), default='')
+    model_version: Mapped[str] = mapped_column(String(200), default='')
+    source: Mapped[str] = mapped_column(String(2000), default='')
+    license: Mapped[str] = mapped_column(Text, default='')
+    notes: Mapped[str] = mapped_column(Text, default='')
+
+
+class VoiceProfile(VoiceIdentity, Base):
+    __tablename__ = 'voice_profiles'
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    model_id: Mapped[int | None] = mapped_column(ForeignKey('voice_models.id', ondelete='SET NULL'), index=True)
+    character_id: Mapped[int | None] = mapped_column(ForeignKey('characters.id', ondelete='SET NULL'), index=True)
+    oc_id: Mapped[int | None] = mapped_column(ForeignKey('oc_profiles.id', ondelete='SET NULL'), index=True)
+    binding: Mapped[dict] = mapped_column(JSON, default=dict)
+    sample_ref: Mapped[dict] = mapped_column(JSON, default=dict)
+    voice_key: Mapped[str] = mapped_column(String(200), default='')
+    language: Mapped[str] = mapped_column(String(40), default='')
+    source: Mapped[str] = mapped_column(String(2000), default='')
+    license: Mapped[str] = mapped_column(Text, default='')
+    favorite: Mapped[bool] = mapped_column(Boolean, default=False)
+    stars: Mapped[int] = mapped_column(Integer, default=0)
+    preference: Mapped[int] = mapped_column(Integer, default=0)
+    notes: Mapped[str] = mapped_column(Text, default='')
+    tags: Mapped[list[Tag]] = relationship(secondary=voice_profile_tags, lazy='selectin')
+
+
+class VoiceProject(VoiceIdentity, Base):
+    __tablename__ = 'voice_projects'
+    title: Mapped[str] = mapped_column(String(200))
+    world_id: Mapped[int | None] = mapped_column(ForeignKey('worlds.id', ondelete='SET NULL'), index=True)
+    source_asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id', ondelete='SET NULL'))
+    notes: Mapped[str] = mapped_column(Text, default='')
+
+
+class VoiceSegment(VoiceIdentity, Base):
+    __tablename__ = 'voice_segments'
+    project_id: Mapped[int] = mapped_column(ForeignKey('voice_projects.id', ondelete='CASCADE'), index=True)
+    profile_id: Mapped[int | None] = mapped_column(ForeignKey('voice_profiles.id', ondelete='SET NULL'))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    text: Mapped[str] = mapped_column(Text, default='')
+    recipe: Mapped[dict] = mapped_column(JSON, default=dict)
+    source: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class VoiceRender(VoiceIdentity, Base):
+    __tablename__ = 'voice_renders'
+    segment_id: Mapped[int] = mapped_column(ForeignKey('voice_segments.id', ondelete='CASCADE'), index=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), index=True)
+    snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    audio_asset_id: Mapped[int | None] = mapped_column(ForeignKey('assets.id', ondelete='SET NULL'))
+    status: Mapped[str] = mapped_column(String(30), default='candidate')

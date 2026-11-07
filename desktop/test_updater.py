@@ -8,16 +8,26 @@ import shutil
 import ssl
 import subprocess
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 def run(root: Path, transport_only=False):
+    project=Path(__file__).resolve().parents[1]
+    root=root.resolve()
+    if not root.is_relative_to((project/'.cache').resolve()):raise ValueError('generated updater fixture must remain inside checkout cache')
+    root.mkdir(parents=True,exist_ok=False)
+    (root/'.front-generated-updater-test').write_text('generated updater fixture v1',encoding='utf-8')
+    if os.name=='nt':
+        shell=shutil.which('pwsh') or shutil.which('powershell');assert shell
+        permission=subprocess.run([shell,'-NoProfile','-NonInteractive','-File',str(project/'desktop/protect_updater_fixture.ps1'),
+            '-Root',str(root)],capture_output=True,text=True,timeout=15)
+        if permission.returncode:raise RuntimeError('generated signing fixture permissions failed')
+    else:root.chmod(0o700)
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
-    root=root.resolve();root.mkdir(parents=True,exist_ok=False)
-    project=Path(__file__).resolve().parents[1]
     node=shutil.which('node');assert node
     cli=project/'desktop/node_modules/@tauri-apps/cli/tauri.js'
     def signer(*args):
@@ -51,19 +61,27 @@ def run(root: Path, transport_only=False):
     (root/'ca.pem').write_bytes(ca.public_bytes(serialization.Encoding.PEM))
     (root/'server.pem').write_bytes(leaf.public_bytes(serialization.Encoding.PEM))
     (root/'server-key.pem').write_bytes(server_key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()))
+    if os.name!='nt':
+        for name in ('throwaway.key','other.key','server-key.pem'):(root/name).chmod(0o600)
     signature=(root/'payload.sig').read_text().strip()
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args):pass
         def do_GET(self):
-            if self.path=='/latest.json':
-                body=json.dumps({'version':'9.9.0','notes':'Generated test release; no installation',
+            if self.path in ('/latest.json','/downgrade.json'):
+                body=json.dumps({'version':'0.0.1' if self.path=='/downgrade.json' else '9.9.0','notes':'Generated test release; no installation',
                     'platforms':{'windows-x86_64':{'url':base+'/package','signature':signature}},
                     'front':{'channel':'preview','backup_format':1,'minimum_source_version':'0.1.0'}}).encode()
-            elif self.path=='/package':body=payload
+            elif self.path in ('/package','/slow','/interrupted'):body=payload
             elif self.path=='/tampered':body=b'X'+payload[1:]
             else:self.send_response(404);self.end_headers();return
             self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers()
-            try:self.wfile.write(body)
+            try:
+                if self.path=='/interrupted':
+                    self.wfile.write(body[:16384]);self.wfile.flush();self.close_connection=True;return
+                if self.path=='/slow':
+                    for start in range(0,len(body),16384):
+                        self.wfile.write(body[start:start+16384]);self.wfile.flush();time.sleep(.02)
+                else:self.wfile.write(body)
             except OSError:pass
     server=ThreadingHTTPServer(('127.0.0.1',0),Handler);server.daemon_threads=True
     context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.minimum_version=ssl.TLSVersion.TLSv1_2
@@ -76,7 +94,14 @@ def run(root: Path, transport_only=False):
             import urllib.request
             with urllib.request.urlopen(base+'/package',context=ssl.create_default_context(cafile=str(root/'ca.pem')),timeout=5) as response:
                 assert response.read()==payload
-            print(json.dumps({'fixture':'generated','official_signer':'signing completed','python_https':'passed','rust_sdk_tests':'not run','installation_executed':False}))
+            import http.client
+            try:
+                with urllib.request.urlopen(base+'/interrupted',context=ssl.create_default_context(cafile=str(root/'ca.pem')),timeout=5) as response:
+                    response.read()
+            except http.client.IncompleteRead:pass
+            else:raise AssertionError('truncated_fixture_did_not_interrupt')
+            print(json.dumps({'fixture':'generated','official_signer':'signing completed','python_https':'passed','interrupted_fixture':'passed',
+                'private_fixture_permissions':'restricted to owner/system on Windows; mode0700 on Unix','rust_sdk_tests':'not run','installation_executed':False}))
             return
         env={**os.environ,'FRONT_UPDATER_TEST_ROOT':str(root)}
         cargo=shutil.which('cargo') or env.get('FRONT_CARGO');assert cargo

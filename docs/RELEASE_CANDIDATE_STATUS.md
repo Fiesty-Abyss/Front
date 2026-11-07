@@ -52,3 +52,11 @@ PR #38精确附件清单实查715项（Python46/npm211/Cargo458），3项声明�
 Live2D渲染/动作/道具/面捕与许可、Krita/数位板、真实AI/ComfyUI/SD、OC/线稿学习、小说语义/关系、3D动画、游戏/音声/特典及插件继续保留Feature Backlog。
 
 本preview.2分支基于main15cc1a3，本机265后端/8前端及生产构建通过；Windows候选附件与本机运行结果以最终成功run和接续补充为准，不在构建前预填通过。
+
+## preview.2最终产物验收补充
+
+PR #41四项CI全部通过并合并，功能main6de5504。Windows run42354113723，264后端/1跳过、8前端/构建、8真实Updater+2启动Rust、冻结ACL/迁移和两包完整性通过。构建源5c912b1057540bb13b14343aea4ae5be2a86b510，tree与PR head及功能main相同。
+
+下载外层digest及内层Hash/CRC/PE复核通过；本机同一包最小System32 PATH、移除Python环境、新空库文档完成。阶段670/2410/2753ms分别为窗口创建/服务ready/document load，150%缩放；非TTI/干净系统证据。强制结束后所属壳/Sidecar/WebView退出，生成DB完整性正常。NSIS未运行，GUI流程未在此轮最终包重验，正式RC结论保持不通过。
+
+本机交付保存独立private/deliveries新目录，未复制测试FrontData；真实个人素材/Key不作为输入。最终清单仍715项、3缺声明/107无复制文本，含构建/跨平台项，审查未批量完成。完整Hash与准确接续操作见NEXT_SESSION。

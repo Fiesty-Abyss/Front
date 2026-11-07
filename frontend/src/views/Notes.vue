@@ -10,7 +10,7 @@ import Modal from '../components/Modal.vue'
 import NoteEditor from '../components/NoteEditor.vue'
 import TagPicker from '../components/TagPicker.vue'
 import { guard, toast } from '../toast'
-import { noteAncestry } from '../noteAncestry'
+import { noteAncestry, visibleNotes } from '../noteAncestry'
 
 const editingTags = ref(false)
 
@@ -38,10 +38,7 @@ const byParent = computed(() => {
 const flat = computed(() => {
   // 展开后的可见行（带缩进层级）；搜索时直接平铺匹配项
   if (filter.value.trim()) return tree.value.filter((n) => n.title.toLowerCase().includes(filter.value.trim().toLowerCase())).map((n) => ({ ...n, depth: 0 }))
-  const out = []
-  const walk = (pid, depth) => { for (const n of byParent.value.get(pid) || []) { out.push({ ...n, depth, kids: (byParent.value.get(n.id) || []).length }); if (open.value.has(n.id)) walk(n.id, depth + 1) } }
-  walk(0, 0)
-  return out
+  return visibleNotes(tree.value, open.value)
 })
 function toggle(id) { const s = new Set(open.value); s.has(id) ? s.delete(id) : s.add(id); open.value = s }
 function expandTo(id) {

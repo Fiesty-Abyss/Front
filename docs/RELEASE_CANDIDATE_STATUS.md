@@ -29,6 +29,8 @@
 
 当前保持内部预览版本命名，不创建v0.7正式Tag/Release。以成功Windows流水线的BUILD_MANIFEST.json、SHA256SUMS.txt及源提交为准，不能只按相同文件名认定相同构建。两种包携带冻结Python/VC运行时、共用Vue/FastAPI业务和许可清单，不包含私人数据或推理模型。更新默认禁用。
 
+桌面候选标识为0.7.0-preview.2；共享Web核心/侧栏仍沿用0.6.4标签，不代表已发布v0.7。核对安装身份使用桌面设置和BUILD_MANIFEST/PE版本；统一正式版本标签留到发布验收通过后。
+
 安装/卸载、便携替换、Web/Desktop资料目录与备份恢复步骤随包[README](../desktop/README.md)交付。先在独立目录恢复，禁止覆盖活动库；外部索引不默认复制原件。正式更新签名与Authenticode、TLS及第三方许可分别审查。
 
 ## 依赖与许可
@@ -48,3 +50,5 @@ PR #38精确附件清单实查715项（Python46/npm211/Cargo458），3项声明�
 5. 许可审核、正式签名与发布审批通过后另行决定RC/稳定Tag及公开Release。当前不自动发布。
 
 Live2D渲染/动作/道具/面捕与许可、Krita/数位板、真实AI/ComfyUI/SD、OC/线稿学习、小说语义/关系、3D动画、游戏/音声/特典及插件继续保留Feature Backlog。
+
+本preview.2分支基于main15cc1a3，本机265后端/8前端及生产构建通过；Windows候选附件与本机运行结果以最终成功run和接续补充为准，不在构建前预填通过。

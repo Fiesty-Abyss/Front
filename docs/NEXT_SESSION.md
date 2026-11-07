@@ -1,32 +1,34 @@
 # Front 接续记录 · 2026-11-07
 
-当前功能main：`745b7cad94e044a306e443b1874d058302404dfb`（已合并PR #36/#37/#38/#39，四项CI均通过）。本记录来自后续独立启动进度分支；接管先fetch最新main和PR，不能把文档内的基线当成以后最新SHA。
+本F分支提交前最新main：`15cc1a30bf4af3b9b3f9dbe9e747c22c67a7eae7`，PR #36–#40全部四项CI通过并正常合并。本记录是后续独立候选分支的一部分，接管先fetch再查询最新main/PR/CI；最终合并SHA、附件和本机状态记private/RC_SPRINT_STATUS.json，不把文档基线冒充未来提交自身SHA。
 
-## 本轮已完成
+## 已完成
 
-- #36：大收藏摘要、稳定成员游标、筛选、跨页选择、批量编辑及事务/CAS排序；10k/50k/100k和真实桌面/390px浏览器交互。100k单页13.24KB/暖态ASGI5.53ms，旧全量64.86MB/3569.72ms。
-- #37：混合生成压力（20世界/2000人物/3960关系、1000 PNG/200 WAV/1000章、模型提示词/OC/任务），真实进程中断/取消/重试；首次章节预览配对362.48→186.23ms。未测Heap/GPU/TTI，不冒充真实AI。
-- #38：Windows真实ACL拒绝时长重试修复；冻结CI实际Deny ACE/恢复、最小PATH及迁移回归，安装/便携附件Hash核验。主机原生包空库打开、素材导航、正常退出通过，不等于干净系统安装。
-- 当前D：单个本地启动窗口、固定升级阶段与计数、有界握手和关闭取消；旧Sidecar默认协议兼容。源进程生成媒体/旧表升级专项已实现，候选Rust/原生验收须等对应CI产物。详见RC_STARTUP_D.md。
+| PR | 范围 | 证据 |
+| --- | --- | --- |
+| #36 | 大收藏摘要/成员游标/跨页选择/批量/事务CAS排序 | 10k/50k/100k、完整游标走查、真实浏览器拖拽/评分/390px；RC_COLLECTIONS_A.md |
+| #37 | 混合规模与真实任务中断、章节识别复用、收藏选择器减负 | 20世界/2000人物/3960关系/1000章，1000 PNG/200 WAV/OC/模型元数据；RC_MIXED_B.md |
+| #38 | 真实Windows ACL预检长重试修复/冻结门槛 | 源/本机冻结和CI真实Deny及恢复；RC_WINDOWS_C.md |
+| #39 | 可见启动阶段、有界握手、单WebView及数值启动日志 | Windows42351228491，6真实Updater+2启动Rust；RC_STARTUP_D.md |
+| #40 | SDK取消/断流/降级和manifest拒绝、私有测试Key夹 | Windows42352769584，8真实Updater+2启动Rust；RC_UPDATES_E.md |
 
-## 下一步准确操作
+本F分支同步基线后全量265后端/8前端/生产构建通过。Windows #40为264通过/1跳过；3.10仅兼容专项，不称全后端。Starlette/httpx弃用警告保留，不为消警告迁移依赖。所有公开截图/压力数据为生成样本；SDK测试是生成HTTPS源与真实签名/网络，未调用install/真实AI。
 
-1. 查看D分支codex/startup-progress-rc的PR/CI；Windows无本机MSVC，由CI编译两项startup_tests和既有六项真实Updater测试及完整包门槛。CI通过后下载同一SHA附件，检查原生阶段/失败/多实例/关闭取消和日志时间。
-2. D正常合并并同步main后，独立E工作树.cache/worktrees/updater-transport-rc补真实SDK下载取消/断流/降级和manifest通道兼容测试。目前仅本地transport-only通过，不能称Rust八项已过，也没有执行安装器。
-3. F生成内部候选附件、Hash和测试/许可/已知问题矩阵。干净VM、正式更新信任根、真实安装中断/二进制恢复未验证，禁止公开正式Release。
+D同一已验CI包实际未来库错误窗口，DBHash复核不变；空库窗口621ms/服务2164ms/document2495ms，150%缩放，非TTI/冷缓存。9进程RSS633.83/PrivateBytes443.45MiB、专用GPU66.33/共享63.93MiB为单次最小化状态；非峰值/长期优化证明。1GiB生成托管媒体实际复制中强制结束壳，源DB/媒体Hash不变；重启完成完整备份/独立恢复/迁移。不是点击关闭取消或安装故障恢复。
 
-## 环境与边界
+## 当前F与下一步
 
-日常主机Windows11家庭中文版22631，有开发工具，无经验证干净VM。不改系统WebView2或用户安全设置。真实个人库private/front-data和原8000服务本轮未启动/改动；E盘原创/第三方模型及F盘旧WebUI原件未动。所有生成压测在.cache。
+1. 独立分支codex/candidate-docs-rc（.cache/worktrees/candidate-docs-rc）已同步上述main；preview.2配置/Node/Rust锁身份一致，随包README和RELEASE_CANDIDATE_STATUS已整理。本机265后端/8前端/生产构建已通过；等待PR和Windows全部门槛，不能提前把候选产物标成功。
+2. 成功后下载对应源SHA的内部Artifact，核对外层digest、内层SHA/CRC/版本，隔离新目录最小PATH启动；不运行NSIS安装器或公开Release。最终包放private/deliveries独立新目录，不能覆盖旧包/FrontData。
+3. F正常合并后补最终交接。正式RC仍未放行；干净VM安装/旧二进制升级/卸载重装、缺少/离线WebView2、真正只读磁盘、真实更新安装中断/二进制恢复、TTI/Heap/长期GPU/多DPI和点击关闭取消待验。
+4. 正式信任根/签名feed、Authenticode、依赖许可及公开发布需人工条件，见HUMAN_ACTIONS_REQUIRED；测试根不编译为生产根，不要求现在提供Key/接受SDK协议。
 
-生成源服务8001（启动器35700/后端33276）和8002（30964/4620），PID必须重新核对归属后再停止；浏览器仅代理自建QA标签。原生基线27772已正常退出，不按旧PID盲目结束进程。最终精确运行状态记private/RC_SPRINT_STATUS.json。
+## 运行与资料边界
 
-本机首次C PyInstaller构建曾用默认用户cache，检查时已完成；随后build_sidecar强制项目.cache和TEMP并重建，没有额外清理默认用户cache。后续受控输出留E盘。未公开Release、未配置正式密钥、未接受Cubism协议。长期Live2D/Krita/数位板/OC/真实AI/3D/特典和插件路线继续保留。
+日常主机Windows11家庭中文版22631，有开发工具，无经验证干净VM。原8000本轮未运行；private/front-data、原创项目、第三方模型和旧WebUI原件未启动/改动，没有远程AI发送。
 
-## E提交时补充
+自建8001/8002服务经命令/父子/端口复核后已停止；100000及101201生成库integrity_check=ok、外键无异常。自建浏览器页已关闭，用户8000页未动。D原生Front/Sidecar/WebView自有进程已退出。PID记录只取证，不能按旧PID盲杀。生成库/私有截图保留.cache；截图含桌宠叠层未公开。
 
-D Windows run42351228491全部通过（262后端/1跳过、6真实Updater+2启动Rust、冻结ACL/迁移、两包Hash）。已下载核验外层digest/内层Hash。未来生成库原生错误提示实际可见，冻结复核DBHash不变。正常空库native日志621/2164/2495ms分别是窗口创建/服务ready/document load，非TTI，150%缩放。后续激活/捕获多次返回最小化/用户输入提示，停止反复激活；点击取消、完整原生导航和多DPI不标通过。私有截图含桌宠叠层，不公开。
+首次C本机PyInstaller曾完成于默认用户cache，随后固定项目.cache和TEMP重建，没有额外清理默认用户cache。所有后续受控输出在E盘项目，未删除用户资料。原始素材不进入Git或安装包。长期Live2D/Krita/数位板/真实AI/OC/小说语义/3D/游戏音声特典及插件继续保留FEATURE_BACKLOG。
 
-1GiB生成媒体迁移真实中途强制结束壳，源DB/媒体Hash不变；重启产生完整备份/隔离恢复并完成迁移，ready5540ms/document5837ms，非GUI/TTI；.cache/rc-native-migration-01/report.json。原生测试PID31604/35184/35572/34744均已结束，仍须复核无所属后端，不能按旧PID盲杀。
-
-独立E已265后端/8前端/生产构建通过，待PR与真实Rust八项Windows CI；通过后普通合并，再同步F分支codex/candidate-docs-rc。F草稿含preview.2版本与安装/备份/许可/RC不放行说明，不得未验收公开Release。
+不虚构离线后台持续运行；当前状态以实际进程和private/RC_SPRINT_STATUS.json为准。

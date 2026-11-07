@@ -1,5 +1,7 @@
 ## 2026-11-07：RC A 大收藏分页
 
+RC F：PR #36–#40全部四项CI通过并正常合并，F基线main=15cc1a3。内部preview.2准备两包/Hash/许可及安装资料说明；RC验收不放行，明确干净VM、真实安装恢复、完整性能和正式信任根等门槛。详细[候选结论](RELEASE_CANDIDATE_STATUS.md)，F测试与CI另核对，不提前声称产物通过。
+
 RC E：已同步PR #39合并后的main=745b7ca；独立补官方SDK取消/断流/降级和生产manifest拒绝测试。265后端/8前端及生产构建通过，本机official signer/Python TLS通过；八项Rust测试等待Windows CI，不启动安装器。见[RC E](audits/v0.7/RC_UPDATES_E.md)。
 
 RC D独立增量：PR #38已通过四项CI并合并main=3f8e570。启动窗口与服务初始化分离，固定阶段/有界握手/取消清理和兼容旧协议；新增真实源进程备份迁移回归及Rust协议/origin CI门槛。原生候选验收待对应CI包；无干净VM，不称安装RC完成。见[RC D](audits/v0.7/RC_STARTUP_D.md)。

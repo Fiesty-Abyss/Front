@@ -178,7 +178,7 @@ def test_cancel_then_resume_waits_for_old_attempt_and_keeps_committed_fragments(
         if self.kind=='voice-chapter' and self.done==1:
             entered.set();release.wait(10)
     monkeypatch.setattr(jobs.Job,'step',blocked)
-    aid=novel(client,'第一章\n第一段。\n第二段。\n第三段。');p,source=project(client,aid)
+    aid=novel(client,'第一章 生成\n第一段。\n第二段。\n第三段。');p,source=project(client,aid)
     try:
         queued=queue(client,p,source)
         assert entered.wait(5)

@@ -134,3 +134,20 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 
 - VOICE-B：部分实现。配音工程/台词编辑/旁白与声线/拆分合并排序/单片失效/候选采纳/历史闭环，生成WAV API回归及Actions构建；无真实TTS。字幕/整章成片导出、人物选择体验及任务生成待后续。
 - VOICE-C下一阶段：统一TTSAdapter、能力与Mock协议/取消/幂等；已只读核对官方GPT-SoVITS api_v2.py提交04a44eb977586645f33594b72af13a035a2056c6，不能猜测其不存在的voices/health/cancel接口，也不能调用全局control充当单任务取消。尚未适配/推理。
+
+
+- VOICE-C合同基础：部分实现。统一协议、Mock标记音、GPT-SoVITS固定合同、能力边界、HTTP安全与WAV校验；MockTransport测试，实际结果以Actions为准。尚无真实合成；Mock有持久幂等/队列/显式重试，GPT协议取消仅客户端合作取消。
+- 后续优先：确认章节的有声小说与说话人审核。克隆、训练及各真实引擎必须另验授权/协议/性能。
+
+
+## 当前增量补齐：仅Mock队列闭环
+
+本PR还接入了现有jobs/VoiceRender/ingest：只有显式设置FRONT_ENABLE_VOICE_MOCK=1且请求confirm_mock=true才开放mock-requests接口，默认404；产品不默认添加测试生成功能。任务只有生成标记音，不是真实语音。uid唯一约束持久标识幂等请求，同一键/指纹返回原记录，键复用到不同请求409；失败后使用新键显式重试。
+
+复用2worker+32队列、进度和取消；候选/音频不自动采纳，参数指纹和音频版本保留。启动时queued/running标为interrupted，绝不自动重放。取消只控制此Front任务，不停用户服务。即使工作线程先完成，写入job_id也通过原子JSON更新保留完成的音频引用。失败/取消保留台词和历史。入库后限额校验实际托管字节，重复副本损坏时拒绝采纳，不自动覆盖。
+
+新增test_voice_tasks覆盖默认关闭、确认门槛、幂等、队满、显式重试、运行取消和重启不重放；生成WAV和隔离数据库，所有真实GPT调用仍仅MockTransport协议测试。真实引擎仍需未来授权接入，Mock闭环在本PR实现并须通过CI。有声小说仍是下一阶段。
+
+
+- LIBRARY-DUP-INTEGRITY：待独立审查。ingest_stream已有托管重复记录时按DB Hash返回，不复核实际字节；本PR语音输出增加实际存储校验及生成副本损坏回归，通用导入仍需单独权衡Hash IO与恢复策略，不自动覆盖用户文件。
+- VOICE-D：有声小说仍未交付。只读原确认目录、分章分页、可续导游标、原文证据和说话人审核为下一增量；缓存中有部分草稿，尚未注册模型/路由、完成UI或执行CI，不标实现。

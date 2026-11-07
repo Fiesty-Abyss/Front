@@ -21,8 +21,11 @@ def project(client,aid):
 
 
 def queue(client,p,source,index=0):
-    p=client.get(base(p)).json()
-    r=client.post(f'/api/voice/books/projects/{p["id"]}/imports',json={**token(p),'source_fingerprint':source['source']['fingerprint'],'chapter_index':index})
+    for _ in range(100):
+        p=client.get(base(p)).json()
+        r=client.post(f'/api/voice/books/projects/{p["id"]}/imports',json={**token(p),'source_fingerprint':source['source']['fingerprint'],'chapter_index':index})
+        if r.status_code==409 and '旧任务' in r.text:time.sleep(.01);continue
+        break
     assert r.status_code==202,r.text
     return r.json()['import']
 
@@ -164,3 +167,42 @@ def test_source_speaker_review_required_before_mock_request(client,monkeypatch):
     assert edited.status_code==200,edited.text
     result=edited.json();body.update(**token(result['project']),fingerprint=result['segment']['fingerprint'])
     assert client.post(url,json=body).status_code==201
+
+
+def test_cancel_then_resume_waits_for_old_attempt_and_keeps_committed_fragments(client,monkeypatch):
+    import threading
+    from front_api import jobs
+    entered=threading.Event();release=threading.Event();original=jobs.Job.step
+    def blocked(self,message=None):
+        original(self,message)
+        if self.kind=='voice-chapter' and self.done==1:
+            entered.set();release.wait(10)
+    monkeypatch.setattr(jobs.Job,'step',blocked)
+    aid=novel(client,'第一章\n第一段。\n第二段。\n第三段。');p,source=project(client,aid)
+    try:
+        queued=queue(client,p,source)
+        assert entered.wait(5)
+        p=client.get(base(p)).json()
+        cancelled=client.post(f'/api/voice/books/projects/{p["id"]}/imports/{queued["id"]}/cancel',json=token(p))
+        assert cancelled.status_code==200,cancelled.text
+        assert client.get(base(p)+'/segments').json()['total']==1
+        p=client.get(base(p)).json()
+        retry=client.post(f'/api/voice/books/projects/{p["id"]}/imports',json={**token(p),'source_fingerprint':source['source']['fingerprint'],'chapter_index':0})
+        assert retry.status_code==409,retry.text
+    finally:release.set()
+    monkeypatch.setattr(jobs.Job,'step',original)
+    queue(client,p,source);assert wait(client,p)['status']=='done'
+    assert client.get(base(p)+'/segments').json()['total']==3
+
+
+def test_same_world_different_work_voice_requires_explicit_correct_binding(client):
+    world=client.post('/api/worlds',json={'name':'生成世界'}).json()['id']
+    one=client.post('/api/works',json={'title':'作品甲','kind':'novel'}).json()['id']
+    two=client.post('/api/works',json={'title':'作品乙','kind':'novel'}).json()['id']
+    aid=novel(client,'第一章\n正文。')
+    client.patch(f'/api/assets/{aid}',json={'world_id':world,'work_id':one})
+    p,source=project(client,aid)
+    char=client.post('/api/characters',json={'name':'同名角色','world_id':world,'work_id':two}).json()['id']
+    profile=client.post('/api/voice/profiles',json={'title':'另一个作品的声线','character_id':char}).json()['id']
+    denied=client.post(base(p)+'/segments',json={**token(p),'text':'不得跨作品自动复用','profile_id':profile})
+    assert denied.status_code==422,denied.text

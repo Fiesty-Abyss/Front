@@ -62,6 +62,9 @@ def queue(project_id:int,body:Queue,session:Session=Depends(get_session)):
     if body.chapter_index>=len(revision.chapters):raise HTTPException(422,'章节不存在')
     row=session.scalar(select(m.VoiceChapterImport).where(m.VoiceChapterImport.project_id==project_id,m.VoiceChapterImport.chapter_index==body.chapter_index))
     if row and row.status in ('queued','running','done'):return {'project':vs.serialize(session,project),'import':status(row)}
+    old_job=jobs.get(row.job_id) if row and row.job_id else None
+    if old_job and old_job.status in ('queued','running'):
+        raise HTTPException(409,'旧任务仍在停止或提交，请稍后续导，防止两个尝试共用游标')
     vs.guard(session,project,body.project_uid,body.expected_project_version)
     if not row:
         chapter=revision.chapters[body.chapter_index]

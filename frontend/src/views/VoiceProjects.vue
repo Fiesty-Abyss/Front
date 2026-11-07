@@ -2,6 +2,7 @@
 import {defineAsyncComponent,onBeforeUnmount,onMounted,ref} from 'vue'
 import {api} from '../api'
 import VersionPanel from '../components/VersionPanel.vue'
+const VoiceExportPanel=defineAsyncComponent(()=>import('./VoiceExportPanel.vue'))
 const VoiceBookPanel=defineAsyncComponent(()=>import('./VoiceBookPanel.vue'))
 const AssetPicker=defineAsyncComponent(()=>import('../components/AssetPicker.vue'))
 const AudioPlayer=defineAsyncComponent(()=>import('../viewers/AudioPlayer.vue'))
@@ -47,6 +48,7 @@ onMounted(()=>run(loadProjects));onBeforeUnmount(()=>{disposed=true;audio.value=
       <section v-if="project" class="grid">
         <header><h2>{{project.title}}</h2><p class="muted">世界观：{{project.world_id||'独立工程'}} · 版本 #{{project.version}}</p></header>
         <div class="row"><button :disabled="busy" @click="newSegment">新增台词</button><button :disabled="busy" @click="archived=!archived;offset=0;selected=null;draft=null;audio=null;run(loadSegments)">{{archived?'返回有效片段':'查看拆分/合并前的保留片段'}}</button><button :disabled="busy" @click="run(restored)">刷新工程</button></div>
+        <VoiceExportPanel :project="project" :segments="segments" :archived="archived"/>
         <div class="segments">
           <aside class="card grid">
             <p v-if="!segments.length" class="muted">{{archived?'暂无保留片段':'暂无台词。添加旁白或角色对白。'}}</p>

@@ -1,5 +1,7 @@
 ## 2026-11-07：RC A 大收藏分页
 
+RC E：已同步PR #39合并后的main=745b7ca；独立补官方SDK取消/断流/降级和生产manifest拒绝测试。265后端/8前端及生产构建通过，本机official signer/Python TLS通过；八项Rust测试等待Windows CI，不启动安装器。见[RC E](audits/v0.7/RC_UPDATES_E.md)。
+
 RC D独立增量：PR #38已通过四项CI并合并main=3f8e570。启动窗口与服务初始化分离，固定阶段/有界握手/取消清理和兼容旧协议；新增真实源进程备份迁移回归及Rust协议/origin CI门槛。原生候选验收待对应CI包；无干净VM，不称安装RC完成。见[RC D](audits/v0.7/RC_STARTUP_D.md)。
 
 PR #37通过全部四项CI后正常合并main=10eb0a7。独立C修复已同步该基线：真实ACL下源0.357秒/本机冻结0.517秒拒绝权限，ACL和生成哨兵恢复；加入冻结CI Deny门槛及有界创建/碰撞/设备错误回归，包内更新说明更正，构建缓存固定项目.cache。详见[RC C](audits/v0.7/RC_WINDOWS_C.md)。干净VM/真实安装升级与缺失WebView2仍未验证，不替代发布验收。

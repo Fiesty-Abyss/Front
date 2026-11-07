@@ -46,7 +46,8 @@ def test_world_index_upgrade_preserves_rows_and_is_idempotent(tmp_path):
     assert 'index:ix_assets_world_date_id' in upgrade(engine)
     assert upgrade(engine)==[]
     with engine.connect() as conn:
-        assert conn.exec_driver_sql('SELECT * FROM assets').fetchall()==[(7,2,'2026-01-01','preserve exact text')]
+        assert conn.exec_driver_sql('SELECT id,world_id,work_date,title FROM assets').fetchall()==[(7,2,'2026-01-01','preserve exact text')]
+        assert conn.exec_driver_sql('SELECT favorite,stars,preference FROM assets').fetchone()==(0,0,0)
         plan=conn.exec_driver_sql('EXPLAIN QUERY PLAN SELECT id FROM assets WHERE world_id=2 ORDER BY work_date DESC NULLS LAST,id DESC LIMIT 60').fetchall()
         assert any('SEARCH assets USING COVERING INDEX ix_assets_world_date_id' in r[-1] for r in plan)
         assert conn.exec_driver_sql('PRAGMA integrity_check').scalar()=='ok'

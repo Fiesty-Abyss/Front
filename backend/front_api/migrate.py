@@ -8,6 +8,10 @@ from sqlalchemy.engine import Engine
 
 # (表, 列, 列定义)
 COLUMNS: list[tuple[str, str, str]] = [
+    ("collections", "members_revision", "INTEGER NOT NULL DEFAULT 0"),
+    ("assets", "favorite", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("assets", "stars", "INTEGER NOT NULL DEFAULT 0"),
+    ("assets", "preference", "INTEGER NOT NULL DEFAULT 0"),
     # v0.2.0
     ("collection_assets", "position", "INTEGER NOT NULL DEFAULT 0"),
     ("collections", "cover_asset_id", "INTEGER REFERENCES assets(id) ON DELETE SET NULL"),
@@ -42,6 +46,18 @@ def upgrade(engine: Engine) -> list[str]:
                 added.append(f"{table}.{column}")
         if "chat_messages.parent_id" in added:
             _link_linear_chats(conn)
+        if insp.has_table("collections") and insp.has_table("collection_assets"):
+            # Triggers cover legacy CRUD, OC/audio/generation writers and FK cascades.
+            # Revision changes roll back in the same transaction as membership changes.
+            for action, ref in (("INSERT", "NEW"), ("DELETE", "OLD"), ("UPDATE", "NEW")):
+                old_owner = "UPDATE collections SET members_revision=members_revision+1 WHERE id=OLD.collection_id AND OLD.collection_id!=NEW.collection_id;" if action == "UPDATE" else ""
+                conn.execute(text(f"""CREATE TRIGGER IF NOT EXISTS collection_revision_{action.lower()}
+                    AFTER {action} ON collection_assets BEGIN
+                    UPDATE collections SET members_revision=members_revision+1 WHERE id={ref}.collection_id;
+                    {old_owner}
+                    END"""))
+            conn.execute(text("""CREATE INDEX IF NOT EXISTS ix_collection_members_position
+                ON collection_assets(collection_id, position, asset_id)"""))
         # A rebuildable index only: no row, history or source-file changes.
         # Measured 100k-record world queries otherwise scan the date index.
         if insp.has_table("assets") and {"world_id", "work_date", "id"} <= {

@@ -120,6 +120,9 @@ class Asset(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(300), index=True)
+    favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    stars: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    preference: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     kind: Mapped[str] = mapped_column(String(30), default="other", index=True)
     description: Mapped[str | None] = mapped_column(Text)
     content: Mapped[str | None] = mapped_column(Text)  # 小说 / 文本正文
@@ -436,10 +439,11 @@ class Collection(TimestampMixin, Base):
     work_id: Mapped[int | None] = mapped_column(ForeignKey("works.id", ondelete="SET NULL"))
     cover_asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"))
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    members_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # 只读关系：按 collection_assets.position 排序。写入请用 collections.set_items()
     assets: Mapped[list[Asset]] = relationship(
         secondary=collection_assets,
-        order_by=collection_assets.c.position,
+        order_by=(collection_assets.c.position, collection_assets.c.asset_id),
         lazy="selectin",
         viewonly=True,
     )

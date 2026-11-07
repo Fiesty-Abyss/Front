@@ -1,4 +1,14 @@
-# Front 接续记录 · 2026-10-25
+# Front 接续记录 · 2026-11-07
+
+## 当前 RC 会话
+
+接管已fetch确认origin/main=`d2a14d41cc1b256133978d127624b353ace4e606`，无开放PR；以下RC A独立分支`codex/collection-pagination-rc`，尚待本轮最终CI与合并，后续合并状态会再更新，不能把下方上轮历史main当最新。
+
+RC A摘要/游标/批量/排序及隔离10k/50k/100k、真实浏览器/390px已完成；本机259后端、8前端和构建通过，最终回归进行中。报告`audits/v0.7/RC_COLLECTIONS_A.md`。生成库与HTTP测试服务在.cache/rc-collections-*，不在private/front-data；原始世界观、WebUI、Live2D及私人库未启动或改动。原8000当前未运行，不能沿用上轮“服务持续返回200”的结论。
+
+下一阶段：混合小说/角色关系/世界观/模型/提示词/音频/OC/队列积压与取消恢复；真正干净Windows、正式信任根/公开Release仍受环境/授权限制，不伪造验证。
+
+## 上轮交接（历史，2026-10-25）
 
 ## 仓库与CI
 

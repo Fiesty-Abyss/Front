@@ -60,12 +60,18 @@ def run(job,uid):
             row=session.scalar(select(m.VoiceRender).where(m.VoiceRender.uid==uid))
             if not row or row.status!='queued':return
             snapshot=dict(row.snapshot);row.status='running';session.commit()
-        job.step('生成明确标记的测试音，不执行语音推理')
-        request=SynthesisRequest(snapshot['text'],snapshot['recipe'].get('language') or 'und',VoiceSpec('mock-marker',1,'mock-marker',1))
+        job.step('生成明确标记的测试音，不执行语音推理' if snapshot.get('origin')=='mock' else '校验用户授权的本机TTS请求')
         folder=get_settings().data_dir/'.staging';folder.mkdir(parents=True,exist_ok=True)
         with tempfile.SpooledTemporaryFile(max_size=1024*1024,dir=folder) as output:
-            result=MockAdapter().synthesize(request,output,JobToken(job))
-            job.step('校验测试WAV与请求身份')
+            if snapshot.get('origin')=='mock':
+                request=SynthesisRequest(snapshot['text'],snapshot['recipe'].get('language') or 'und',VoiceSpec('mock-marker',1,'mock-marker',1))
+                result=MockAdapter().synthesize(request,output,JobToken(job))
+            elif snapshot.get('origin')=='gpt_sovits':
+                from .voiceinference import synthesize
+                result=synthesize(job,snapshot,output)
+            else:raise AdapterError('unsupported_render_origin')
+            if result.origin!=snapshot.get('origin'):raise AdapterError('unexpected_engine_result')
+            job.step('校验返回WAV与请求身份')
             with new_session() as session:
                 session.connection().exec_driver_sql('BEGIN IMMEDIATE')
                 row=session.scalar(select(m.VoiceRender).where(m.VoiceRender.uid==uid))
@@ -75,21 +81,26 @@ def run(job,uid):
                     raise jobs.Cancelled()
                 if project.world_id!=snapshot['world_id']:
                     raise AdapterError('project_scope_changed')
+                if snapshot.get('origin')=='gpt_sovits':
+                    from .voiceinference import reference_scope
+                    try:reference_scope(session,project,snapshot['local_request']['reference'])
+                    except HTTPException:raise AdapterError('reference_scope_changed') from None
                 job.check()
-                asset,_=ingest_stream(session,output,'mock-marker.wav',mime='audio/wav',kind='audio',title='Mock测试音（非语音）',expected_sha=result.sha256,
-                    extra_meta={'voice_origin':'mock','speech':False})
+                asset,_=ingest_stream(session,output,'mock-marker.wav' if snapshot.get('origin')=='mock' else 'local-tts.wav',mime='audio/wav',kind='audio',title='Mock测试音（非语音）' if snapshot.get('origin')=='mock' else '本机TTS API音频候选',expected_sha=result.sha256,
+                    extra_meta={'voice_origin':snapshot.get('origin'),'speech':snapshot.get('speech')})
                 if asset.world_id and asset.world_id!=project.world_id:
                     raise AdapterError('output_scope_conflict')
                 if stored_hash(asset,result.size)!=result.sha256:
                     raise AdapterError('stored_audio_hash_mismatch')
                 session.flush()
-                audio_version=v.enable(session,asset,'保留Mock音频版本，非TTS推理')
+                audio_version=v.enable(session,asset,'保留音频候选版本；来源见不可变请求快照')
                 row.audio_asset_id=asset.id;row.status='candidate'
                 row.snapshot={**row.snapshot,'audio_ref':{'id':asset.id,'identity':vs.identity(asset),'sha256':asset.sha256},
-                    'audio_version':audio_version,'duration':result.duration,'speech':False}
-                vp.touch(session,project,'保存Mock候选，未自动采纳')
+                    'audio_version':audio_version,'duration':result.duration,'speech':snapshot.get('speech'),
+                    'sample_rate':result.sample_rate,'channels':result.channels}
+                vp.touch(session,project,'保存音频候选，未自动采纳')
                 job.check();session.commit()
-                job.result={'render_id':row.id,'render_uid':row.uid,'asset_id':asset.id,'origin':'mock','speech':False}
+                job.result={'render_id':row.id,'render_uid':row.uid,'asset_id':asset.id,'origin':snapshot.get('origin'),'speech':snapshot.get('speech')}
     except jobs.Cancelled:
         terminal(uid,'cancelled','cancelled');raise
     except Exception as exc:

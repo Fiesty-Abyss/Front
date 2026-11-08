@@ -4,6 +4,8 @@ import {onBeforeRouteLeave} from 'vue-router'
 import {draftFromSegment,emptyVoiceDraft,draftChanged} from '../voiceDrafts'
 import {api} from '../api'
 import VersionPanel from '../components/VersionPanel.vue'
+const synthesisUid=ref(null)
+const VoiceSynthesisPanel=defineAsyncComponent(()=>import('./VoiceSynthesisPanel.vue'))
 const VoiceExportPanel=defineAsyncComponent(()=>import('./VoiceExportPanel.vue'))
 const VoiceBookPanel=defineAsyncComponent(()=>import('./VoiceBookPanel.vue'))
 const AssetPicker=defineAsyncComponent(()=>import('../components/AssetPicker.vue'))
@@ -43,7 +45,7 @@ onMounted(()=>{window.addEventListener('beforeunload',beforeUnload);run(loadProj
 </script>
 <template>
   <section class="grid dialogue">
-    <p class="notice">台词工程与手动音频候选管理。没有执行 AI 合成；语言与速度仅记录为后续请求参数，不会改变已关联音频。</p>
+    <p class="notice">台词与音频候选管理。手动音频保持原样；语言与速度用于新引擎请求。本机TTS须明确启用并确认参考授权。</p>
     <p v-if="error" class="notice" role="alert">{{error}}</p>
     <VoiceBookPanel :key="project?.uid||'new'" :project="project" @created="row=>run(async()=>{await openProject(row);await loadProjects()})" @changed="row=>project=row" @reviewed="run(restored)"/>
     <div class="projects">
@@ -77,7 +79,8 @@ onMounted(()=>{window.addEventListener('beforeunload',beforeUnload);run(loadProj
               <button class="primary" :disabled="busy||selected?.archived">保存台词版本</button>
             </form>
             <template v-if="selected&&!selected.archived"><div class="row"><button :disabled="busy" @click="run(()=>structural('move',{direction:-1}))">上移</button><button :disabled="busy" @click="run(()=>structural('move',{direction:1}))">下移</button><button :disabled="busy" @click="run(()=>structural('merge-next'))">与下一条合并</button></div><div class="row"><label class="field">拆分位置（已保存正文的字符数）<input v-model.number="splitAt" type="number" min="1" :max="Array.from(selected.text).length-1"/></label><button :disabled="busy" @click="run(()=>structural('split',{at:splitAt}))">拆分并保留原片段</button></div><small class="muted">排序/拆分/合并作用于已保存台词；合并会在两段之间加入换行。未保存的输入请先保存。</small></template>
-            <template v-if="selected"><h3>音频候选</h3><button v-if="!selected.archived" :disabled="busy||!selected.fingerprint" @click="picker=true">关联已有音频（手动版本）</button><p v-if="!renders.length" class="muted">暂无音频。当前版本不调用任何 TTS 服务。</p><div v-for="r in renders" :key="r.uid" class="card grid"><b>{{renderLabels[r.status]||r.status}} · {{r.origin==='manual'?'手动音频':r.origin==='mock'?'Mock测试音（非语音）':r.origin}}</b><small>{{r.created_at}} · {{r.stale?'台词/参数已变化':'指纹一致'}} · {{r.audio_status}}</small><p>{{r.note}}</p><div class="row"><button :disabled="busy||r.audio_status!=='ok'" @click="run(()=>listen(r))">试听</button><button :disabled="busy||r.stale||r.audio_status!=='ok'||selected.archived" @click="run(()=>accept(r))">采纳此版本</button><RouterLink v-if="r.audio_ref" :to="'/assets?open='+r.audio_ref.id">素材档案</RouterLink></div><details><summary>台词与参数快照</summary><pre>{{JSON.stringify(r.snapshot,null,2)}}</pre></details></div><div class="row"><button :disabled="busy||!renderOffset" @click="renderOffset-=20;run(loadRenders)">候选上页</button><small>{{renderTotal}} 个版本</small><button :disabled="busy||renderOffset+20>=renderTotal" @click="renderOffset+=20;run(loadRenders)">候选下页</button></div></template>
+            <template v-if="selected"><h3>音频候选</h3><button v-if="!selected.archived" :disabled="busy||!selected.fingerprint" @click="picker=true">关联已有音频（手动版本）</button><p v-if="!renders.length" class="muted">暂无音频。可手动关联；合成需单独配置并确认本机引擎。</p><div v-for="r in renders" :key="r.uid" class="card grid"><b>{{renderLabels[r.status]||r.status}} · {{r.origin==='manual'?'手动音频':r.origin==='mock'?'Mock测试音（非语音）':r.origin==='gpt_sovits'?'本机TTS API（权重/音质未核验）':r.origin}}</b><small>{{r.created_at}} · {{r.stale?'台词/声线基线已变化':'基线一致（生成参数见快照）'}} · {{r.audio_status}}</small><p>{{r.note}}</p><div class="row"><button :disabled="busy||r.audio_status!=='ok'" @click="run(()=>listen(r))">试听</button><button :disabled="busy||r.stale||r.audio_status!=='ok'||selected.archived" @click="run(()=>accept(r))">采纳此版本</button><RouterLink v-if="r.audio_ref" :to="'/assets?open='+r.audio_ref.id">素材档案</RouterLink></div><details><summary>台词与参数快照</summary><pre>{{JSON.stringify(r.snapshot,null,2)}}</pre></details></div><div class="row"><button :disabled="busy||!renderOffset" @click="renderOffset-=20;run(loadRenders)">候选上页</button><small>{{renderTotal}} 个版本</small><button :disabled="busy||renderOffset+20>=renderTotal" @click="renderOffset+=20;run(loadRenders)">候选下页</button></div></template>
+            <details v-if="selected&&!selected.archived" :key="'synthesis-'+selected.uid" @toggle="synthesisUid=$event.target.open?selected.uid:null"><summary>本机 TTS · 显式授权与请求</summary><VoiceSynthesisPanel v-if="synthesisUid===selected.uid" :project="project" :segment="selected" :dirty="dirty" @changed="row=>project=row" @refreshed="run(restored)"/></details>
             <AudioPlayer v-if="audio" :key="audio.id+'-'+audio.sha256" :asset="audio"/>
             <VersionPanel v-if="selected" :key="selected.uid+'-'+selected.version" kind="voice_segment" :entity-id="selected.id" @restored="run(restored)"/>
           </div>

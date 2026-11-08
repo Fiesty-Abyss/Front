@@ -272,6 +272,22 @@ def test_generic_cancel_before_runner_has_visible_terminal_status_and_no_network
     assert calls==[]
 
 
+def test_done_job_does_not_fabricate_error_for_an_older_database_read(client,tmp_path,monkeypatch):
+    monkeypatch.setenv('FRONT_ENABLE_LOCAL_TTS','1')
+    p,s,a,body,provider=fixture(client,tmp_path);calls=inject(monkeypatch,response)
+    # Model an older read snapshot observing the ledger's newer completion.
+    # The serializer must wait for a fresh DB read, not invent a failure.
+    def newer_ledger(kind,title,total,fn):
+        job=jobs.Job(kind,title,total);job.status='done';manager=jobs.manager()
+        with manager.lock:manager.jobs[job.id]=job;manager.save(job)
+        return job
+    monkeypatch.setattr(jobs,'start',newer_ledger)
+    result=client.post(url(p,s),json=body);assert result.status_code==201,result.text
+    assert result.json()['render']['status']=='queued'
+    row=client.get(url(p,s)+f'/{result.json()["render"]["id"]}').json()['render']
+    assert row['status']=='queued' and not row['execution_issue'] and calls==[]
+
+
 def test_health_is_explicit_bounded_job_and_never_synthesizes(client,tmp_path,monkeypatch):
     monkeypatch.setenv('FRONT_ENABLE_LOCAL_TTS','1')
     p,s,a,body,provider=fixture(client,tmp_path);calls=inject(monkeypatch,response)

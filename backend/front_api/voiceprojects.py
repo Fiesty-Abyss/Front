@@ -153,8 +153,13 @@ def render(session,obj,current):
     if obj.status in ('queued','running','interrupted') and obj.snapshot.get('job_id'):
         from . import jobs
         job=jobs.get(obj.snapshot['job_id'])
-        if job and job.status in ('cancelled','error','interrupted','done'):
-            effective=job.status if job.status!='done' else 'error'
+        # A list/detail transaction may still hold an older ORM row while the
+        # worker has committed the candidate and marked its job done. Never
+        # turn that successful concurrent completion into a fabricated error;
+        # the next read sees the committed candidate. Startup recovery handles
+        # genuinely unfinished DB rows without replaying the external request.
+        if job and job.status in ('cancelled','error','interrupted'):
+            effective=job.status
             execution_issue='任务记录已结束，未提交新候选；原有音频保留'
     return {'id':obj.id,'uid':obj.uid,'status':effective,'recorded_status':obj.status,'execution_issue':execution_issue,'origin':obj.snapshot.get('origin'),
         'note':obj.snapshot.get('note',''),'created_at':obj.created_at,'audio_ref':obj.snapshot.get('audio_ref'),

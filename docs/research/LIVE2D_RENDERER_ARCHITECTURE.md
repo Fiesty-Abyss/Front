@@ -10,6 +10,16 @@
 
 [Neocari实际许可证](https://github.com/HELPMEEADICE/Neocari/blob/5ef8f49654e2cdfeb60dbbdca28c1159558da775/LICENSE)及[Bandori NOTICE](https://github.com/HELPMEEADICE/BANDORI-PET-REV/blob/2ed1304c25a9000bdbe75c64ca1b0acac123be38/native/pet_backend/NOTICE.md)是GPL-3.0-only。Front MIT不复制实现、特定动作桶/区域阈值、共享内存布局/魔数或下载器；独立进程并不自动解决组合分发许可，正式接入前仍需单独审查。Cubism SDK/Core和素材授权另行确认，不代接受条款。
 
+## 官方SDK核对（2026-11-08）
+
+官方开源Samples/Framework当前记录到5-r.5（2026-04-02）：动作更新调度、追踪参数和颜色API有变化，不能把旧封装直接认作兼容。[Samples固定提交](https://github.com/Live2D/CubismWebSamples/blob/b1de66b0b1f1cb881d95fb6158622aeb6a2827bd/CHANGELOG.md)、[Framework固定提交](https://github.com/Live2D/CubismWebFramework/blob/d4da0aa07e47d2c1e4f5fa7ea6047861ea5e5d0b/CHANGELOG.md)。Samples的[Core更新记录](https://github.com/Live2D/CubismWebSamples/blob/b1de66b0b1f1cb881d95fb6158622aeb6a2827bd/Core/CHANGELOG.md)列出06.00.0001；这是源码记录，不是本机已安装/已获得的运行时版本。
+
+[官方兼容说明](https://docs.live2d.com/en/cubism-sdk-manual/compatibility-with-cubism-5-3/)明确旧SDK不能读取5.3导出的较新MOC，且Framework调用也有迁移变化。未来适配器须同时锁定Core/Framework/Samples及模型实际版本，以运行时能力与真实模型验证，不能只凭扩展名或moc头检查作出渲染承诺。
+
+[官方Core说明](https://docs.live2d.com/en/cubism-sdk-manual/cubism-core/)仍说明Core不公开于GitHub；[下载页面](https://www.live2d.com/en/sdk/download/web/)要求先同意两类协议，且提示Latest托管版本可能影响兼容。本轮只读页面，没有勾选、下载、启动、托管或再分发Core。
+
+[Expandable Applications规则](https://www.live2d.com/en/sdk/license/expandable/)要求此类应用发布前审查与特别协议，不能直接套用普通个人/小型开发豁免。基于Front允许用户添加不定数量模型的设计，可能涉及此分类，属于功能推断，仍需向Live2D确认；用户模型个人用途授权不能替代SDK/应用公开发布资格。
+
 ## 架构对比与Front决策
 
 | 项目 | Bandori来源描述/源码观察 | Front适配方案 |

@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 import httpx
 from fastapi import HTTPException
 
-from . import civitai, jobs, matching
+from . import bookmeta, civitai, jobs, matching
 from .config import get_settings
 from .galgame import sources
 
@@ -62,15 +62,29 @@ def normalized(raw, provider, kind):
                   year=raw.get('year') if type(raw.get('year')) is int and 0 < raw['year'] <= 9999 else None)
     if not result['title']:
         raise ValueError('missing title')
+    if provider == 'openlibrary' and raw.get('record_type') == 'edition':
+        result.update(record_type='edition', isbn_10=bookmeta.identifiers(raw.get('isbn_10'), 10), isbn_13=bookmeta.identifiers(raw.get('isbn_13'), 13),
+                      languages=strings(raw.get('languages')), work_ids=strings(raw.get('work_ids')),
+                      edition_name=text(raw.get('edition_name')), publish_date=text(raw.get('publish_date')))
     return result
 
 
 def _json(path, params=None):
+    # run() holds the provider gate. Redirects must advance the same physical-request clock.
+    _last['openlibrary'] = time.monotonic()
     with client_factory() as client:
         with client.stream('GET', 'https://openlibrary.org' + path, params=params,
                            headers={'User-Agent': sources.USER_AGENT, 'Accept': 'application/json'}) as response:
             if response.status_code == 404:
                 return None
+            if response.status_code in (301, 302, 303, 307, 308) and re.fullmatch(r'/isbn/97[89]\d{10}\.json', path):
+                location = response.headers.get('location', '')
+                match = re.fullmatch(r'(?:https://openlibrary\.org)?(/books/OL[0-9]{1,18}M\.json)', location)
+                if not match:
+                    raise ValueError('untrusted ISBN redirect')
+                response.close()
+                time.sleep(1.1)  # Extra request respects the default one-request-per-second budget.
+                return _json(match[1])
             response.raise_for_status()
             data = bytearray()
             for block in response.iter_bytes(16384):
@@ -87,6 +101,10 @@ class OpenLibrary:
     name, kinds = 'openlibrary', ('book',)
 
     def search(self, query, token=None):
+        identifier = bookmeta.isbn(query['title'])
+        if identifier:
+            raw = _json(f'/isbn/{identifier}.json')
+            return [bookmeta.edition(raw, requested_isbn=identifier)] if raw else []
         params = {'title': query['title'], 'limit': 10,
                   'fields': 'key,title,author_name,first_publish_year,cover_i'}
         if query.get('author'):
@@ -105,6 +123,9 @@ class OpenLibrary:
         return out
 
     def detail(self, sid, kind, token=None):
+        if re.fullmatch(r'OL\d+M', sid):
+            raw = _json(f'/books/{sid}.json')
+            return bookmeta.edition(raw, expected=sid) if raw else None
         if not re.fullmatch(r'OL\d+W', sid):
             raise ValueError('invalid Open Library work id')
         raw = _json(f'/works/{sid}.json')
@@ -220,7 +241,10 @@ def run(job, operation, query, cfg):
     for name in query['providers']:
         job.check()
         provider = PROVIDERS[name]
-        cache_key = hashlib.sha256(json.dumps([operation, query, name, hashlib.sha256((cfg.get('bangumi_token') or '').encode()).hexdigest()], sort_keys=True).encode()).hexdigest()
+        cache_identity = [operation, query, name, hashlib.sha256((cfg.get('bangumi_token') or '').encode()).hexdigest()]
+        if name == 'openlibrary':
+            cache_identity.append('editions-v1')  # Old title-only cache must not mask ISBN results.
+        cache_key = hashlib.sha256(json.dumps(cache_identity, sort_keys=True).encode()).hexdigest()
         cached = _cached(cache_key)
         try:
             lock = _locks[name]
@@ -241,6 +265,13 @@ def run(job, operation, query, cfg):
                     if operation == 'search':
                         raw = provider.search(query, cfg.get('bangumi_token'))
                         items = matching.rank(query['title'], [normalized(i, name, query['kind']) for i in raw[:10]], query.get('author'), query.get('year'))
+                        if name == 'openlibrary' and bookmeta.isbn(query['title']):
+                            for item in items:
+                                author_conflict = bool(query.get('author') and item['authors'] and matching.normalized(query['author']) not in [matching.normalized(a) for a in item['authors']])
+                                conflict = author_conflict or bool(query.get('year') and item.get('year') and abs(query['year']-item['year']) > 1)
+                                item['match'] = {'tier': 'weak' if conflict else 'strong' if query.get('author') and not item['authors'] else 'exact',
+                                                 'score': 1.0, 'requires_confirmation': True,
+                                                 'reasons': ['ISBN校验和及来源版次标识匹配；仍须核对译本、出版信息和用途' , *(['作者不一致'] if author_conflict else []), *(['年份不一致'] if query.get('year') and item.get('year') and abs(query['year']-item['year']) > 1 else []), *(['来源未提供作者姓名，无法核对作者'] if query.get('author') and not item['authors'] else [])]}
                         if query['kind'] == 'model':
                             for item in items:
                                 item['match'] = {'tier': 'exact', 'score': 1.0, 'requires_confirmation': True, 'reasons': ['按 SHA256 查得的版本；来源声明不等于引擎兼容验证']}

@@ -1,5 +1,7 @@
 # Windows打包下载的有限重试
 
+最终状态：#65精确head d0c7a9fb7dd98f0357bc7e67cb683badbd2d9d21，常规42475508151与Windows42475508046全部成功，正常合并main d0dbf6cc27cfa85427b4ee6eaeef555cb980173b。NSIS/便携/独立完整性检查及Artifact上传通过；没有正式Release、签名信任根或个人安装变化。旧三次下载504仍是真失败，下文保留历史，不覆盖本节。
+
 集成 main812d239 后的最终本机验证：582后端通过/1权限跳过，172.44秒（bundle-integration-final.log）；18前端通过与生产构建6.41秒（bundle-integration-node/build.log）。这是已合并发现/匹配/角色卡/Null协议加本补丁的真实组合，不是各分支测试数相加。没有新增前端或应用运行时变化；远程CI须检查本merge head全部结果。
 
 2026-11-08，角色卡#64精确head f0ebf5aa95cebee738de7239f74ebf49ed2da5c8 的Windows42466429802两次尝试均因官方NSIS工具下载HTTP504失败：第一次是nsis-tauri-utils DLL，第二次是NSIS ZIP。两次后端/冻结/权限/迁移/更新签名与启动测试和应用编译成功；这两次失败不能当作完整Windows构建通过。后来 #64 普通合入 #67 后的新 head e222190d 的 Windows42473081585 全成功，已合并 main812d239。

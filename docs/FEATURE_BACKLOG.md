@@ -6,8 +6,8 @@ DISCOVERY-ROOTS：#62已正常合并，main47054ea，常规42458154437与Windows
 
 | 功能 | 使用场景与依赖 | 复杂度/资源 | 授权与状态 |
 | --- | --- | --- | --- |
-| META-CENTER | 游戏/书籍/动漫/模型候选与字段来源；复用galgame.sources/SD Hash/Work/Asset | 中高；显式网络、缓存/限流/有限队列 | 首增量独立实现、待本PR CI：游戏/图书/Hash候选、Work/Galgame来源/人工保护/版本，521后端/1跳过、15前端/构建、生成GUI与真实公共图书查询；ISBN/Edition/语言/动漫/作者详情、Google/NextMoe、统一模型写入和跨来源自动补全仍待，不上传正文 |
-| CARD-ASSIST | 现有卡片/OC/小说证据到草稿、封面选择 | 高；按需文本/图像Provider | 待源码细审和独立PR；远程范围预览/授权，手动素材独立可用 |
+| META-CENTER | 游戏/书籍/动漫/模型候选与字段来源；复用galgame.sources/SD Hash/Work/Asset | 中高；显式网络、缓存/限流/有限队列 | 首增量#63已合并/常规与Windows全成功：游戏/图书/Hash候选、Work/Galgame来源/人工保护/版本，521后端/1跳过、15前端/构建、生成GUI与真实公共图书查询；ISBN/Edition/语言/动漫/作者详情、Google/NextMoe、统一模型写入和跨来源自动补全仍待，不上传正文 |
+| CARD-ASSIST | 现有卡片/OC/小说证据到草稿、封面选择 | 高；按需文本/图像Provider | 首闭环独立实现待当前PR CI：设计/分页/源关联/版本/封面、AI精确范围预览/人工采用，534后端/18前端与生成GUI；真实模型、自动封面、小说直接转卡/高级模板待后续 |
 | CHAT-MODES | 单人/群聊/叙事/选项；ChatSession/消息树/Lorebook | 高；有界轮次/token、逐角色模型快照 | 待独立实现，不造第二套存储，不把参考界面当可用API |
 | DESKTOP-NAV | 原生目录选择、统一配置/安全外链；现有Sidecar随机端口/令牌 | 中；按需原生能力 | 待独立PR，个人库不自动切换/迁移，需真实窗口验收 |
 | LIVE2D-PROTOCOL | 诊断、受控渲染器接口/动作消息和生命周期原型 | 高；不使用时0渲染进程 | Bandori/Neocari GPL初查，不复制代码；无合法运行时先无模型测试，不冒充渲染 |

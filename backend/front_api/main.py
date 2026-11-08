@@ -65,6 +65,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     recover_voice_exports(engine)
     from .discovery import recover as recover_discovery
     recover_discovery(engine)
+    from .cardassist import recover as recover_card_drafts
+    recover_card_drafts(engine)
     ensure_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()

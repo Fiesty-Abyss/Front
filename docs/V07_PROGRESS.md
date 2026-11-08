@@ -1,5 +1,7 @@
 ## 2026-11-08 · 联网资料匹配首闭环
 
+2026-11-08角色卡首闭环：#63已正常合并main `b84b856a9ca5ec4037c2fd68afb7ee7f505b4896`，head eeda2640c1df4276d2647ede26af9462968500ad；常规42461583921与Windows42461583955全部成功。当前独立角色卡工作台复用CharacterCard/OC/百科/Asset/世界书/版本/有限jobs：分页编辑、来源、封面、设计收藏字段、明确发送范围的AI候选/人工采用及JSON/PNG保护。534后端通过/1权限跳过、18前端和构建、生成样本实际GUI/390px深浅/重启/隔离备份恢复通过；真实AI质量/封面生成/新的小说直接转卡及D/E/F未因入口而完成。详见[范围](CHARACTER_CARD_STUDIO.md)与[验收](audits/cards/WORKBENCH_20261108.md)，远程CI以本PR精确head为准。
+
 资料发现#62正常merge为47054ea，精确head f3bd6d28常规42458154437、Windows42458154440均成功（冻结、ACL、迁移、签名协议、NSIS/便携及完整性，非公开发布）。下一独立资料匹配增量补游戏/图书/Hash候选、Work/Galgame字段来源/人工保护/不可变历史；修复FD误匹配与上传封面被刷新替换。521本机后端/1权限跳过、15前端与构建、实际生成GUI/390px深浅/重启/隔离备份恢复已验，真实Open Library与Mock分开；本增量远程CI/合并以PR精确head为准。[验收](audits/metadata/CENTER_20261108.md)。ISBN/Edition/动漫/更多来源、C/D/E/F和长期Voice/专业引擎/签名发布仍待。
 
 ## 2026-11-08 · 多根来源与候选归档

@@ -43,6 +43,18 @@ def _diagram_text(data: Any) -> str:
     return " ".join(str(p) for p in parts if p)
 
 
+def _card_text(card: Any) -> str:
+    extensions = card.extensions if isinstance(card.extensions, dict) else {}
+    design = extensions.get('front_design_v1')
+    extra = []
+    if isinstance(design, dict) and design.get('schema') == 1:
+        aliases = design.get('aliases')
+        if isinstance(aliases, list):
+            extra.extend(a for a in aliases if isinstance(a, str))
+        extra.extend(design[key] for key in ('appearance', 'clothing', 'hair', 'eyes', 'notes') if isinstance(design.get(key), str))
+    return _join(card.description, card.personality, card.scenario, card.first_mes, ' '.join(card.card_tags or []), *extra)
+
+
 # 实体名 -> (标题, 正文)
 SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.Asset: ("asset", lambda o: o.title, lambda o: _join(o.description, o.content, o.source, o.original_name, _tags(o), (o.meta or {}).get("prompt"))),
@@ -51,7 +63,7 @@ SPEC: dict[type, tuple[str, Callable[[Any], str], Callable[[Any], str]]] = {
     m.Work: ("work", lambda o: o.title, lambda o: _join(o.publisher, o.description, _tags(o))),
     m.Prompt: ("prompt", lambda o: o.title, lambda o: _join(o.positive, o.negative, o.notes, _tags(o))),
     m.SDModel: ("sd_model", lambda o: o.name, lambda o: _join(o.base_model, o.file_name, o.trigger_words, o.notes, _tags(o))),
-    m.CharacterCard: ("card", lambda o: o.name, lambda o: _join(o.description, o.personality, o.scenario, o.first_mes, " ".join(o.card_tags or []))),
+    m.CharacterCard: ("card", lambda o: o.name, _card_text),
     m.Collection: ("collection", lambda o: o.name, lambda o: _join(o.description)),
     m.PromptSnippet: ("snippet", lambda o: o.title, lambda o: _join(o.positive, o.negative, o.notes, _tags(o))),
     m.LoreEntry: ("lore", lambda o: o.title or "、".join(o.keys or []), lambda o: _join(" ".join(o.keys or []), " ".join(o.secondary_keys or []), o.content)),

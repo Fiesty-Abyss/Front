@@ -112,13 +112,18 @@ def v2_to_fields(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def read_card_png(data: bytes) -> dict[str, Any]:
+def read_card_png(data: bytes, *, max_json_bytes: int | None = None) -> dict[str, Any]:
     chunks = read_png_text(data)
     raw = chunks.get("ccv3") or chunks.get("chara")
     if not raw:
         raise ValueError("PNG 中没有找到角色卡数据（chara / ccv3 文本块）")
+    if max_json_bytes is not None and len(raw) > (max_json_bytes + 2) // 3 * 4 + 4096:
+        raise ValueError('角色卡文本块超过解析预算')
     try:
-        return json.loads(base64.b64decode(raw).decode("utf-8"))
+        decoded = base64.b64decode(raw)
+        if max_json_bytes is not None and len(decoded) > max_json_bytes:
+            raise ValueError('角色卡文本块超过解析预算')
+        return json.loads(decoded.decode("utf-8"))
     except Exception as exc:  # noqa: BLE001
         raise ValueError(f"角色卡数据无法解码: {exc}") from exc
 

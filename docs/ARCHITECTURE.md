@@ -1,5 +1,7 @@
 # 架构说明
 
+角色卡增量：沿用CharacterCard/extensions和FTS、Asset封面/索引、OC/百科/世界书及versions；仅加CharacterCardDraft用于待审核AI候选与任务/采用记录。已配置文本Provider明确选择，完整发送预览只含手填说明/风格，有限jobs、无自动重试或服务初始化；工作台按指纹事务保存和范围校验恢复。/cards本身懒加载，CardAssist仅展开加载，无新增大依赖。[接口与范围](CHARACTER_CARD_STUDIO.md)。
+
 联网资料匹配：`metadata.py`的MetadataProvider/能力目录包装既有游戏来源与Civitai并提供有限Open Library适配，`routers/metadata.py`复用jobs并按字段事务应用现有Work/Galgame。两列metadata_catalog保存来源/采用值/人工修改和刷新许可，复用versions与全备份；缓存不是权威资料。`/metadata`路由懒加载，不默认联网、下载封面或初始化任何AI/渲染引擎。[接口、安全边界与未完成范围](METADATA_CENTER.md)。
 
 ## 扫描来源增量

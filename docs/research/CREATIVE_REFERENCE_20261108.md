@@ -12,6 +12,10 @@
 
 ## Front复用与待办
 
+进一步核对：Bandori上述固定树实际vendor/neocari gitlink是`5ef8f49654e2cdfeb60dbbdca28c1159558da775`，与NOTICE/部分注释保留的旧f4eee3不同。[实际Neocari Cargo](https://github.com/HELPMEEADICE/Neocari/blob/5ef8f49654e2cdfeb60dbbdca28c1159558da775/Cargo.toml)和[LICENSE](https://github.com/HELPMEEADICE/Neocari/blob/5ef8f49654e2cdfeb60dbbdca28c1159558da775/LICENSE)仍为GPL-3.0-only（0.4.0）；不能用旧注释代替树指针或许可审查。已只读model_manager与click_actions相关源码，借鉴轻量元数据缓存、按实际声明动作/表情校验绑定，不复制源码、项目特定模型名/点击区或下载逻辑。F原型尚未因此实现。
+
+联网中心首闭环见[实际范围](../METADATA_CENTER.md)；书籍接口基于官方API和许可资料，不搬运KoiPage GPL代码。Google Books身份/NextMoe公开API与许可尚未核实完成，不假称可用。
+
 扫描增量复用ProjectPreview/LibraryImport/ProjectImport/Asset/jobs，只增加来源配置。联网资料仍需审查现有Bangumi/VNDB/Ymgal和Civitai实现，再加统一能力/来源/人工覆盖协议；书籍Provider、跨来源字段来源和歧义策略不能凭扫描候选认为完成。
 
 角色卡、ChatSession、Lorebook和消息分支已经存在；一对一/群聊/叙事/选项的实际能力、逐角色Provider快照与生成调度需逐项源码/测试验收，不直接堆叠第二套聊天存储。桌面Sidecar/实例令牌/随机端口已存在；原生目录选择和外部导航仍按独立增量处理。

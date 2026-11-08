@@ -157,6 +157,7 @@ const TABS = computed(() => [['overview', '概览', BookOpen], ['plays', '游玩
           <div class="row gd-actions">
             <button v-if="hasLinked" :disabled="busy === 'refresh'" @click="refresh()"><RefreshCw :size="14" :class="{ spin: busy === 'refresh' }" />刷新元数据</button>
             <button v-if="hasLinked" @click="matching = true"><Link2 :size="14" />重新匹配</button>
+            <RouterLink class="btn" :to="`/metadata?target=galgame&id=${g.id}`">统一资料匹配</RouterLink>
             <QuickSearch :q="g.title" kind="work" :alts="[g.original, g.title_cn, ...g.aliases].filter(Boolean)" />
             <button @click="edit"><PenLine :size="14" />编辑</button>
             <button @click="tab = 'plays'"><History :size="14" />记一次游玩</button>

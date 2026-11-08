@@ -2,11 +2,11 @@
 
 ## 2026-11-08 · 智能资料发现与角色互动当前轮
 
-DISCOVERY-ROOTS：已实现独立分支、待适用CI。多根配置/稳定UID版本、有限只读扫描、暂停续扫/增量、深层目录锚点、候选与人工归档；复用Asset/ProjectPreview/ProjectImport/LibraryImport/jobs。一张加法配置表，无新依赖；506本机后端通过/1权限跳过、15前端与构建、实际生成GUI/390px/重启/备份恢复。不是全盘监控/语义作品归属，模型不强制复制。
+DISCOVERY-ROOTS：#62已正常合并，main47054ea，常规42458154437与Windows42458154440全通过。多根配置/稳定UID版本、有限只读扫描、暂停续扫/增量、深层目录锚点、候选与人工归档；复用Asset/ProjectPreview/ProjectImport/LibraryImport/jobs。一张加法配置表，无新依赖；506本机后端通过/1权限跳过、15前端与构建、实际生成GUI/390px/重启/备份恢复。不是全盘监控/语义作品归属，模型不强制复制。
 
 | 功能 | 使用场景与依赖 | 复杂度/资源 | 授权与状态 |
 | --- | --- | --- | --- |
-| META-CENTER | 游戏/书籍/动漫/模型候选与字段来源；复用galgame.sources/SD Hash/Work/Asset | 中高；显式网络、缓存/限流/有限队列 | 下一阶段；不上传正文、不覆盖人工值，不猜测API或复制GPL实现 |
+| META-CENTER | 游戏/书籍/动漫/模型候选与字段来源；复用galgame.sources/SD Hash/Work/Asset | 中高；显式网络、缓存/限流/有限队列 | 首增量独立实现、待本PR CI：游戏/图书/Hash候选、Work/Galgame来源/人工保护/版本，521后端/1跳过、15前端/构建、生成GUI与真实公共图书查询；ISBN/Edition/语言/动漫/作者详情、Google/NextMoe、统一模型写入和跨来源自动补全仍待，不上传正文 |
 | CARD-ASSIST | 现有卡片/OC/小说证据到草稿、封面选择 | 高；按需文本/图像Provider | 待源码细审和独立PR；远程范围预览/授权，手动素材独立可用 |
 | CHAT-MODES | 单人/群聊/叙事/选项；ChatSession/消息树/Lorebook | 高；有界轮次/token、逐角色模型快照 | 待独立实现，不造第二套存储，不把参考界面当可用API |
 | DESKTOP-NAV | 原生目录选择、统一配置/安全外链；现有Sidecar随机端口/令牌 | 中；按需原生能力 | 待独立PR，个人库不自动切换/迁移，需真实窗口验收 |

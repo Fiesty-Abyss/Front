@@ -8,6 +8,8 @@ from sqlalchemy.engine import Engine
 
 # (表, 列, 列定义)
 COLUMNS: list[tuple[str, str, str]] = [
+    ("works", "metadata_catalog", "JSON NOT NULL DEFAULT '{}'"),
+    ("galgames", "metadata_catalog", "JSON NOT NULL DEFAULT '{}'"),
     ("collections", "members_revision", "INTEGER NOT NULL DEFAULT 0"),
     ("assets", "favorite", "BOOLEAN NOT NULL DEFAULT 0"),
     ("assets", "stars", "INTEGER NOT NULL DEFAULT 0"),

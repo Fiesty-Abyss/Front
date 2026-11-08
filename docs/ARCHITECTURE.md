@@ -1,5 +1,7 @@
 # 架构说明
 
+联网资料匹配：`metadata.py`的MetadataProvider/能力目录包装既有游戏来源与Civitai并提供有限Open Library适配，`routers/metadata.py`复用jobs并按字段事务应用现有Work/Galgame。两列metadata_catalog保存来源/采用值/人工修改和刷新许可，复用versions与全备份；缓存不是权威资料。`/metadata`路由懒加载，不默认联网、下载封面或初始化任何AI/渲染引擎。[接口、安全边界与未完成范围](METADATA_CENTER.md)。
+
 ## 扫描来源增量
 
 DiscoveryRoot只保存根配置、稳定UID/版本、活动状态和预览指针；没有第二套Asset/文件存储。扫描复用2worker/32队列、ProjectPreview的Hash/报告；确认后复用LibraryImport或ProjectImport、ingest/index_file。报告独立、部分中断不可导入；新来源配置表升级前受既有SQLite快照保护，完整备份包含配置和project-previews。根/每级目录拒绝链接与重解析点，ZIP只读有限目录，无默认联网、监控或模型初始化。见[DISCOVERY](DISCOVERY.md)。

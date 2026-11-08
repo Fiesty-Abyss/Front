@@ -31,6 +31,7 @@ from .routers import audio,referenceimports
 from .routers import bonuses, modelassets, voice, voicedialogue, voicetasks
 from .routers import voicelocal
 from .routers import voicereferences
+from .routers import discovery as discovery_router
 from .routers import voiceexports as voiceexports_router
 from .routers import voicebooks as voicebooks_router
 
@@ -61,6 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     recover_voice_books(engine)
     from .voiceexports import recover as recover_voice_exports
     recover_voice_exports(engine)
+    from .discovery import recover as recover_discovery
+    recover_discovery(engine)
     ensure_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()
@@ -89,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(MutationGate)
     for r in (
         system.router,
+        discovery_router.router,
         backups_router.router,
         oc_router.router,
         ocimages.router,

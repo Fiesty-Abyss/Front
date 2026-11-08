@@ -1,5 +1,9 @@
 # 架构说明
 
+## 扫描来源增量
+
+DiscoveryRoot只保存根配置、稳定UID/版本、活动状态和预览指针；没有第二套Asset/文件存储。扫描复用2worker/32队列、ProjectPreview的Hash/报告；确认后复用LibraryImport或ProjectImport、ingest/index_file。报告独立、部分中断不可导入；新来源配置表升级前受既有SQLite快照保护，完整备份包含配置和project-previews。根/每级目录拒绝链接与重解析点，ZIP只读有限目录，无默认联网、监控或模型初始化。见[DISCOVERY](DISCOVERY.md)。
+
 ## Voice参考档案与技术检查增量
 
 参考音频复用Asset，不新增媒体库/数据库表。Asset.meta的voice_reference/voice_reference_qc命名空间带schema=1；保存须创建身份+Hash+当前素材版本，合并专属字段并保留其他资料，未知较新格式拒绝覆盖。声线使用id+uid及稳定世界观/作品快照。沿用Asset不可变版本/完整备份；整体素材恢复追加版本，外部索引原字节不自动归档。

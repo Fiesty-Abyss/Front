@@ -73,6 +73,14 @@ fn startup_message(line:&str, child_pid:u32)->Result<StartupMessage,&'static str
             "data_directory_in_use"=>"data_directory_in_use",
             "data_directory_unwritable"=>"data_directory_unwritable",
             "database_incompatible_or_damaged"=>"database_incompatible_or_damaged",
+            "database_schema_incompatible"=>"database_schema_incompatible",
+            "database_not_front"=>"database_not_front",
+            "database_damaged"=>"database_damaged",
+            "database_locked"=>"database_locked",
+            "database_access_denied"=>"database_access_denied",
+            "database_unreadable"=>"database_unreadable",
+            "database_foreign_key_issues"=>"database_foreign_key_issues",
+            "database_check_failed"=>"database_check_failed",
             "upgrade_backup_incomplete"=>"upgrade_backup_incomplete",
             _=>"sidecar_initialization_failed",
         }));
@@ -278,6 +286,17 @@ fn main() {
 }
 
 fn startup_error_text(code:&str)->&'static str {
+    match code {
+        "database_schema_incompatible"=>return "当前 Front 不支持此资料库结构，存在未知或无法安全迁移的表或字段；这不代表数据库损坏。未执行升级，请核对版本，或在独立目录验证备份，不要重置资料库。",
+        "database_not_front"=>return "所选文件是 SQLite 数据库，但缺少 Front 核心数据表。请核对资料目录，或在独立目录验证备份；不会自动重新建库或覆盖。",
+        "database_damaged"=>return "SQLite 检查发现数据库格式或完整性异常。已停止升级，请保留原数据库及 WAL 文件，并在独立目录诊断备份；不要重置或覆盖原件。",
+        "database_locked"=>return "SQLite 资料库被其他进程锁定。请检查是否有 Web、桌面版或备份工具正在使用同一目录，关闭相关实例后重试；未执行修复。",
+        "database_access_denied"=>return "Front 没有读取或访问数据库的权限。请检查数据库文件及目录权限；这不代表资料库损坏，原件未被替换。",
+        "database_unreadable"=>return "Front 无法读取数据库文件。请检查路径、磁盘、权限及 WAL 所在目录；尚不能判断资料库是否损坏，未执行修复。",
+        "database_foreign_key_issues"=>return "资料库完整性检查通过，但存在关联记录异常。已停止升级，请先在独立副本检查外键报告；不会自动删除或修复原记录。",
+        "database_check_failed"=>return "资料库检查未能完成，尚不能判断是否损坏。请核对程序版本并查看资料目录日志，在独立副本诊断；不会自动重置。",
+        _=>{}
+    }
     if code.contains("data_directory_in_use") {"Front 资料目录正在使用中。请先关闭使用该目录的 Front 窗口。"}
         else if code.contains("data_directory_unwritable") {"Front 无法写入资料目录。请检查磁盘空间和文件夹权限；便携版可移到可写目录，或通过 FRONT_DATA_DIR 指定独立目录。原有资料未被覆盖。"}
         else if code.contains("database_incompatible_or_damaged") {"Front 检测到不兼容或损坏的资料库，已停止升级。请使用较新版本或在独立目录验证备份。"}
@@ -306,6 +325,12 @@ mod startup_tests {
         assert!(startup_message(&"X".repeat(4097),42).is_err());
         assert!(matches!(startup_message(r#"{"error":"arbitrary private path"}"#,42),Ok(StartupMessage::Error("sidecar_initialization_failed"))));
         assert!(matches!(startup_message(r#"{"phase":"backup","done":99,"total":10}"#,42),Ok(StartupMessage::Progress(_,None,Some(10),true))));
+        for code in ["database_schema_incompatible","database_not_front","database_damaged","database_locked","database_access_denied","database_unreadable","database_foreign_key_issues","database_check_failed"] {
+            let line=serde_json::json!({"error":code}).to_string();
+            assert!(matches!(startup_message(&line,42),Ok(StartupMessage::Error(found)) if found==code));
+            assert_ne!(startup_error_text(code),startup_error_text("unknown"));
+        }
+        assert_ne!(startup_error_text("database_schema_incompatible"),startup_error_text("database_damaged"));
     }
     #[test]
     fn startup_tests_validate_owned_pid_token_and_navigation_origin() {

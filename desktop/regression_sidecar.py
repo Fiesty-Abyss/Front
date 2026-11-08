@@ -120,7 +120,7 @@ def run(command, root, env, *, frozen):
     before = sha(folder/'front.db')
     future = Sidecar(command, folder, env)
     try:
-        assert future.ready == {'error': 'database_incompatible_or_damaged'}
+        assert future.ready == {'error': 'database_schema_incompatible'}
         future.process.wait(timeout=10); assert future.process.returncode != 0
         assert sha(folder/'front.db') == before
         report['cases']['future_schema_refused_without_rewrite'] = True
@@ -128,7 +128,7 @@ def run(command, root, env, *, frozen):
     corrupt = root/'corrupt'; corrupt.mkdir(); (corrupt/'front.db').write_bytes(b'generated corrupt SQLite fixture')
     before = sha(corrupt/'front.db'); failed = Sidecar(command, corrupt, env)
     try:
-        assert failed.ready == {'error': 'database_incompatible_or_damaged'}
+        assert failed.ready == {'error': 'database_damaged'}
         failed.process.wait(timeout=10); assert failed.process.returncode != 0
         assert sha(corrupt/'front.db') == before
         report['cases']['corrupt_database_refused_without_rewrite'] = True

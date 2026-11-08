@@ -1,5 +1,7 @@
 # AI Voice Studio · foundation
 
+当前增加“参考音频”按需工作区，复用素材元数据、版本、完整备份与AudioPlayer，保存来源/用途声明/人工文本并进行显式本机PCM技术分析。没有训练/真实克隆；见 [VOICE_REFERENCES](VOICE_REFERENCES.md) 和 [生成GUI/恢复证据](audits/voice/REFERENCE_QC.md)。原声线/模型/引擎页也保护未保存草稿。
+
 ## 当前状态 · 2026-11-08
 
 档案、台词/版本、手动候选、同格式PCM/字幕导出、小说批量导入与人工审核已实现并有隔离样本GUI/API证据。新增受控本机TTS入口，默认关闭；只有明确启用、确认参考/模型权限及本机调用才排队。不自动启动引擎，实际加载权重/声音质量仍未核验。见 [配置](LOCAL_TTS_SETUP.md) 和 [本机协议/GUI验收](audits/voice/LOCAL_TTS_ACCEPTANCE.md)。下文历史增量中的“无API/未GUI”等描述以各自阶段为限；最新状态以本节、NEXT_SESSION和具体验收报告为准。

@@ -1,5 +1,7 @@
 # TTS adapter contract foundation
 
+参考档案增量：若所选音频已登记用途，新的本机请求和返回入库须再次满足其零样本声明与稳定声线/范围；训练/试听许可不可代替。旧未登记流程仍须逐次显式声明，没有自动授权。撤回不能撤销外部已发请求，但Front拒绝采用不满足当前声明的返回。详情见VOICE_REFERENCES；全部仅生成文件/协议验证，真实模型和授权仍待。
+
 ## 当前状态 · 2026-11-08
 
 已增加默认关闭、显式授权的本机 GPT-SoVITS Front API 和懒加载面板，复用现有候选/素材/队列；配置见 [LOCAL_TTS_SETUP.md](LOCAL_TTS_SETUP.md)，协议与生成文件/真实浏览器证据见 [LOCAL_TTS_ACCEPTANCE](audits/voice/LOCAL_TTS_ACCEPTANCE.md)。未进行真实模型推理、真人声音克隆或音质验收。下文保留各历史阶段的实现边界，不代表最新入口仍未接入。

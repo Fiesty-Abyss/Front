@@ -86,12 +86,14 @@ def request_data(body):
     return body.model_dump(exclude={'project_uid','expected_project_version','expected_segment_version','idempotency_key'})
 
 
-def reference_scope(session,project,reference):
+def reference_scope(session,project,reference,profile=None):
     ref=vs.sample(session,reference);asset=session.get(m.Asset,ref['id'])
     if asset.world_id and asset.world_id!=project.world_id:raise HTTPException(422,'参考音频属于不同世界观')
     source=session.get(m.VoiceBookSource,project.id)
     if source and source.snapshot.get('work_id') and asset.work_id and asset.work_id!=source.snapshot['work_id']:
         raise HTTPException(422,'参考音频属于不同小说作品')
+    from .voicereferences import validate_synthesis
+    validate_synthesis(session,asset,profile)
     return asset
 
 
@@ -115,7 +117,7 @@ def plan(session,project,segment,body):
     if vs.inspect_file(model.file_path)['status']!='file_present':raise HTTPException(409,'登记的模型文件缺失或不可读；不会替换/下载权重')
     language=segment.recipe.get('language') or profile.language
     if not language:raise HTTPException(422,'请填写实际请求语言')
-    asset=reference_scope(session,project,body.reference.model_dump())
+    asset=reference_scope(session,project,body.reference.model_dump(),profile)
     if (asset.original_name or '').lower().endswith('.wav') is False:
         raise HTTPException(422,'此入口只接受已导入PCM WAV作为参考，不自动转码原件')
     from .routers.assets import _file_of
@@ -147,7 +149,7 @@ def synthesize(job,snapshot,output):
             project=session.get(m.VoiceProject,row.project_id)
             if not project or project.uid!=snapshot['project_uid'] or project.world_id!=snapshot['world_id']:
                 raise AdapterError('project_scope_changed')
-            reference_scope(session,project,request['reference'])
+            reference_scope(session,project,request['reference'],session.get(m.VoiceProfile,row.profile_id) if row.profile_id else None)
         staging=get_settings().data_dir/'.staging';staging.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='local-tts-reference-',dir=staging) as folder:
             reference=Path(folder)/'reference.wav'
@@ -166,7 +168,7 @@ def synthesize(job,snapshot,output):
                 with new_session() as session:
                     row=session.scalar(select(m.VoiceSegment).where(m.VoiceSegment.uid==snapshot['segment_uid']))
                     if not row or vp.fingerprint(session,row)[0]!=request['fingerprint']:raise AdapterError('configuration_changed')
-                    reference_scope(session,session.get(m.VoiceProject,row.project_id),request['reference'])
+                    reference_scope(session,session.get(m.VoiceProject,row.project_id),request['reference'],session.get(m.VoiceProfile,row.profile_id) if row.profile_id else None)
                 job.step('调用已确认本机API；不切换权重，实际加载模型尚未核验')
                 return engine.synthesize(actual,output,vr.JobToken(job))
             finally:engine.close()

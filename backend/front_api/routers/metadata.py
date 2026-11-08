@@ -18,7 +18,7 @@ Identity = Annotated[int, Path(ge=1, le=2**63-1)]
 Target = Literal['work', 'galgame']
 FIELDS = {'work': ('title', 'description', 'year', 'publisher', 'url'),
           'galgame': ('title', 'title_cn', 'original', 'description', 'developer', 'release_date', 'platforms', 'source_tags', 'aliases', 'cover_url')}
-EXTRAS = ('authors', 'aliases', 'tags', 'covers')
+EXTRAS = ('authors', 'aliases', 'tags', 'covers', 'record_type', 'isbn_10', 'isbn_13', 'languages', 'work_ids', 'edition_name', 'publish_date')
 
 
 @event.listens_for(m.Work, 'before_update')
@@ -86,6 +86,11 @@ def search(body: Search, session: Session = Depends(get_session)):
         validate_provider(name, body.kind)
     if body.kind == 'model' and not re.fullmatch(r'[a-fA-F0-9]{64}', body.title):
         raise HTTPException(422, '模型仅支持 SHA256 查询，不发送本地路径')
+    if body.kind == 'book' and 'openlibrary' in body.providers:
+        try:
+            md.bookmeta.isbn(body.title)
+        except ValueError:
+            raise HTTPException(422, 'ISBN格式或校验位无效；未发出网络请求')
     query = body.model_dump(exclude={'online'})
     cfg = meta.load_settings(session)
     return jobs.start('metadata-search', '用户主动资料检索', len(body.providers), lambda job: md.run(job, 'search', query, cfg)).to_dict()
@@ -94,7 +99,7 @@ def search(body: Search, session: Session = Depends(get_session)):
 @router.post('/detail', status_code=202)
 def detail(body: Detail, session: Session = Depends(get_session)):
     validate_provider(body.provider, body.kind)
-    pattern = r'OL\d+W' if body.provider == 'openlibrary' else r'[a-fA-F0-9]{64}' if body.provider == 'civitai' else r'v?\d{1,18}'
+    pattern = r'OL\d+[WM]' if body.provider == 'openlibrary' else r'[a-fA-F0-9]{64}' if body.provider == 'civitai' else r'v?\d{1,18}'
     if not re.fullmatch(pattern, body.sid):
         raise HTTPException(422, '无效的来源条目 ID')
     cfg = meta.load_settings(session)

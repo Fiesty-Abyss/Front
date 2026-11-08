@@ -42,3 +42,7 @@
 - [Open Library Search](https://openlibrary.org/dev/docs/api/search)、[现代书籍/作品 API](https://openlibrary.org/dev/docs/api/books)、[使用准则/限流](https://openlibrary.org/developers/api)：面向用户主动查询、缓存、默认1请求/秒，非批量抓取后台。Front UA 标明项目仓库，未冒充提供用户联系邮箱或提升配额；公开部署前仍需登记/联系资料提供方。
 - [Open Library licensing](https://openlibrary.org/developers/licensing)、[Covers](https://openlibrary.org/dev/docs/api/covers)：并非所有贡献与封面都获得无条件再分发许可；保留原始来源链接，不批量抓取或打包封面。
 - [Google Books 使用](https://developers.google.com/books/docs/v1/using)、[VNDB Kana](https://api.vndb.org/kana)、[月幕开发者说明](https://www.ymgal.games/developer)：身份、非商业/限流和来源条款分别适用，不代用户接受协议。各来源真实可用性与接口变化需持续验证。
+
+## ISBN版次后端增量
+
+ISBN校验/OL…M具体版次、来源身份及人工保护已独立实现，详见[BOOK_EDITIONS](BOOK_EDITIONS.md)；OL…W书名查询保持。无新增UI、自动封面下载/标签翻译、跨源自动合并或个人数据迁移。实际GUI待验，最终测试和CI以NEXT_SESSION为准。

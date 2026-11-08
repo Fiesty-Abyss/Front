@@ -1,11 +1,5 @@
 # 架构说明
 
-## 本轮 #66 冲突收敛（待验收）
-
-最新main bce786793c21dbdeb8c0d7d415f2315cfe7f764d已普通merge进codex/chat-model-snapshots；冲突仅文档。采用主线收敛结构并补回本节，原聊天记录可从92b01c7及CHAT_MODEL_SELECTION追踪；没有重写已推送历史或删除源功能。#62/#63/#64/#65/#67与桌面构建保持。
-
-本次组合须重新执行完整后端/前端/Windows CI；旧92b01c7的绿CI不代替新head。GUI仍未验，先前自动审批拒绝聊天隔离服务创建/启动组合（仅blocked by policy），本轮不通过更换命令包装绕过；在获得可执行验收方式前保持Draft，不堆叠群聊/剧情。继续独立资料匹配或桌面能力增量。所有长期Voice/Live2D/Krita/数位板/真实AI/小说/3D/游戏/安装签名目标保留；不操作个人库/8000或原件。
-
 角色卡增量：沿用CharacterCard/extensions和FTS、Asset封面/索引、OC/百科/世界书及versions；仅加CharacterCardDraft用于待审核AI候选与任务/采用记录。已配置文本Provider明确选择，完整发送预览只含手填说明/风格，有限jobs、无自动重试或服务初始化；工作台按指纹事务保存和范围校验恢复。/cards本身懒加载，CardAssist仅展开加载，无新增大依赖。[接口与范围](CHARACTER_CARD_STUDIO.md)。
 
 Live2D协议原型是未被默认启动链导入的独立标准库CLI：RendererAdapter边界和NullRenderer、16KiB行/响应、4096消息/128最近成功ACK、生成目录与参数动作白名单、单模型世代/释放；不读文件/加载SDK/建图形上下文/监听网络/新增数据库。现有Live2DProfile和Vue档案页不变；未来合法渲染器必须发布真实运行时能力，见research/LIVE2D_RENDERER_ARCHITECTURE。
@@ -310,6 +304,6 @@ GPT-SoVITS适配须先锁定官方提交与API契约，模拟协议测试和真�
 
 新增voice_exports只保存导出请求的不可变身份/版本指纹、状态、job_id和共享Asset引用；素材仍为唯一文件存储。用户显式预览/确认的≤100片段在既有有限队列中处理，PCM与ZIP按64KiB分块、64MiB单输入/128MiB总PCM上限。提交前重查指纹；重启标记interrupted，不重放。历史媒体通过既有版本保留/整库备份；升级前快照，未改历史表字段。字幕为片段顺序时间轴，非强制语音对齐。见VOICE_EXPORTS.md。
 
-## 单人会话显式模型底座（#66 Draft）
+## ISBN版次元数据
 
-ChatModelSelection加法表追加Provider创建身份、模型/参数与预算快照；沿用ChatSession/ChatMessage、既有生成互斥/上下文/备份。密钥不入快照，已选服务失效不自动回退，旧未选会话兼容全局默认。仅打开模型面板加载ChatModelPicker，不开启推理。GUI未验，不能标为群聊或剧情系统，详见CHAT_MODEL_SELECTION。
+bookmeta仅标准库ISBN校验/版次JSON规范化；metadata.OpenLibrary复用已有固定主机、有限响应与jobs，以OL…M具体版本和OL…W作品分开。新字段复用Work.metadata_catalog/versions/完整备份，不增加表/服务/推理。只有主动检索联网，单次受控JSON跳转，人工字段和source_id刷新许可保护保留，见BOOK_EDITIONS。

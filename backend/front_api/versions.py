@@ -13,6 +13,7 @@ ENTITIES = dict(asset=m.Asset, character=m.Character, entry=m.WorldEntry, note=m
 ENTITIES.update(voice_provider=m.VoiceProvider, voice_model=m.VoiceModel, voice_profile=m.VoiceProfile)
 ENTITIES.update(voice_project=m.VoiceProject, voice_segment=m.VoiceSegment)
 ENTITIES.update(galgame=m.Galgame)
+ENTITIES.update(card=m.CharacterCard)
 KINDS = {v:k for k,v in ENTITIES.items()}
 SKIP = {'id','created_at','updated_at'}
 
@@ -59,6 +60,9 @@ def payload(session, obj):
     if isinstance(obj,m.OCProfile):
         char=session.get(m.Character,obj.character_id) if obj.character_id else None
         value['_oc_scope']={'character_id':char.id if char else None,'world_id':char.world_id if char else None,'work_id':char.work_id if char else None}
+    if isinstance(obj,m.CharacterCard):
+        from .cardstudio import scope
+        value['_card_scope'] = scope(session, obj)
     if isinstance(obj,m.OCStudy):
         from . import ocstudio
         profile=session.get(m.OCProfile,obj.profile_id) if obj.profile_id else None

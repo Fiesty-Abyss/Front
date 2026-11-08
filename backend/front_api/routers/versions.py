@@ -108,6 +108,11 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
         raise HTTPException(409,'历史世界观归属不同；请显式审核跨世界迁移，不自动恢复')
     if isinstance(obj,m.OCProfile) and data.get('_oc_scope')!=v.payload(session,obj).get('_oc_scope'):
         raise HTTPException(409,'角色的世界观/作品归属已变化，请明确审核，不自动恢复旧范围')
+    if isinstance(obj,m.CharacterCard) and data.get('_card_scope')!=v.payload(session,obj).get('_card_scope'):
+        raise HTTPException(409,'角色卡的角色/世界观或世界书归属已变化，请审核关联，不自动恢复旧范围')
+    if isinstance(obj,m.CharacterCard):
+        from ..cardstudio import validate
+        validate(session, data, obj.id)
     if isinstance(obj,m.OCStudy) and data.get('_study_scope')!=v.payload(session,obj).get('_study_scope'):
         raise HTTPException(409,'学习集的世界观/作品归属已变化，请审核后再恢复')
     if isinstance(obj,m.BonusItem) and data.get('_bonus_scope')!=v.payload(session,obj).get('_bonus_scope'):

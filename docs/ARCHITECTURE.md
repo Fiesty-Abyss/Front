@@ -1,5 +1,9 @@
 # 架构说明
 
+角色卡增量：沿用CharacterCard/extensions和FTS、Asset封面/索引、OC/百科/世界书及versions；仅加CharacterCardDraft用于待审核AI候选与任务/采用记录。已配置文本Provider明确选择，完整发送预览只含手填说明/风格，有限jobs、无自动重试或服务初始化；工作台按指纹事务保存和范围校验恢复。/cards本身懒加载，CardAssist仅展开加载，无新增大依赖。[接口与范围](CHARACTER_CARD_STUDIO.md)。
+
+Live2D协议原型是未被默认启动链导入的独立标准库CLI：RendererAdapter边界和NullRenderer、16KiB行/响应、4096消息/128最近成功ACK、生成目录与参数动作白名单、单模型世代/释放；不读文件/加载SDK/建图形上下文/监听网络/新增数据库。现有Live2DProfile和Vue档案页不变；未来合法渲染器必须发布真实运行时能力，见research/LIVE2D_RENDERER_ARCHITECTURE。
+
 会话模型底座复用ChatSession/ChatMessage/Provider/流式接口，仅加ChatModelSelection追加快照表。模型设置带身份指纹和事务，显式绑定不随默认服务变动；无Key入快照。回复meta记录实际选择/参数/角色/上下文Hash。全局2生成与会话互斥，模型面板按需加载，无推理或第二套消息/队列。当前Draft/GUI未验，见CHAT_MODEL_SELECTION。
 
 联网资料匹配：`metadata.py`的MetadataProvider/能力目录包装既有游戏来源与Civitai并提供有限Open Library适配，`routers/metadata.py`复用jobs并按字段事务应用现有Work/Galgame。两列metadata_catalog保存来源/采用值/人工修改和刷新许可，复用versions与全备份；缓存不是权威资料。`/metadata`路由懒加载，不默认联网、下载封面或初始化任何AI/渲染引擎。[接口、安全边界与未完成范围](METADATA_CENTER.md)。

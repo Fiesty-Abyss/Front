@@ -1,5 +1,7 @@
 # 会话模型选择 · 首个底座增量
 
+合入main812d239后的真实组合回归：568后端通过/1权限跳过176.70秒（chat-integration-final.log），18前端与生产构建6.61秒（chat-integration-node/build.log）。这是本分支加已合并角色卡/Null协议的集成实跑，不是各分支计数相加。模型切换仍无GUI证据，PR继续Draft；当前merge head远程CI必须独立查询。
+
 本增量复用现有ChatSession/ChatMessage消息树、AI Provider和流式接口。只实现显式会话模型/参数快照与生成边界，不把它标为群聊、剧情或选项模式完成。
 
 ## 能力

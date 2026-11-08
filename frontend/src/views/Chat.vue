@@ -7,7 +7,7 @@ import { guard, toast } from '../toast'
 
 const ChatModelPicker=defineAsyncComponent(()=>import('../components/ChatModelPicker.vue'))
 const modelState=ref(null), showModel=ref(false)
-let streamController=null, openSerial=0
+let streamController=null, openSerial=0, contextSerial=0, disposed=false
 const route = useRoute()
 const status = ref(null)
 const sessions = ref([])
@@ -34,7 +34,7 @@ onMounted(async () => {
 const card = computed(() => cards.value.find((c) => c.id === cur.value?.card_id))
 const canGenerate=computed(()=>Boolean(modelState.value?.selection || status.value?.available))
 const lastMsg = computed(() => cur.value?.messages.at(-1))
-async function refreshCtx() { if (cur.value) {const id=cur.value.id;try{const value=await api.get(`/api/ai/sessions/${id}/context`);if(cur.value?.id===id)ctx.value=value}catch(e){toast(e.message,true)}} }
+async function refreshCtx() { if (cur.value) {const id=cur.value.id, serial=++contextSerial;ctx.value=null;try{const value=await api.get(`/api/ai/sessions/${id}/context`);if(!disposed && cur.value?.id===id && serial===contextSerial)ctx.value=value}catch(e){if(!disposed && serial===contextSerial)toast(e.message,true)}} }
 async function open(id) { if(streaming.value)return;const serial=++openSerial;const [chat,model]=await Promise.all([api.get(`/api/ai/sessions/${id}`),api.get(`/api/ai/sessions/${id}/model-state`)]);if(serial!==openSerial)return;cur.value=chat;modelState.value=model;ctx.value=null;showModel.value=false;refreshCtx();scroll() }
 function scroll() { nextTick(() => box.value && (box.value.scrollTop = box.value.scrollHeight)) }
 function setSession(s) { cur.value = s; refreshCtx(); loadSessions(); scroll() }
@@ -42,7 +42,8 @@ function setSession(s) { cur.value = s; refreshCtx(); loadSessions(); scroll() }
 async function generate(body) {
   if (streaming.value) return false
   const sessionId=cur.value.id
-  let completed=false
+  ++openSerial
+  let completed=false, needsReload=false
   streamController=new AbortController()
   streaming.value = { token: null, text: '', lore: [] }
   if (body.content && !body.edit_id) {
@@ -51,13 +52,16 @@ async function generate(body) {
   scroll()
   try {
     await streamPost(`/api/ai/sessions/${cur.value.id}/generate`, body, (ev, data) => {
-      if(!streaming.value || cur.value?.id!==sessionId)return
+      if(disposed || !streaming.value || cur.value?.id!==sessionId)return
       if (ev === 'start') Object.assign(streaming.value, { token: data.token, lore: data.lore })
       else if (ev === 'delta') { streaming.value.text += data.text; scroll() }
       else if (ev === 'done') {completed=true;setSession(data.session)}
-      else if (ev === 'error') { toast(data.detail, true); if (data.session) setSession(data.session); else open(cur.value.id) }
+      else if (ev === 'error') { toast(data.detail, true); if (data.session) setSession(data.session); else needsReload=true }
     }, streamController.signal)
-  } catch (e) { toast(e.message, true); open(cur.value.id) } finally { streaming.value = null;streamController=null }
+  } catch (e) { if(!disposed)toast(e.message, true);needsReload=true } finally {
+    streaming.value = null;streamController=null
+    if(needsReload && !disposed && cur.value?.id===sessionId){try{await open(sessionId)}catch(e){toast(e.message,true)}}
+  }
   return completed
 }
 async function send() {
@@ -104,7 +108,7 @@ async function remove() {
   if (!confirm('删除这个对话？')) return
   await guard(() => api.del(`/api/ai/sessions/${cur.value.id}`), '已删除'); cur.value = null; loadSessions()
 }
-onBeforeUnmount(()=>{if(streaming.value?.token)api.post(`/api/ai/generations/${streaming.value.token}/stop`).catch(()=>{});streamController?.abort();streaming.value=null})
+onBeforeUnmount(()=>{disposed=true;if(streaming.value?.token)api.post(`/api/ai/generations/${streaming.value.token}/stop`).catch(()=>{});streamController?.abort();streaming.value=null})
 /** 把（动作）和 *动作* 渲染成斜体灰字 */
 function rich(text) {
   const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))

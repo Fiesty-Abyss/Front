@@ -1,12 +1,14 @@
 # 最新接续 · 资料发现与角色互动轮 · 2026-11-08
 
+前端收尾代码审查修正：失败响应先结束streaming，再刷新服务端会话，避免open的互斥保护拦住自己的错误恢复并留下pending幽灵消息；增加晚到响应/上下文顺序保护。前端15测试与生产构建通过，真实GUI仍未验证；下一验收须包含503/流式error后输入保留、pending清理、快速重发/切换与上下文顺序。最新数据与CI以本PR精确head为准，不引用旧文档提交的CI。
+
 最新安全回归：旧环境服务默认标签可能包含完整端点URL，现新消息仅记录引擎名，不将端点凭据/错误正文持久化；13项专题和完整534后端/1权限跳过199.12秒通过，日志chat-security-target/chat-security-full。未执行任何真实AI请求。#66旧head的Python310 CI42470114817在setup-python下载官方3.10.22包时504，未运行兼容测试；不是代码兼容验证通过。当前head更新后应查新CI，保持Draft/GUI门槛；不为此改Python版本或跳过测试。
 
 2026-11-08会话模型底座：独立codex/chat-model-snapshots基于最新fetch main b84b856a9ca5ec4037c2fd68afb7ee7f505b4896（#62/#63已合并）。追加模型/参数快照、实际回复来源、上下文字数预算、生成互斥/上限、失败输入保留与安全错误。534后端通过/1权限跳过199.12秒、15前端及构建，49定向包含并发/分支/旧客户端/备份恢复；全部AI是Mock。实际GUI启动组合命令被自动审批拒绝blocked by policy，未执行/未绕过，故保持Draft，不能用CI代替GUI验收。[范围](CHAT_MODEL_SELECTION.md)。#64角色卡Windows两次官方NSIS下载504未合并，#65构建有限重试独立等待CI；本分支不堆叠依赖它们。
 
 本分支工作树.cache/worktrees/chat-models，源包以PYTHONPATH=该worktree/backend测试，TEMP/TMP均E:/Skill/front/.cache/tmp；不要误用根旧editable包。初始全量chat-full-final（533/1权限跳过）；最终全量chat-security-full（534/1权限跳过）、chat-target-7（49通过）、chat-node-final（15通过）和chat-build-final。初始失败的旧客户端配置提示与快照datetime JSON问题已修正，失败批次不作验收。
 
-模型选择是追加历史，恢复参数先放入表单再明确保存，不改旧回复；没有UI/真实模型质量验收。Chat专用chunk13.97kB/gzip5.92，按需ModelPicker4.23/2.29，初始JS216.92/83.43；只是构建大小，不是整机性能。上下文是字数预算，不是实际模型token窗口；旧全局默认兼容行为保留，已选服务删除/换址不回退。
+模型选择是追加历史，恢复参数先放入表单再明确保存，不改旧回复；没有UI/真实模型质量验收。Chat专用chunk以chat-recovery-build-final日志为准（本次增加失败恢复与顺序保护），按需ModelPicker4.23/2.29，初始JS216.92/83.43；只是构建大小，不是整机性能。上下文是字数预算，不是实际模型token窗口；旧全局默认兼容行为保留，已选服务删除/换址不回退。
 
 下一步先fetch核对#65重试CI和当前main；如果main推进，普通merge origin/main进本分支（不强推）并处理文档头部时保留两个增量记录，再跑集成全量/构建/全部CI。GUI审批阻塞未解前保持Draft，即使CI绿也不合并。GUI需要验证选择A/B模型、明确切换、流式回复/停止、错误输入保留、分支/重生、历史/重启、390px/键盘和console；全部先生成数据。之后再独立开发群聊/剧情/选项，不简单拼人设或无限生成。
 

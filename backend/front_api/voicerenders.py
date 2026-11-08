@@ -4,7 +4,7 @@ import uuid
 import hashlib
 from fastapi import HTTPException
 from sqlalchemy import select, update, func
-from . import models as m, jobs, versions as v, voiceprojects as vp, voicestudio as vs
+from . import models as m, jobs, versions as v, voiceprojects as vp, voicestudio as vs, voicefingerprints as vf
 from .config import get_settings
 from .db import new_session
 from .ingest import ingest_stream, ManagedFileIntegrityError
@@ -104,7 +104,11 @@ def enqueue(session,project,segment,body):
     uid=request_uid(project,segment,body.idempotency_key)
     existing=session.scalar(select(m.VoiceRender).where(m.VoiceRender.uid==uid))
     if existing:
-        if existing.segment_id!=segment.id or existing.fingerprint!=body.fingerprint or existing.snapshot.get('origin')!='mock':
+        same=existing.fingerprint==body.fingerprint
+        if not same:
+            current=vp.fingerprint(session,segment)[0]
+            same=body.fingerprint==current and vf.is_current(session,existing,current)
+        if existing.segment_id!=segment.id or not same or existing.snapshot.get('origin')!='mock':
             raise HTTPException(409,'幂等键已用于不同请求')
         return existing
     vs.guard(session,project,body.project_uid,body.expected_project_version)

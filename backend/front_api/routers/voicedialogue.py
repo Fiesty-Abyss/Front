@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, update
 from sqlalchemy.orm import Session, defer
-from .. import models as m, versions as v, voicestudio as vs, voiceprojects as vp
+from .. import models as m, versions as v, voicestudio as vs, voiceprojects as vp, voicefingerprints as vf
 from ..crud import get_or_404
 from ..db import get_session
 
@@ -156,7 +156,7 @@ def accept(project_id:int,segment_id:int,render_id:int,body:vp.Mutation,session:
     candidate=get_or_404(session,m.VoiceRender,render_id)
     if candidate.segment_id!=segment_id:raise HTTPException(404,'候选不属于当前片段')
     current=vp.fingerprint(session,obj)[0]
-    if candidate.fingerprint!=current:raise HTTPException(409,'候选对应旧台词或参数，请重新生成或手动关联新版')
+    if not vf.is_current(session,candidate,current):raise HTTPException(409,'候选对应旧台词或参数，请重新生成或手动关联新版')
     vs.sample(session,candidate.snapshot['audio_ref'])
     asset=session.get(m.Asset,candidate.audio_asset_id) if candidate.audio_asset_id else None
     if not asset or (asset.world_id and asset.world_id!=project.world_id):

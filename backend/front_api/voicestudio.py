@@ -139,12 +139,13 @@ def validate_restore(session, obj, data):
         scoped_sample(session, data.get('sample_ref') or {}, target)
 
 
-def diagnostics(session, obj):
+def diagnostics(session, obj, include_sample=True):
     issues = []
     try:
         if obj.binding != binding(session, obj.character_id, obj.oc_id):
             issues.append('角色或世界观关联已变化，请审核')
-        scoped_sample(session, obj.sample_ref, obj.binding)
+        if include_sample:
+            scoped_sample(session, obj.sample_ref, obj.binding)
     except HTTPException as exc:
         issues.append(str(exc.detail))
     return issues

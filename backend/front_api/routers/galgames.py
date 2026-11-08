@@ -1,7 +1,7 @@
 """galgame 游戏库：游玩状态、评分、游玩时长、笔记；元数据从 Bangumi / VNDB / 月幕 拉取（混合模式可互相补全），
 可一键建立作品（CG 档案挂在作品下）、把来源里的角色导入角色百科。
 
-设计参考了 ReinaManager（AGPL-3.0）与恋页 KoiPage（未指定许可证）的思路：多来源元数据、用户改过的字段优先、
+设计参考了 ReinaManager（AGPL-3.0）与恋页 KoiPage（GPL-3.0）的思路：多来源元数据、用户改过的字段优先、
 状态筛选、批量添加、NSFW 封面模糊、手动游玩记录与时长日历、分享足迹。这里没有使用它们的任何代码。
 """
 
@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
-from .. import models as m
+from .. import models as m, matching
 from .. import schemas as s
 from ..config import get_settings
 from ..crud import get_or_404, make_crud_router, qp
@@ -29,7 +29,7 @@ from ..galgame import sources as src
 
 STATUSES = ("unplayed", "wishlist", "playing", "finished", "shelved", "dropped")
 META_FIELDS = ("title", "title_cn", "original", "aliases", "description", "developer", "release_date",
-               "platforms", "source_tags", "nsfw")
+               "platforms", "source_tags", "nsfw", "cover_url")
 IMAGE_HOSTS = ("bgm.tv", "vndb.org", "ymgal.games", "ymgal.com")
 COVER_SIZE = (600, 860)
 MAX_COVER = 12 * 1024 * 1024
@@ -183,8 +183,6 @@ def _apply_meta(g: m.Galgame, merged: dict[str, Any], keep_overrides: bool = Tru
     for f in META_FIELDS:
         if f in merged and f not in locked and merged[f] not in (None, "", []):
             setattr(g, f, merged[f][:300] if isinstance(merged[f], str) and f in ("title", "title_cn", "original", "developer") else merged[f])
-    if merged.get("cover_url"):
-        g.cover_url = merged["cover_url"]
     if merged.get("characters"):
         g.characters = merged["characters"]
     if merged.get("links"):
@@ -219,8 +217,10 @@ def _store_cover(g: m.Galgame, data: bytes) -> None:
     g.has_cover = True
 
 
-def _download_cover(g: m.Galgame) -> str | None:
+def _download_cover(g: m.Galgame, replace_manual: bool = False) -> str | None:
     """把封面存到本地（只在用户添加 / 点“保存封面”时调用）。返回错误信息或 None。"""
+    if 'cover' in (g.overrides or []) and not replace_manual:
+        return '保留手动上传的封面；需要明确选择来源封面才能替换'
     url = g.cover_url
     if not url:
         return "没有封面地址"
@@ -307,7 +307,14 @@ def quick_add(payload: QuickAdd, session: Session = Depends(get_session)) -> dic
         first = next((it for so in found["order"] for it in found["results"].get(so, {}).get("items", [])[:1]), None)
         if first:
             best = (meta.best_score([title], first), first)
-    if best[1] and (best[0] >= 0.6 or payload.accept_first):
+    exacts = [it for so in found['order'] for it in found['results'].get(so, {}).get('items', [])
+              if matching.confidence(title, it)['tier'] == 'exact']
+    # Cross-source exacts are supplemented by auto_match, which also rejects ambiguous IDs.
+    first_source = next((so for so in found['order'] if any(i['source'] == so for i in exacts)), None)
+    same_source = {str(i['sid']) for i in exacts if i['source'] == first_source}
+    if not payload.accept_first:
+        best = (1.0, next((i for i in exacts if i['source'] == first_source), None)) if len(same_source) == 1 else (0, None)
+    if best[1] and (best[0] == 1.0 or payload.accept_first):
         dup = next((gid for gid, so in session.execute(select(m.Galgame.id, m.Galgame.sources)).all()
                     if str(((so or {}).get(best[1]["source"]) or {}).get("id")) == str(best[1]["sid"])), None)
         if dup:
@@ -396,7 +403,7 @@ def get_cover(gid: int, session: Session = Depends(get_session)) -> FileResponse
 def save_cover(gid: int, session: Session = Depends(get_session)) -> Any:
     """从来源的封面地址下载到本地。"""
     g = get_or_404(session, m.Galgame, gid)
-    err = _download_cover(g)
+    err = _download_cover(g, replace_manual=True)
     if err:
         raise HTTPException(502, err)
     session.commit()
@@ -408,6 +415,7 @@ def save_cover(gid: int, session: Session = Depends(get_session)) -> Any:
 async def upload_cover(gid: int, file: UploadFile = File(...), session: Session = Depends(get_session)) -> Any:
     g = get_or_404(session, m.Galgame, gid)
     _store_cover(g, await file.read(MAX_COVER + 1))
+    g.overrides = sorted(set(g.overrides or []) | {'cover'})
     session.commit()
     session.refresh(g)
     return g

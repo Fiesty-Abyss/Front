@@ -148,9 +148,9 @@ def test_cover_host_guard(client, mock):
 
 def test_quick_add_list_filters_stats(client, mock):
     out = [client.post("/api/galgames/quick-add", json={"title": t, "status": st}).json()
-           for t, st in (("樱色回廊", "finished"), ("雾港夜想曲", "playing"), ("白夜图书馆", "wishlist"), ("一个不存在的游戏", "wishlist"))]
+           for t, st in (("【示例】樱色回廊", "finished"), ("【示例】雾港夜想曲", "playing"), ("【示例】白夜图书馆", "wishlist"), ("一个不存在的游戏", "wishlist"))]
     assert [o["status"] for o in out] == ["matched", "matched", "matched", "unmatched"]
-    assert client.post("/api/galgames/quick-add", json={"title": "樱色回廊"}).json()["status"] == "exists"
+    assert client.post("/api/galgames/quick-add", json={"title": "【示例】樱色回廊"}).json()["status"] == "exists"
     client.patch(f"/api/galgames/{out[0]['id']}", json={"play_minutes": 1500, "my_rating": 8}).raise_for_status()
     lst = lambda **p: client.get("/api/galgames", params=p).json()  # noqa: E731
     assert lst(status="playing")["total"] == 1

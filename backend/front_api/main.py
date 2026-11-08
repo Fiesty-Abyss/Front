@@ -32,6 +32,7 @@ from .routers import bonuses, modelassets, voice, voicedialogue, voicetasks
 from .routers import voicelocal
 from .routers import voicereferences
 from .routers import discovery as discovery_router
+from .routers import metadata as metadata_router
 from .routers import voiceexports as voiceexports_router
 from .routers import voicebooks as voicebooks_router
 
@@ -93,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     for r in (
         system.router,
         discovery_router.router,
+        metadata_router.router,
         backups_router.router,
         oc_router.router,
         ocimages.router,

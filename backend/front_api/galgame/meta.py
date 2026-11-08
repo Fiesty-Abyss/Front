@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from . import sources as src
+from .. import matching
 
 KEY = "galgame_settings"
 DEFAULTS: dict[str, Any] = {
@@ -122,24 +123,26 @@ def auto_match(first: dict[str, Any], others: list[str], cfg: dict[str, Any]) ->
 
     def one(source: str) -> tuple[str, dict[str, Any]]:
         last_err = None
-        best: tuple[float, dict[str, Any] | None] = (0.0, None)
+        candidates = {}
         for q in queries[:2]:
             r = _search_one(source, q, cfg)
             if not r["ok"]:
                 last_err = r["error"]
                 continue
             for it in r["items"]:
-                sc = best_score(names, it)
+                # Prefixes/sequels/adaptations remain suggestions, never automatic identity.
+                sc = max((matching.confidence(n, it)['tier'] == 'exact' for n in names if n), default=False)
                 y = _year(it.get("date"))
                 if year and y and abs(y - year) > 1:
-                    sc -= 0.3
-                if sc > best[0]:
-                    best = (sc, it)
-            if best[0] >= 0.95:
-                break
-        if best[1] is not None and best[0] >= 0.8:
-            return source, {"sid": best[1]["sid"], "score": round(best[0], 2), "title": best[1].get("title")}
-        return source, {"error": last_err} if last_err and best[1] is None else {"none": True}
+                    sc = False
+                if sc:
+                    candidates[str(it['sid'])] = it
+        if len(candidates) == 1:
+            item = next(iter(candidates.values()))
+            return source, {"sid": item['sid'], "score": 1.0, "title": item.get('title')}
+        if len(candidates) > 1:
+            return source, {'none': True, 'ambiguous': True}
+        return source, {"error": last_err} if last_err else {"none": True}
 
     with ThreadPoolExecutor(max_workers=3) as pool:
         return dict(pool.map(one, others))

@@ -99,6 +99,7 @@ class Work(TimestampMixin, Base):
     publisher: Mapped[str | None] = mapped_column(String(200))
     url: Mapped[str | None] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text)
+    metadata_catalog: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     tags: Mapped[list[Tag]] = relationship(secondary=work_tags, lazy="selectin")
 
 
@@ -884,6 +885,7 @@ class Galgame(TimestampMixin, Base):
     用户手动改过的字段记在 overrides，重新拉取时不会被覆盖。CG 档案通过 work_id 挂在作品下。"""
 
     __tablename__ = "galgames"
+    metadata_catalog: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(300), index=True)

@@ -12,6 +12,7 @@ ENTITIES = dict(asset=m.Asset, character=m.Character, entry=m.WorldEntry, note=m
                 world=m.World, work=m.Work, relation=m.Relation,oc=m.OCProfile,study=m.OCStudy,bonus=m.BonusArchive,bonus_item=m.BonusItem)
 ENTITIES.update(voice_provider=m.VoiceProvider, voice_model=m.VoiceModel, voice_profile=m.VoiceProfile)
 ENTITIES.update(voice_project=m.VoiceProject, voice_segment=m.VoiceSegment)
+ENTITIES.update(galgame=m.Galgame)
 KINDS = {v:k for k,v in ENTITIES.items()}
 SKIP = {'id','created_at','updated_at'}
 

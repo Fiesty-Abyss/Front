@@ -52,6 +52,7 @@ def crash_worker(root):
         manager.start('generated-recovery', 'Generated crash task', 1, hold)
     print(json.dumps({'ready': True, 'pid': os.getpid()}), flush=True)
     gate.wait(60)
+    os._exit(24)  # Disposable producer must not leave idle worker threads behind.
 
 
 def query(client, url, expected=None, count=5):
@@ -107,17 +108,20 @@ def queue_probe(root, client):
     finally:
         release.set(); mgr.shutdown()
     # Actually terminate a separate producer after it has persisted live work.
-    command = [sys.executable, str(Path(__file__).resolve()), '--crash-worker', str(root)]
-    child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+    # Windows venv redirectors can be a separate process from the Python worker.
+    # Launch the actual interpreter with this tool's import paths, then terminate
+    # only the Popen-owned process handle; never chase a PID tree with taskkill /T.
+    executable=getattr(sys,'_base_executable',sys.executable) if os.name=='nt' else sys.executable
+    command = [executable, str(Path(__file__).resolve()), '--crash-worker', str(root)]
+    worker_env={**os.environ,'PYTHONPATH':os.pathsep.join(sys.path)}
+    child = subprocess.Popen(command, env=worker_env,stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
         creationflags=0x08000000 if os.name == 'nt' else 0)
     try:
         import queue
         output = queue.Queue()
         threading.Thread(target=lambda: output.put(child.stdout.readline()), daemon=True).start()
-        ready = json.loads(output.get(timeout=20)); assert ready['ready'] is True
-        if os.name == 'nt':
-            subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'], capture_output=True, check=True, timeout=10)
-        else: child.kill()
+        ready = json.loads(output.get(timeout=20)); assert ready['ready'] is True and ready['pid']==child.pid
+        child.kill()
         child.wait(timeout=10)
         recovered = Manager(root / 'crash-jobs.sqlite3')
         try:
@@ -136,7 +140,7 @@ def queue_probe(root, client):
         if child.poll() is None: child.kill(); child.wait(timeout=10)
         child.stdout.close()
     return {'peak_active_workers': peak, 'capacity': 34, 'overflow_status': 429, 'statuses': statuses,
-            'asset_query_during_backlog': under_load, 'actual_process_crash_recovered': 8,
+            'asset_query_during_backlog': under_load, 'actual_process_crash_recovered': 8,'crash_process_identity_verified':True,
             'recovery_policy': 'interrupted; no automatic replay; explicit new retry verified'}
 
 

@@ -1,10 +1,8 @@
 """Dialogue projects; manual audio candidates, immutable source/recipe snapshots."""
-import hashlib
-import json
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import HTTPException
 from sqlalchemy import select, func
-from . import models as m, versions as v, voicestudio as vs
+from . import models as m, versions as v, voicestudio as vs, voicefingerprints as vf
 from .crud import get_or_404
 
 
@@ -70,7 +68,7 @@ def recipe(session, project, body):
     ref={}
     if body.profile_id:
         profile=get_or_404(session,m.VoiceProfile,body.profile_id)
-        issues=vs.diagnostics(session,profile)
+        issues=vs.diagnostics(session,profile,include_sample=False)
         if issues:
             raise HTTPException(409,'声线关联异常，请在声线档案审核后重试')
         from .voicebooks import check_work
@@ -92,30 +90,34 @@ def apply(session, project, obj, body):
 
 
 def fingerprint(session,obj):
+    profile_cfg=model_cfg=provider_cfg=None
     data={'segment_uid':obj.uid,'text':obj.text,'speaker':obj.source.get('speaker','旁白'),'recipe':obj.recipe}
     ref=obj.recipe.get('profile') or {}
     if ref:
         profile=session.get(m.VoiceProfile,obj.profile_id) if obj.profile_id else None
         if not profile or profile.uid!=ref.get('uid'):
             raise HTTPException(409,'声线已删除或身份变化')
-        issues=vs.diagnostics(session,profile)
+        issues=vs.diagnostics(session,profile,include_sample=False)
         if issues:
-            raise HTTPException(409,'声线绑定或试听引用异常，请审核档案')
+            raise HTTPException(409,'声线身份或范围绑定异常，请审核档案')
         project=session.get(m.VoiceProject,obj.project_id)
         from .voicebooks import check_work
         check_work(session,project,profile)
         world=profile.binding.get('world')
         if world and (not project or project.world_id!=world[0]):
             raise HTTPException(409,'工程与声线的世界观归属不同')
+        profile_cfg={k:getattr(profile,k) for k in ('uid','voice_key','language')}
         data['profile']={'id':profile.id,'uid':profile.uid,'version':vs.version_id(session,profile),'voice_key':profile.voice_key}
         if profile.model_id:
             model=get_or_404(session,m.VoiceModel,profile.model_id)
+            model_cfg={k:getattr(model,k) for k in ('uid','file_path','model_version')}
             data['model']={'id':model.id,'uid':model.uid,'version':vs.version_id(session,model)}
             if model.provider_id:
                 provider=get_or_404(session,m.VoiceProvider,model.provider_id)
+                provider_cfg={k:getattr(provider,k) for k in ('uid','engine','endpoint','credential_id')}
                 data['provider']={'id':provider.id,'uid':provider.uid,'version':vs.version_id(session,provider),'engine':provider.engine}
-    digest=hashlib.sha256(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-    return digest,data
+    data['synthesis']=vf.synthesis(data,profile_cfg,model_cfg,provider_cfg)
+    return vf.digest(data['synthesis']),data
 
 
 def describe(session,obj,brief=False):
@@ -149,7 +151,7 @@ def render(session,obj,current):
             status='scope_changed'
     return {'id':obj.id,'uid':obj.uid,'status':obj.status,'origin':obj.snapshot.get('origin'),
         'note':obj.snapshot.get('note',''),'created_at':obj.created_at,'audio_ref':obj.snapshot.get('audio_ref'),
-        'fingerprint':obj.fingerprint,'stale':obj.fingerprint!=current,'audio_status':status,'snapshot':obj.snapshot}
+        'fingerprint':obj.fingerprint,'stale':not vf.is_current(session,obj,current),'audio_status':status,'snapshot':obj.snapshot}
 
 
 def validate_restore(session,obj,data):

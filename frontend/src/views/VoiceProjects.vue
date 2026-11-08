@@ -45,7 +45,7 @@ onMounted(()=>{window.addEventListener('beforeunload',beforeUnload);run(loadProj
   <section class="grid dialogue">
     <p class="notice">台词工程与手动音频候选管理。没有执行 AI 合成；语言与速度仅记录为后续请求参数，不会改变已关联音频。</p>
     <p v-if="error" class="notice" role="alert">{{error}}</p>
-    <VoiceBookPanel :key="project?.uid||'new'" :project="project" @created="row=>run(async()=>{await openProject(row);await loadProjects()})" @changed="row=>project=row"/>
+    <VoiceBookPanel :key="project?.uid||'new'" :project="project" @created="row=>run(async()=>{await openProject(row);await loadProjects()})" @changed="row=>project=row" @reviewed="run(restored)"/>
     <div class="projects">
       <aside class="card grid">
         <form class="grid" @submit.prevent="projectOffset=0;run(loadProjects)"><label class="field">搜索工程<input v-model="search" maxlength="200"/></label><button :disabled="busy">搜索</button></form>

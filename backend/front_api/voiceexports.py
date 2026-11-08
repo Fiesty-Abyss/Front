@@ -61,7 +61,7 @@ def plan(session, project, ids):
             'fingerprint':current,'render_uid':render.uid,'audio_ref':render.snapshot['audio_ref'],
             'audio_version':render.snapshot.get('audio_version'),'origin':render.snapshot.get('origin'),
             'speaker':obj.source.get('speaker','旁白'),'text':obj.text,'source':obj.source.get('book'),
-            'recipe':obj.recipe,'synthesis_identity':{key:render.snapshot.get(key) for key in ('profile','model','provider')}})
+            'recipe':obj.recipe,'synthesis_identity':{key:render.snapshot.get(key) for key in ('profile','model','provider','synthesis')}})
     if sum(len(row['text']) for row in entries)>200000:raise HTTPException(422,'单次导出文本超过20万字符，请分批选择')
     data={'project_id':project.id,'project_uid':project.uid,'project_version':vs.version_id(session,project),
         'world_id':project.world_id,'items':entries,'alignment':'sequential_segments','contains_mock':any(e['origin']=='mock' for e in entries)}

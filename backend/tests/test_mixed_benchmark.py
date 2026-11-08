@@ -27,6 +27,7 @@ def test_generated_mixed_probe_and_existing_output_refusal(tmp_path):
     assert report['queue']['peak_active_workers'] == 2
     assert report['queue']['statuses'] == {'done': 32, 'cancelled': 2, 'error': 0}
     assert report['queue']['actual_process_crash_recovered'] == 8
+    assert report['queue']['crash_process_identity_verified'] is True
     assert 'browser Heap and FPS' in report['unverified']
     before = hashlib.sha256(report_path.read_bytes()).hexdigest()
     result = subprocess.run(command, env=env, cwd=project, capture_output=True, text=True, timeout=20)

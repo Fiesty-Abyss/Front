@@ -4,6 +4,8 @@
 
 Live2D协议原型是未被默认启动链导入的独立标准库CLI：RendererAdapter边界和NullRenderer、16KiB行/响应、4096消息/128最近成功ACK、生成目录与参数动作白名单、单模型世代/释放；不读文件/加载SDK/建图形上下文/监听网络/新增数据库。现有Live2DProfile和Vue档案页不变；未来合法渲染器必须发布真实运行时能力，见research/LIVE2D_RENDERER_ARCHITECTURE。
 
+CI构建重试只在desktop/bundle_retry.py：官方Tauri工具下载网关失败最多两次等待重试，固定原命令与工作目录，64KiB诊断尾部；不进入Front运行时、改业务架构/依赖或替代签名/Hash检查。见BUILD_RELIABILITY。
+
 联网资料匹配：`metadata.py`的MetadataProvider/能力目录包装既有游戏来源与Civitai并提供有限Open Library适配，`routers/metadata.py`复用jobs并按字段事务应用现有Work/Galgame。两列metadata_catalog保存来源/采用值/人工修改和刷新许可，复用versions与全备份；缓存不是权威资料。`/metadata`路由懒加载，不默认联网、下载封面或初始化任何AI/渲染引擎。[接口、安全边界与未完成范围](METADATA_CENTER.md)。
 
 ## 扫描来源增量

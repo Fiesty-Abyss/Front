@@ -1,5 +1,13 @@
 ## 2026-11-08 · 联网资料匹配首闭环
 
+集成 main812d239 后的最终本机验证：582后端通过/1权限跳过，172.44秒（bundle-integration-final.log）；18前端通过与生产构建6.41秒（bundle-integration-node/build.log）。这是已合并发现/匹配/角色卡/Null协议加本补丁的真实组合，不是各分支测试数相加。没有新增前端或应用运行时变化；远程CI须检查本merge head全部结果。
+
+2026-11-08 收敛更新：#64 已在精确 head e222190d06fcc173594984c958e7063a2227830c 的常规 42473081686 与 Windows 42473081585 全成功后正常合并，最新 main **812d239a4c9ac2edb28f1ca8f110f4eb0c97de87**。Windows 实际生成 NSIS/便携包并通过独立完整性校验；不是正式发布或干净系统安装验收。角色卡集成 555 后端/1权限跳过、18前端与生产构建以及此前生成 GUI 均通过。#67 无模型协议已合并；真实渲染仍未完成。
+
+当前 #65 普通 merge 该最新 main，仅处理文档冲突、保留双方历史，不强推。须重新执行本组合完整测试/构建和全部适用 CI。旧 head24816bad 的 Windows42469928847三次官方 NSIS 下载仍504，限次失败正确保留；#64与#67后续成功提供上游间歇恢复证据，不代表重试必成功。
+
+#66 head8f1508678106a98517d50f923c64b8b0a2f361bd 仍为 Draft：常规42472069095成功，Windows42472069127在官方 NSIS ZIP 下载504失败；实际 GUI 启动组合被自动审批拒绝（blocked by policy），未执行、未绕过。群聊/剧情/选项模式、原生目录选择、真实AI与Live2D均不算完成。下方为历史时间截面，以本头和最新 GitHub 状态为准。
+
 角色卡集成最终本机结果：普通合入main9a427b6（#67）后，555后端通过/1权限跳过172.41秒，18前端测试和生产构建6.51秒通过（card-main-integration/card-integration-node/card-integration-build）。角色卡已有生成GUI证据对应的前后端源码未改变，仅新增独立未初始化的协议与文档。新merge head仍须全部适用CI，旧#64 NSIS504记录不当通过。
 
 2026-11-08集成收敛：#67无模型Live2D协议已正常合并main **9a427b6c76b8f8163b8408d4149693ea7addd2bb**，head bf43ff013fefc18ce045c0e69799b0e52e3d6ff3；常规42470955962尝试2和Windows42470955968全成功（安装器/便携/完整性，非正式发布）。当前#64普通merge该最新main，只发生文档头部冲突，保留双方记录；角色卡前后端源文件与已做生成GUI验收的f0ebf5aa一致，新增协议不在应用初始化链。旧#64两次Windows504仍保留，合并后的真正集成测试/构建和精确head CI必须重新执行，不能直接沿用旧结果。
@@ -9,6 +17,8 @@
 2026-11-08角色卡首闭环：#63已正常合并main `b84b856a9ca5ec4037c2fd68afb7ee7f505b4896`，head eeda2640c1df4276d2647ede26af9462968500ad；常规42461583921与Windows42461583955全部成功。当前独立角色卡工作台复用CharacterCard/OC/百科/Asset/世界书/版本/有限jobs：分页编辑、来源、封面、设计收藏字段、明确发送范围的AI候选/人工采用及JSON/PNG保护。534后端通过/1权限跳过、18前端和构建、生成样本实际GUI/390px深浅/重启/隔离备份恢复通过；真实AI质量/封面生成/新的小说直接转卡及D/E/F未因入口而完成。详见[范围](CHARACTER_CARD_STUDIO.md)与[验收](audits/cards/WORKBENCH_20261108.md)，远程CI以本PR精确head为准。
 
 2026-11-08 Live2D协议与研究增量：独立codex/live2d-renderer-protocol从main b84b856a9ca5ec4037c2fd68afb7ee7f505b4896开发；仅自研RendererAdapter/NullRenderer、有界UTF-8命令、世代/动作/表情/口型声明/幂等/关闭/EOF原型。真实自有CLI子进程、101次切换等21定向与最终542后端/1权限跳过194.91秒、15前端及构建通过；不渲染/读模型或初始化GPU，不挂接Studio启动链。Bandori/Neocari固定GPL来源与当前官方SDK/Core另有证据，不复制、不下载Core或接受协议。[研究/协议/限制](research/LIVE2D_RENDERER_ARCHITECTURE.md)。
+
+2026-11-08构建收敛：#62/#63已合并，最新fetch main `b84b856a9ca5ec4037c2fd68afb7ee7f505b4896`。角色卡#64本机534后端/1权限跳过、18前端/构建与生成GUI通过，常规42466429793成功；Windows42466429802两次因官方NSIS工具HTTP504失败，未合并。本独立增量仅给原有锁定构建命令增加严格官方来源/502-504有限重试，不跳过验证或保证修复上游故障。[机制与证据](BUILD_RELIABILITY.md)。
 
 资料发现#62正常merge为47054ea，精确head f3bd6d28常规42458154437、Windows42458154440均成功（冻结、ACL、迁移、签名协议、NSIS/便携及完整性，非公开发布）。下一独立资料匹配增量补游戏/图书/Hash候选、Work/Galgame字段来源/人工保护/不可变历史；修复FD误匹配与上传封面被刷新替换。521本机后端/1权限跳过、15前端与构建、实际生成GUI/390px深浅/重启/隔离备份恢复已验，真实Open Library与Mock分开；本增量远程CI/合并以PR精确head为准。[验收](audits/metadata/CENTER_20261108.md)。ISBN/Edition/动漫/更多来源、C/D/E/F和长期Voice/专业引擎/签名发布仍待。
 

@@ -1,5 +1,13 @@
 # 最新接续 · 资料发现、匹配与角色卡 · 2026-11-08
 
+集成 main812d239 后的最终本机验证：582后端通过/1权限跳过，172.44秒（bundle-integration-final.log）；18前端通过与生产构建6.41秒（bundle-integration-node/build.log）。这是已合并发现/匹配/角色卡/Null协议加本补丁的真实组合，不是各分支测试数相加。没有新增前端或应用运行时变化；远程CI须检查本merge head全部结果。
+
+2026-11-08 收敛更新：#64 已在精确 head e222190d06fcc173594984c958e7063a2227830c 的常规 42473081686 与 Windows 42473081585 全成功后正常合并，最新 main **812d239a4c9ac2edb28f1ca8f110f4eb0c97de87**。Windows 实际生成 NSIS/便携包并通过独立完整性校验；不是正式发布或干净系统安装验收。角色卡集成 555 后端/1权限跳过、18前端与生产构建以及此前生成 GUI 均通过。#67 无模型协议已合并；真实渲染仍未完成。
+
+当前 #65 普通 merge 该最新 main，仅处理文档冲突、保留双方历史，不强推。须重新执行本组合完整测试/构建和全部适用 CI。旧 head24816bad 的 Windows42469928847三次官方 NSIS 下载仍504，限次失败正确保留；#64与#67后续成功提供上游间歇恢复证据，不代表重试必成功。
+
+#66 head8f1508678106a98517d50f923c64b8b0a2f361bd 仍为 Draft：常规42472069095成功，Windows42472069127在官方 NSIS ZIP 下载504失败；实际 GUI 启动组合被自动审批拒绝（blocked by policy），未执行、未绕过。群聊/剧情/选项模式、原生目录选择、真实AI与Live2D均不算完成。下方为历史时间截面，以本头和最新 GitHub 状态为准。
+
 角色卡集成最终本机结果：普通合入main9a427b6（#67）后，555后端通过/1权限跳过172.41秒，18前端测试和生产构建6.51秒通过（card-main-integration/card-integration-node/card-integration-build）。角色卡已有生成GUI证据对应的前后端源码未改变，仅新增独立未初始化的协议与文档。新merge head仍须全部适用CI，旧#64 NSIS504记录不当通过。
 
 2026-11-08集成收敛：#67无模型Live2D协议已正常合并main **9a427b6c76b8f8163b8408d4149693ea7addd2bb**，head bf43ff013fefc18ce045c0e69799b0e52e3d6ff3；常规42470955962尝试2和Windows42470955968全成功（安装器/便携/完整性，非正式发布）。当前#64普通merge该最新main，只发生文档头部冲突，保留双方记录；角色卡前后端源文件与已做生成GUI验收的f0ebf5aa一致，新增协议不在应用初始化链。旧#64两次Windows504仍保留，合并后的真正集成测试/构建和精确head CI必须重新执行，不能直接沿用旧结果。
@@ -42,6 +50,22 @@ A/B专属private/discovery-20261108-v2、C专属private/cards-20261108-v1均核�
 没有停止个人8000、访问旧WebUI/模型/原始世界观或替换个人库/安装；没有真实/付费AI调用、Core下载/协议接受、摄像头/GPU或公开Release。测试PYTHONPATH指向当前工作树backend，TEMP/TMP在E:/Skill/front/.cache/tmp；不要误用根旧editable包或重放旧准备脚本。
 
 原型未改前端/业务DB/API/依赖，初始bundle与基线相同；无整机CPU/RSS/PrivateBytes/Heap/GPU/FPS或冷启动/泄漏新结论。Voice真实TTS/数据集/训练/制作、Live2D动作/道具/面捕/玄宝酱授权、Krita/笔刷/压感、真实OC/生图、小说语义、3D、游戏音声/特典、大库、正式Windows/签名更新/插件方向完整保留。
+
+## 2026-11-08 · 当前构建阻塞与独立重试增量
+
+截至本提交最新fetch origin/main为 **b84b856a9ca5ec4037c2fd68afb7ee7f505b4896**（#63正常merge）。#62常规42458154437/Windows42458154440与#63常规42461583921/Windows42461583955全部成功，原精确记录以下保留为历史。
+
+#64角色卡head **f0ebf5aa95cebee738de7239f74ebf49ed2da5c8**：534本机后端/1权限跳过、18前端/构建、生成实际GUI/390px深浅/重启/隔离恢复通过，常规42466429793成功；Windows **42466429802尝试1/2均失败**，第一回helper DLL504，第二回NSIS ZIP504，应用/Rust编译及此前测试成功。没有合并、不把失败当验收；不要继续无界重跑整个job。
+
+当前codex/windows-bundle-retry从同一最新main创建，严格官方来源502/503/504最多两次重试（5/15秒），保持原命令/锁文件/哈希/签名及最终失败门槛。27定向、548本机后端/1权限跳过166.77秒、15前端与构建通过，远程CI以该PR精确head为准。若限次仍遇上游故障则留下待合并，不能豁免Windows门槛。见BUILD_RELIABILITY.md。
+
+已推送且独立基于同一main的两个功能分支：codex/chat-model-snapshots（533后端/1跳过、15前端与构建，Mock/并发/备份；GUI启动组合命令被自动审批拒绝blocked by policy，保持Draft/未验GUI）；codex/live2d-renderer-protocol（初始542后端/1跳过、15前端/构建，UTF-8更新后21定向通过，CLI非渲染；下一同步基线后再记录集成全量）。各自范围文档在对应分支，未复制GPL代码、未下载/同意Core许可。
+
+准确后续：先检查构建重试PR完整CI/实际下载结果；通过且无冲突才普通merge，再把最新main普通merge进#64，重新测试/构建/全部CI后考虑合并。聊天待真正隔离GUI，勿仅凭Mock和绿CI转Ready。Live2D头less原型可独立验收并提交PR，但真实渲染/窗口/GPU需要许可/环境。不要强推、改镜像/校验或发布Release。
+
+自建A/B与C实例均已认证关闭：private/discovery-20261108-v2和private/cards-20261108-v1的专属标记/control均核对stopped=true，令牌不得打印/提交；聊天生成目录未创建。Root checkout仍3aaa9e1且clean，个人8000/安装/数据库和原始素材未替换或操作。旧NEXT关于A/B实例仍运行为历史，不能重放。临时浏览器尺寸已重置；已公开截图全部生成。
+
+所有Voice真实TTS/数据集/制作、Krita/压感、真实OC/生图/小说语义、Live2D动作/道具/面捕/授权、3D、游戏音声/特典、更多匹配、大库和桌面/正式签名更新等长期方向保留；当前不需要用户夜间给密钥或接受协议。
 
 ## 基线、分支和权限
 

@@ -57,7 +57,7 @@ onBeforeUnmount(() => {disposed=true; sequence++; sample.value=null})
 </script>
 <template>
   <div class="voice grid">
-    <header><div class="eyebrow">CREATION · VOICE</div><h1>AI Voice Studio</h1><p class="muted">声线、模型与授权资料管理。当前未连接 TTS 引擎，不会启动推理服务或下载模型。</p></header>
+    <header><div class="eyebrow">CREATION · VOICE</div><h1>AI Voice Studio</h1><p class="muted">声线、模型、授权与配音工程。引擎按需连接，不会自动启动服务或下载模型。</p></header>
     <p v-if="error" class="notice" role="alert">{{ error }}</p>
     <nav class="row" aria-label="Voice 工作区"><button v-for="(label,key) in labels" :key="key" :disabled="busy" :aria-pressed="!projectMode&&tab===key" @click="leaveProjects(key)">{{ label }}</button><button :disabled="busy" :aria-pressed="projectMode" @click="projectMode=true;sample=null;picker=false">配音工程</button><RouterLink to="/audio">音声收藏</RouterLink><RouterLink to="/characters">角色百科</RouterLink><RouterLink to="/oc">OC Studio</RouterLink></nav>
     <VoiceProjects v-if="projectMode" ref="projectsRef"/>
@@ -73,7 +73,7 @@ onBeforeUnmount(() => {disposed=true; sequence++; sample.value=null})
         <form class="grid" @submit.prevent="run(save)">
           <label class="field">名称<input v-model="draft.title" required maxlength="200" /></label>
           <template v-if="tab==='providers'">
-            <label class="field">引擎类型<select v-model="draft.engine"><option value="unconfigured">未配置</option><option value="gpt_sovits">GPT-SoVITS（尚未连接）</option><option value="custom">其他引擎（尚未连接）</option></select></label>
+            <label class="field">引擎类型<select v-model="draft.engine"><option value="unconfigured">未配置</option><option value="gpt_sovits">GPT-SoVITS（需显式检查）</option><option value="custom">其他引擎（尚无合成适配）</option></select></label>
             <label class="field">服务地址<input v-model="draft.endpoint" placeholder="仅登记，不发送请求" maxlength="2000"/></label>
             <label class="field">已有 AI 配置 ID（仅引用凭据）<input v-model.number="draft.credential_id" type="number" min="1" @change="draft.credential_id ||= null"/></label>
             <p class="muted">聊天 API 不代表支持语音合成；当前能力尚未验证。请勿在名称、地址或备注填写 API Key。</p>

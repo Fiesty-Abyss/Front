@@ -71,7 +71,7 @@ def test_health_reads_only_openapi_and_does_not_claim_inference_ready():
     def handle(req):
         assert req.method=='GET' and req.url.path=='/openapi.json'
         return httpx.Response(200,json={'paths':{'/tts':{'post':{'requestBody':{'content':{'application/json':{'schema':{'$ref':'#/components/schemas/TTS_Request'}}}}}}},
-            'components':{'schemas':{'TTS_Request':{'properties':{key:{} for key in ('text','text_lang','ref_audio_path','prompt_lang')}}}}})
+            'components':{'schemas':{'TTS_Request':{'properties':{key:{} for key in ('text','text_lang','ref_audio_path','prompt_lang','prompt_text','speed_factor','seed','media_type','streaming_mode')}}}}})
     data=adapter(handle).health()
     assert data['reachable'] and data['contract_matches']
     assert data['runtime_verified'] is False and data['server_revision_verified'] is False
@@ -155,3 +155,31 @@ def test_transport_interruption_leaves_no_partial_audio():
     a=adapter(lambda req:httpx.Response(200,stream=Broken(),headers={'content-type':'audio/wav'}))
     with pytest.raises(AdapterError,match='transport_failed'):a.synthesize(request(),out,Cancellation())
     assert out.getvalue()==b''
+
+
+def test_small_transport_chunks_are_observed_before_64k_for_cancellation():
+    output=io.BytesIO();token=Cancellation();raw=wav_bytes()
+    class Stream(httpx.SyncByteStream):
+        def __iter__(self):
+            yield raw[:44]
+            assert output.tell()==44  # Waiting for 64KiB would hide cancellation.
+            token.cancel();yield raw[44:]
+    a=adapter(lambda req:httpx.Response(200,stream=Stream(),headers={'content-type':'audio/wav'}))
+    with pytest.raises(Cancelled):a.synthesize(request(),output,token)
+    assert output.getvalue()==b''
+
+
+def test_total_receive_deadline_clears_output(monkeypatch):
+    from front_api import tts
+    samples=iter([0,121])
+    monkeypatch.setattr(tts,'monotonic',lambda:next(samples))
+    a=adapter(lambda req:httpx.Response(200,content=wav_bytes(),headers={'content-type':'audio/wav'}))
+    output=io.BytesIO()
+    with pytest.raises(AdapterError,match='deadline_exceeded'):a.synthesize(request(),output,Cancellation())
+    assert output.getvalue()==b''
+
+
+def test_health_rejects_schema_missing_fields_that_are_sent():
+    spec={'paths':{'/tts':{'post':{'requestBody':{'content':{'application/json':{'schema':{'properties':{k:{} for k in ('text','text_lang','ref_audio_path','prompt_lang')}}}}}}}}}
+    result=adapter(lambda req:httpx.Response(200,json=spec)).health()
+    assert result['reachable'] and not result['contract_matches'] and not result['runtime_verified']

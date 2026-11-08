@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass, field
 import hashlib
 import json
 import math
+from time import monotonic
 import struct
 import threading
 from typing import BinaryIO, Protocol
@@ -227,19 +228,23 @@ class GPTSoVITSAdapter(BaseAdapter):
     def capabilities(self):
         return Capabilities('gpt_sovits',GPT_CONTRACT,parameters=('speed','seed','top_k','top_p','temperature','text_split_method'))
 
-    def health(self):
+    def health(self,cancel=None):
+        deadline=monotonic()+120
         try:
             with self.client.stream('GET',self.base+'/openapi.json',headers={'Accept-Encoding':'identity'},timeout=self.timeout,follow_redirects=False) as response:
                 if response.status_code!=200:return {'reachable':False,'contract_matches':False,'runtime_verified':False}
                 if response.headers.get('content-encoding','identity').lower()!='identity':raise AdapterError('encoded_response_unsupported')
                 data=bytearray()
-                for block in response.iter_bytes(65536):
+                for block in response.iter_bytes():
+                    if cancel:cancel.check()
+                    if monotonic()>deadline:raise AdapterError('deadline_exceeded')
+                    if len(data)+len(block)>1024*1024:raise AdapterError('schema_limit_exceeded')
                     data.extend(block)
-                    if len(data)>1024*1024:raise AdapterError('schema_limit_exceeded')
                 spec=json.loads(data)
                 schema=spec['paths']['/tts']['post']['requestBody']['content']['application/json']['schema']
                 if '$ref' in schema:schema=spec['components']['schemas'][schema['$ref'].rsplit('/',1)[-1]]
-                matches={'text','text_lang','ref_audio_path','prompt_lang'}<=schema.get('properties',{}).keys()
+                required={'text','text_lang','ref_audio_path','prompt_lang','prompt_text','speed_factor','seed','media_type','streaming_mode'}
+                matches=required<=schema.get('properties',{}).keys()
                 return {'reachable':True,'contract_matches':matches,'runtime_verified':False,'server_revision_verified':False}
         except httpx.HTTPError:
             raise AdapterError('health_transport_failed') from None
@@ -272,6 +277,7 @@ class GPTSoVITSAdapter(BaseAdapter):
 
     def synthesize(self,request,output,cancel):
         payload=self.payload(request);cancel.check();empty_output(output)
+        deadline=monotonic()+120
         try:
             with self.client.stream('POST',self.base+'/tts',json=payload,headers={'Accept-Encoding':'identity'},timeout=self.timeout,follow_redirects=False) as response:
                 if response.status_code!=200:raise AdapterError('upstream_http_'+str(response.status_code))
@@ -279,10 +285,13 @@ class GPTSoVITSAdapter(BaseAdapter):
                 if response.headers.get('content-type','').split(';')[0].lower() not in ('audio/wav','audio/x-wav'):
                     raise AdapterError('unexpected_content_type')
                 size=0
-                for block in response.iter_bytes(65536):
-                    cancel.check();size+=len(block)
+                for block in response.iter_bytes():
+                    cancel.check()
+                    if monotonic()>deadline:raise AdapterError('deadline_exceeded')
+                    size+=len(block)
                     if size>self.limit:raise AdapterError('audio_limit_exceeded')
-                    output.write(block)
+                    for start in range(0,len(block),65536):
+                        cancel.check();output.write(block[start:start+65536])
                 cancel.check()
                 return validated_wav(output,'gpt_sovits',self.limit)
         except httpx.TimeoutException:

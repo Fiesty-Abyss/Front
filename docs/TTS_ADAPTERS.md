@@ -1,5 +1,9 @@
 # TTS adapter contract foundation
 
+## 当前状态 · 2026-11-08
+
+已增加默认关闭、显式授权的本机 GPT-SoVITS Front API 和懒加载面板，复用现有候选/素材/队列；配置见 [LOCAL_TTS_SETUP.md](LOCAL_TTS_SETUP.md)，协议与生成文件/真实浏览器证据见 [LOCAL_TTS_ACCEPTANCE](audits/voice/LOCAL_TTS_ACCEPTANCE.md)。未进行真实模型推理、真人声音克隆或音质验收。下文保留各历史阶段的实现边界，不代表最新入口仍未接入。
+
 本增量包含统一Python协议、Mock标记音、固定GPT-SoVITS wire contract与可显式启用的Mock后台流程。没有将真实引擎暴露为浏览器合成API，也没有安装/下载/启动推理、声库或训练环境。
 
 ## 能力与来源

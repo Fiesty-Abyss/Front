@@ -303,3 +303,7 @@ GPT-SoVITS适配须先锁定官方提交与API契约，模拟协议测试和真�
 ### VoiceExport
 
 新增voice_exports只保存导出请求的不可变身份/版本指纹、状态、job_id和共享Asset引用；素材仍为唯一文件存储。用户显式预览/确认的≤100片段在既有有限队列中处理，PCM与ZIP按64KiB分块、64MiB单输入/128MiB总PCM上限。提交前重查指纹；重启标记interrupted，不重放。历史媒体通过既有版本保留/整库备份；升级前快照，未改历史表字段。字幕为片段顺序时间轴，非强制语音对齐。见VOICE_EXPORTS.md。
+
+## ISBN版次元数据
+
+bookmeta仅标准库ISBN校验/版次JSON规范化；metadata.OpenLibrary复用已有固定主机、有限响应与jobs，以OL…M具体版本和OL…W作品分开。新字段复用Work.metadata_catalog/versions/完整备份，不增加表/服务/推理。只有主动检索联网，单次受控JSON跳转，人工字段和source_id刷新许可保护保留，见BOOK_EDITIONS。

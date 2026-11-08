@@ -10,7 +10,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from fastapi import HTTPException
-from pydantic import Field, StrictInt, field_validator
+from pydantic import BaseModel,ConfigDict,Field, StrictInt, field_validator
 from sqlalchemy import select, update
 
 from . import models as m, jobs, versions as v, voiceprojects as vp, voicestudio as vs
@@ -23,8 +23,17 @@ MAX_INPUT = 64 * 1024 * 1024
 MAX_PCM = 128 * 1024 * 1024
 
 
+class SegmentRef(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    id:StrictInt=Field(gt=0,le=9223372036854775807)
+    uid:str=Field(pattern=r'^[0-9a-f]{32}$')
+    version:int=Field(gt=0)
+
+
 class Preview(vp.Mutation):
     segment_ids: list[StrictInt] = Field(min_length=1, max_length=100)
+    segment_refs:list[SegmentRef]|None=Field(default=None,min_length=1,max_length=100)
+    pause_ms:StrictInt=Field(default=0,ge=0,le=10000)
 
     @field_validator('segment_ids')
     @classmethod
@@ -43,9 +52,14 @@ def digest(value):
     return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
 
 
-def plan(session, project, ids):
+def plan(session, project, ids, pause_ms=0,refs=None):
     rows=session.scalars(vp.active(project.id).where(m.VoiceSegment.id.in_(ids)).order_by(m.VoiceSegment.position,m.VoiceSegment.id)).all()
     if len(rows)!=len(ids):raise HTTPException(409,'选定片段已删除、归档或不属于当前工程')
+    if refs is not None:
+        tokens={r.id:r for r in refs}
+        if len(tokens)!=len(refs) or set(tokens)!=set(ids):raise HTTPException(422,'跨页选择身份清单不匹配')
+        if any(obj.uid!=tokens[obj.id].uid or vs.version_id(session,obj)!=tokens[obj.id].version for obj in rows):
+            raise HTTPException(409,'跨页选择中的片段已变化，请清空后重新选择')
     entries=[]
     for obj in rows:
         if obj.source.get('suggestion') and not obj.source.get('speaker_confirmed'):
@@ -66,12 +80,17 @@ def plan(session, project, ids):
     if sum(len(row['text']) for row in entries)>200000:raise HTTPException(422,'单次导出文本超过20万字符，请分批选择')
     data={'project_id':project.id,'project_uid':project.uid,'project_version':vs.version_id(session,project),
         'world_id':project.world_id,'items':entries,'alignment':'sequential_segments','contains_mock':any(e['origin']=='mock' for e in entries)}
+    if pause_ms:data['pause_ms']=pause_ms  # Zero preserves legacy immutable export fingerprints.
     return {'fingerprint':digest(data),'snapshot':data}
 
 
 def describe(row,detail=True):
+    effective=row.status
+    if row.status in ('queued','running','interrupted') and row.job_id:
+        job=jobs.get(row.job_id)
+        if job and job.status in ('cancelled','error','interrupted'):effective=job.status
     result={'id':row.id,'uid':row.uid,'project_id':row.project_id,'fingerprint':row.fingerprint,
-        'status':row.status,'job_id':row.job_id,'error_code':row.error_code,'asset_id':row.asset_id,
+        'status':effective,'recorded_status':row.status,'job_id':row.job_id,'error_code':row.error_code,'asset_id':row.asset_id,
         'created_at':row.created_at}
     if detail:result['snapshot']=row.snapshot
     return result
@@ -92,7 +111,7 @@ def terminal(uid,status,code):
 def checked_plan(session,row):
     project=get_or_404(session,m.VoiceProject,row.project_id)
     if project.uid!=row.snapshot['project_uid']:raise HTTPException(409,'工程身份变化')
-    current=plan(session,project,[e['segment_id'] for e in row.snapshot['items']])
+    current=plan(session,project,[e['segment_id'] for e in row.snapshot['items']],row.snapshot.get('pause_ms',0))
     if current['fingerprint']!=row.fingerprint:raise HTTPException(409,'工程或已采纳片段发生变化，原导出保留，请重新预览')
     return project
 
@@ -110,6 +129,68 @@ def copy_audio(session, entry, dest, job):
             if size>MAX_INPUT:raise HTTPException(413,'单个音频超过64MiB，请先拆分')
             digestor.update(block);out.write(block)
     if digestor.hexdigest()!=ref['sha256']:raise HTTPException(409,'音频实际内容与已采纳Hash不一致')
+
+
+def inspect_pcm(path,job):
+    """Explicit background scan, bounded blocks; no resampling or source writes."""
+    import array,math,sys
+    try:
+        with wave.open(str(path),'rb') as audio:
+            channels,width,rate,frames=audio.getnchannels(),audio.getsampwidth(),audio.getframerate(),audio.getnframes()
+            if audio.getcomptype()!='NONE' or channels not in (1,2) or width not in (1,2,3,4) or not 8000<=rate<=192000 or frames*1000//rate<1:
+                raise HTTPException(422,'仅支持完整PCM WAV')
+            count=0;peak=0;squares=0;remaining=frames
+            while remaining:
+                job.check();n=min(remaining,8192);block=audio.readframes(n)
+                if len(block)!=n*channels*width:raise HTTPException(422,'WAV数据截断')
+                remaining-=n
+                if width==2:
+                    values=array.array('h');values.frombytes(block)
+                    if sys.byteorder!='little':values.byteswap()
+                    peak=max(peak,max(abs(x) for x in values));squares+=sum(x*x for x in values);count+=len(values)
+            db=lambda value:round(20*math.log10(value/32768),2) if value else None
+            return {'channels':channels,'sample_width':width,'sample_rate':rate,'frames':frames,'pcm_bytes':frames*channels*width,
+                'duration_seconds':frames/rate,'peak_dbfs':db(peak) if width==2 else None,
+                'rms_dbfs':db(math.sqrt(squares/count)) if count else None,'level_measured':width==2,
+                'silent':peak==0 if width==2 else None,'levels_method':'all_samples_pcm16' if width==2 else 'unsupported_bit_depth'}
+    except (wave.Error,EOFError):raise HTTPException(422,'音频不是支持的PCM WAV') from None
+
+
+def preflight(snapshot,fingerprint):
+    # Job data contains only the bounded immutable selection, never an open DB.
+    from types import SimpleNamespace
+    expected=SimpleNamespace(project_id=snapshot['project_id'],snapshot=snapshot,fingerprint=fingerprint)
+    def probe(job):
+        with new_session() as session:checked_plan(session,expected)
+        staging=get_settings().data_dir/'.staging';staging.mkdir(parents=True,exist_ok=True)
+        rows=[];pcm=0;formats=set();levels=[];duration=0;limited=False
+        with tempfile.TemporaryDirectory(prefix='voice-preflight-',dir=staging) as temp:
+            for index,entry in enumerate(snapshot['items']):
+                job.check();item={'segment_id':entry['segment_id'],'segment_uid':entry['segment_uid']}
+                if limited:rows.append({**item,'issue':'not_checked_total_limit'});continue
+                path=Path(temp)/f'{index}.wav'
+                try:
+                    with new_session() as session:copy_audio(session,entry,path,job)
+                    info=inspect_pcm(path,job);pcm+=info['pcm_bytes'];duration+=info['duration_seconds']
+                    if index:pcm+=(snapshot.get('pause_ms',0)*info['sample_rate']+500)//1000*info['channels']*info['sample_width']
+                    formats.add((info['channels'],info['sample_width'],info['sample_rate']))
+                    if info['rms_dbfs'] is not None:levels.append(info['rms_dbfs'])
+                    rows.append({**item,**info,'issue':None})
+                    if pcm>MAX_PCM:limited=True
+                except HTTPException as exc:rows.append({**item,'issue':'audio_validation_'+str(exc.status_code)})
+                except OSError:rows.append({**item,'issue':'audio_unreadable'})
+                finally:
+                    if path.exists():path.unlink()
+                job.step('只读校验选定音轨格式、Hash与PCM16音量；未转码')
+        with new_session() as session:checked_plan(session,expected)
+        compatible=not limited and len(formats)==1 and all(r['issue'] is None for r in rows)
+        complete=all(r['issue'] is None for r in rows)
+        job.result={'fingerprint':fingerprint,'items':rows,'compatible':compatible,'formats_match':len(formats)==1,
+            'pcm_bytes_with_pauses':pcm,'total_limit_exceeded':limited,'pause_ms':snapshot.get('pause_ms',0),
+            'duration_seconds_with_pauses':duration+max(0,len(rows)-1)*snapshot.get('pause_ms',0)/1000 if complete else None,
+            'level_difference_warning':len(levels)>1 and max(levels)-min(levels)>6,
+            'not_loudness_normalization':True,'will_modify_sources':False}
+    return jobs.start('voice-export-preflight','导出音轨兼容预检',len(snapshot['items']),probe)
 
 
 def stamp(frames, rate, sep):
@@ -141,7 +222,14 @@ def package(session,snapshot,folder,job):
                     if shape!=fmt:raise HTTPException(422,'所选WAV采样率、声道及位深必须一致；未重采样或修改原件')
                     frames=audio.getnframes();width=shape[0]*shape[1]
                     if frames<=0 or (frames*1000)//shape[2]<1:raise HTTPException(422,'音轨为空或短于1毫秒')
-                    if pcm_bytes+frames*width>MAX_PCM:raise HTTPException(413,'单次导出PCM超过128MiB，请分批选择')
+                    gap=(snapshot.get('pause_ms',0)*shape[2]+500)//1000 if index>1 else 0
+                    if pcm_bytes+(frames+gap)*width>MAX_PCM:raise HTTPException(413,'单次导出PCM含停顿超过128MiB，请分批选择')
+                    remaining_gap=gap
+                    while remaining_gap:
+                        job.check();count=min(remaining_gap,max(1,65536//width))
+                        block=(b'\x80' if shape[1]==1 else b'\0')*(count*width)
+                        target.writeframesraw(block);remaining_gap-=count;pcm_bytes+=len(block)
+                    total_frames+=gap
                     remaining=frames
                     while remaining:
                         job.check();count=min(remaining,max(1,65536//width));block=audio.readframes(count)
@@ -205,11 +293,11 @@ def enqueue(session,project,body):
     uid=uuid.uuid5(uuid.NAMESPACE_URL,project.uid+'/export/'+body.idempotency_key).hex
     existing=session.scalar(select(m.VoiceExport).where(m.VoiceExport.uid==uid))
     if existing:
-        if existing.fingerprint!=body.fingerprint or set(body.segment_ids)!={e['segment_id'] for e in existing.snapshot['items']}:
+        if existing.fingerprint!=body.fingerprint or set(body.segment_ids)!={e['segment_id'] for e in existing.snapshot['items']} or existing.snapshot.get('pause_ms',0)!=body.pause_ms:
             raise HTTPException(409,'幂等键对应其他导出请求')
         return existing
     vs.guard(session,project,body.project_uid,body.expected_project_version)
-    preview=plan(session,project,body.segment_ids)
+    preview=plan(session,project,body.segment_ids,body.pause_ms,body.segment_refs)
     if preview['fingerprint']!=body.fingerprint:raise HTTPException(409,'导出预览已变化，请重新确认')
     row=m.VoiceExport(uid=uid,project_id=project.id,fingerprint=body.fingerprint,snapshot=preview['snapshot'],status='queued')
     session.add(row);session.commit()

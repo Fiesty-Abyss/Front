@@ -650,6 +650,22 @@ class CharacterCard(TimestampMixin, Base):
     )
 
 
+class CharacterCardDraft(TimestampMixin, Base):
+    """Bounded AI suggestions awaiting review, not a second character/asset store."""
+    __tablename__ = 'character_card_drafts'
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    status: Mapped[str] = mapped_column(String(30), default='queued')
+    request_hash: Mapped[str] = mapped_column(String(64))
+    provider: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    source: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    fields: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    job_id: Mapped[str | None] = mapped_column(String(20))
+    error: Mapped[str | None] = mapped_column(String(300))
+    adopted_id: Mapped[int | None] = mapped_column(Integer)
+    adopted_identity: Mapped[str | None] = mapped_column(String(50))
+    adopted_hash: Mapped[str | None] = mapped_column(String(64))
+
+
 class ChatSession(TimestampMixin, Base):
     __tablename__ = "chat_sessions"
 

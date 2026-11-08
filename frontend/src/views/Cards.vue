@@ -1,112 +1,72 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { api, Assets, Cards, Lorebooks, thumb } from '../api'
-import { guard, toast } from '../toast'
-
-const router = useRouter()
-const route = useRoute()
-const items = ref([])
-const cur = ref(null)
-const images = ref([])
-const importInput = ref(null)
-const tab = ref('basic')
-
-const books = ref([])
-async function load() { items.value = (await Cards.list({ limit: 500 })).items; books.value = (await Lorebooks.list()).items }
-onMounted(async () => {
-  await load()
-  images.value = (await Assets.list({ kind: 'drawing,ai_image,cg,reference', limit: 500 })).items
-  const want = items.value.find((c) => c.id === Number(route.query.id))
-  if (want || items.value.length) select(want ?? items.value[0])
-})
-function select(c) {
-  cur.value = c
-    ? { ...c, greetingsText: c.alternate_greetings.join('\n---\n'), tagsText: c.card_tags.join(', '), extText: JSON.stringify(c.extensions, null, 2) }
-    : { name: '', description: '', personality: '', scenario: '', first_mes: '', mes_example: '', creator_notes: '', system_prompt: '', post_history_instructions: '', greetingsText: '', tagsText: '', extText: '{}', creator: '', character_version: '' }
-}
-function body() {
-  const c = cur.value
-  let extensions
-  try { extensions = JSON.parse(c.extText || '{}') } catch { toast('extensions 需要是 JSON', true); throw new Error('bad json') }
-  return {
-    name: c.name, description: c.description, personality: c.personality, scenario: c.scenario, first_mes: c.first_mes,
-    mes_example: c.mes_example, creator_notes: c.creator_notes, system_prompt: c.system_prompt,
-    post_history_instructions: c.post_history_instructions, creator: c.creator, character_version: c.character_version,
-    alternate_greetings: c.greetingsText.split(/\n-{3,}\n/).map((s) => s.trim()).filter(Boolean),
-    card_tags: c.tagsText.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
-    extensions, avatar_asset_id: c.avatar_asset_id || null, character_id: c.character_id || null, lorebook_id: c.lorebook_id || null,
-  }
-}
-async function save() {
-  const saved = await guard(() => (cur.value.id ? Cards.update(cur.value.id, body()) : Cards.create(body())), '已保存')
-  await load(); select(saved)
-}
-async function remove() {
-  if (!confirm(`删除角色卡「${cur.value.name}」？`)) return
-  await guard(() => Cards.remove(cur.value.id), '已删除'); cur.value = null; load()
-}
-async function doImport() {
-  const file = importInput.value.files[0]
-  if (!file) return
-  const form = new FormData(); form.append('file', file)
-  const c = await guard(() => api.upload('/api/cards/import', form), `已导入 ${file.name}`)
-  importInput.value.value = ''
-  await load(); select(c)
-}
-async function chat() {
-  const s = await guard(() => api.post('/api/ai/sessions', { card_id: cur.value.id, title: `与 ${cur.value.name} 的对话` }))
-  router.push({ path: '/chat', query: { session: s.id } })
-}
-const fields = {
-  basic: [['description', '角色描述 description', 180], ['personality', '性格 personality', 70], ['scenario', '场景 scenario', 70], ['first_mes', '开场白 first_mes', 100]],
-  advanced: [['mes_example', '对话示例 mes_example（<START> 分隔）', 140], ['system_prompt', '系统提示词 system_prompt', 80], ['post_history_instructions', '历史后指令 post_history_instructions', 60], ['creator_notes', '作者备注 creator_notes', 60]],
-}
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { api, thumb } from '../api'
+import { designState, aliasExtensions } from '../cardDrafts'
+import { toast } from '../toast'
+const VersionPanel=defineAsyncComponent(()=>import('../components/VersionPanel.vue'))
+const CardAssist=defineAsyncComponent(()=>import('../components/CardAssist.vue'))
+const route=useRoute(),router=useRouter()
+const items=ref([]),total=ref(0),offset=ref(0),q=ref(''),cur=ref(null),expected=ref(null),scope=ref({}),base=ref('')
+const error=ref(''),notice=ref(''),busy=ref(false),tab=ref('basic'),preview=ref(true),history=ref(false),assistant=ref(false),draftId=ref(null)
+const images=ref([]),books=ref([]),imageQuery=ref(''),bookQuery=ref(''),imageOffset=ref(0),bookOffset=ref(0),imageTotal=ref(0),bookTotal=ref(0)
+const sourceKind=ref('character'),sourceQuery=ref(''),sourceChoices=ref([]),sourceId=ref(''),sourceOffset=ref(0),sourceTotal=ref(0),importInput=ref(null)
+const templateId=ref('blank')
+const errorElement=ref(null)
+let disposed=false,sequence=0
+const blank=()=>({name:'',description:'',personality:'',scenario:'',first_mes:'',mes_example:'',creator_notes:'',system_prompt:'',post_history_instructions:'',alternate_greetings:[],card_tags:[],extensions:{},creator:'',character_version:'',avatar_asset_id:null,character_id:null,lorebook_id:null})
+const editable=c=>({...blank(),...c,greetingsText:(c.alternate_greetings||[]).join('\n---\n'),tagsText:(c.card_tags||[]).join(', '),aliasesText:(designState(JSON.stringify(c.extensions||{})).value.aliases||[]).join('、'),extText:JSON.stringify(c.extensions||{},null,2)})
+const dirty=computed(()=>cur.value&&JSON.stringify(cur.value)!==base.value)
+const design=computed(()=>designState(cur.value?.extText).value)
+const designBlocked=computed(()=>designState(cur.value?.extText).blocked)
+const assistCurrent=computed(()=>cur.value?{...cur.value,alternate_greetings:cur.value.greetingsText.split(/\n-{3,}\n/).map(s=>s.trim()).filter(Boolean),card_tags:cur.value.tagsText.split(/[,，]/).map(s=>s.trim()).filter(Boolean)}:null)
+const fields={basic:[['description','角色介绍',6],['personality','性格',3],['scenario','场景 / 世界观',3],['first_mes','开场白',4]],advanced:[['mes_example','对话示例（<START> 分隔）',5],['system_prompt','System Prompt',4],['post_history_instructions','历史后指令',3],['creator_notes','创作 / 来源说明',3]]}
+const guard=()=>!dirty.value||window.confirm('角色卡有未保存修改，确认放弃这些编辑？')
+function leaving(e){if(dirty.value){e.preventDefault();e.returnValue=''}}
+onBeforeRouteLeave(()=>guard())
+onBeforeUnmount(()=>{disposed=true;sequence++;window.removeEventListener('beforeunload',leaving)})
+async function run(fn){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await fn()}catch(e){if(!disposed){error.value=e.message;await nextTick();errorElement.value?.focus()}}finally{if(!disposed)busy.value=false}}
+async function load(){const r=await api.get('/api/cards/summaries',{q:q.value,limit:20,offset:offset.value});if(!disposed){items.value=r.items;total.value=r.total}}
+function reset(c=blank(),fingerprint=null,newScope={}){cur.value=editable(c);expected.value=fingerprint;scope.value=newScope;draftId.value=null;history.value=false;base.value=JSON.stringify(cur.value)}
+async function open(id,force=false){if(!force&&!guard())return;const n=++sequence;const r=await api.get(`/api/cards/${id}/draft-state`);if(!disposed&&n===sequence){reset(r.card,r.expected,r.scope);bookOffset.value=0;await chooseBooks()}}
+function fresh(){if(guard()){sequence++;const c=blank();if(templateId.value==='dialogue')c.system_prompt='根据角色卡中的设定与{{user}}对话，人物称呼使用{{char}}。';if(templateId.value==='story')c.system_prompt='根据角色设定与场景参与叙事；由用户决定后续行动，保留已确认的情节。';reset(c);tab.value='basic'}}
+function setTab(key){if(key==='extra'){try{cur.value.extText=JSON.stringify(aliasExtensions(cur.value.extText,cur.value.aliasesText),null,2)}catch{}}tab.value=key}
+function syncAliases(raw){const state=designState(raw);if(!state.blocked)cur.value.aliasesText=(state.value.aliases||[]).join('、')}
+function body(){const c=cur.value;let extensions;try{extensions=aliasExtensions(c.extText,c.aliasesText)}catch{throw new Error('扩展JSON无效，已保留编辑内容，请修正后再保存')}if(!extensions||Array.isArray(extensions)||typeof extensions!=='object')throw new Error('扩展必须是JSON对象');return {...Object.fromEntries(['name','description','personality','scenario','first_mes','mes_example','creator_notes','system_prompt','post_history_instructions','creator','character_version'].map(k=>[k,c[k]])),alternate_greetings:c.greetingsText.split(/\n-{3,}\n/).map(s=>s.trim()).filter(Boolean),card_tags:c.tagsText.split(/[,，]/).map(s=>s.trim()).filter(Boolean),extensions,avatar_asset_id:c.avatar_asset_id||null,character_id:c.character_id||null,lorebook_id:c.lorebook_id||null}}
+async function save(){const result=await api.post('/api/cards/save-reviewed',{card:body(),card_id:cur.value.id||null,expected:expected.value,draft_id:draftId.value});reset(result.card,result.expected,result.scope);await load();notice.value=result.repeated?'已确认上次保存成功，未重复创建。':'角色卡及版本已保存。';toast(notice.value)}
+async function remove(){if(!window.confirm(`删除角色卡「${cur.value.name}」及其会话？原始素材与百科人物保留。`))return;await api.del(`/api/cards/${cur.value.id}`);cur.value=null;await load();notice.value='已删除角色卡，源素材保留。'}
+async function imported(){const file=importInput.value.files[0];if(!file)return;if(!guard()){importInput.value.value='';return}const form=new FormData();form.append('file',file);try{const c=await api.upload('/api/cards/import',form);await load();await open(c.id,true);notice.value='已创建独立导入草稿；PNG封面复用素材库。'}finally{importInput.value.value=''}}
+async function chooseImages(){const p=await api.get('/api/cards/choices',{kind:'image',q:imageQuery.value,limit:20,offset:imageOffset.value});images.value=p.items;imageTotal.value=p.total}
+async function chooseBooks(){const p=await api.get('/api/cards/choices',{kind:'lorebook',q:bookQuery.value,limit:20,offset:bookOffset.value,world_id:scope.value.world_id});books.value=p.items;bookTotal.value=p.total}
+async function sources(){const p=await api.get('/api/cards/choices',{kind:sourceKind.value,q:sourceQuery.value,limit:20,offset:sourceOffset.value});sourceChoices.value=p.items;sourceTotal.value=p.total}
+async function fromSource(){if(!sourceId.value||!guard())return;const c=await api.post(`/api/cards/${sourceKind.value==='oc'?'from-oc':'from-character'}/${sourceId.value}`);await load();await open(c.id,true);notice.value='已创建独立来源草稿；百科、OC和原小说未改写。'}
+function setDesign(key,value){try{const ext=JSON.parse(cur.value.extText||'{}');if(designBlocked.value)throw new Error('扩展格式需在JSON页明确审核，不覆盖未知版本');ext.front_design_v1={...design.value,aliases:cur.value.aliasesText.split(/[,，、]/).map(s=>s.trim()).filter(Boolean),[key]:value,schema:1};cur.value.extText=JSON.stringify(ext,null,2)}catch(e){error.value=e.message}}
+function accept(result){for(const [key,value] of Object.entries(result.fields)){if(key==='alternate_greetings')cur.value.greetingsText=value.join('\n---\n');else if(key==='card_tags')cur.value.tagsText=value.join(', ');else cur.value[key]=value}draftId.value=result.draftId;notice.value='AI候选已放入未保存表单；请核对并保存。'}
+async function chat(){if(dirty.value)throw new Error('请先保存角色卡，再开始使用这一版本对话');const s=await api.post('/api/ai/sessions',{card_id:cur.value.id,title:`与 ${cur.value.name} 的对话`});await router.push({path:'/chat',query:{session:s.id}})}
+onMounted(()=>run(async()=>{window.addEventListener('beforeunload',leaving);await load();await Promise.all([chooseImages(),chooseBooks(),sources()]);if(route.query.id)await open(Number(route.query.id),true);else if(items.value.length)await open(items.value[0].id,true)}))
 </script>
 <template>
-  <div class="grid" style="grid-template-columns: 260px 1fr">
-    <aside class="card grid" style="align-content:start;gap:8px">
-      <button class="primary" @click="select(null)"><Ico g="＋" />新建角色卡</button>
-      <label class="btn" style="justify-content:center"><Ico g="⇪" />导入 JSON / PNG 卡<input ref="importInput" type="file" accept=".json,.png" hidden @change="doImport" /></label>
-      <div v-for="c in items" :key="c.id" class="card row" style="cursor:pointer;padding:8px;flex-wrap:nowrap" :style="cur?.id === c.id ? { borderColor: 'var(--accent)' } : {}" @click="select(c)">
-        <div class="avatar" style="width:40px;height:40px" :style="c.avatar_asset_id ? { backgroundImage: `url(${thumb(c.avatar_asset_id)})` } : {}" />
-        <div><b>{{ c.name }}</b><div class="small muted">{{ c.creator }} {{ c.character_version }}</div></div>
-      </div>
-      <p class="small muted">兼容 SillyTavern / TavernAI Character Card V2（V1、V3 也可导入）。</p>
+  <div class="grid cards-page"><header class="row"><div><h2>角色卡创作</h2><p class="small muted">独立人物或已有百科 / OC 的对话草稿；按需使用AI，保存后才采用修改。</p></div><span class="spacer"/><RouterLink class="btn" to="/extract">小说章节与人物证据审核</RouterLink></header><p v-if="error" ref="errorElement" class="notice" role="alert" tabindex="-1">{{error}}</p><p v-if="notice" role="status">{{notice}}</p>
+    <div class="cards-layout"><aside class="card grid card-list"><label class="field">新建模板<select v-model="templateId" :disabled="busy"><option value="blank">空白独立人物</option><option value="dialogue">角色对话</option><option value="story">剧情角色</option></select></label><button class="primary" :disabled="busy" @click="fresh">新建独立角色卡</button><label class="btn">导入 JSON / PNG 卡<input ref="importInput" type="file" accept=".json,.png" hidden :disabled="busy" @change="run(imported)"/></label><form class="row" @submit.prevent="offset=0;run(load)"><label class="field">搜索角色卡<input v-model="q" maxlength="95"/></label><button :disabled="busy">搜索</button></form>
+      <button v-for="c in items" :key="c.id" class="card-list-item row" :aria-pressed="cur?.id===c.id" :disabled="busy" @click="run(()=>open(c.id))"><span class="avatar" :style="c.avatar_asset_id?{backgroundImage:`url(${thumb(c.avatar_asset_id)})`}:{}"/><span><b>{{c.name}}</b><small>{{c.creator}} {{c.character_version}}</small><small>{{c.card_tags.slice(0,4).join(' · ')}}</small><small>{{c.character_id?'人物 #'+c.character_id:'独立人物'}} · #{{c.id}}</small></span></button><p v-if="!items.length" class="small muted">没有角色卡。可手动创建，无需配置AI。</p><nav class="row" aria-label="角色卡分页"><button :disabled="busy||!offset" @click="offset-=20;run(load)">上一页</button><span class="small">{{total}} 张</span><button :disabled="busy||offset+20>=total" @click="offset+=20;run(load)">下一页</button></nav>
+      <details><summary>从已有资料创建独立草稿</summary><div class="grid"><label class="field">资料种类<select v-model="sourceKind" :disabled="busy" @change="sourceId='';sourceOffset=0;run(sources)"><option value="character">百科角色（含已审核小说人物）</option><option value="oc">OC 创作档案</option></select></label><form @submit.prevent="sourceOffset=0;run(sources)"><label class="field">来源名称搜索<input v-model="sourceQuery" maxlength="95"/></label><button :disabled="busy">查找来源</button></form><label class="field">明确选择来源<select v-model="sourceId"><option value="">请选择</option><option v-for="c in sourceChoices" :key="c.id" :value="String(c.id)">{{c.name}} #{{c.id}}{{c.world_id?' · 世界观 #'+c.world_id:''}}</option></select></label><nav class="row" aria-label="角色来源分页"><button :disabled="busy||!sourceOffset" @click="sourceOffset-=20;run(sources)">上一页</button><button :disabled="busy||sourceOffset+20>=sourceTotal" @click="sourceOffset+=20;run(sources)">下一页</button></nav><button :disabled="busy||!sourceId" @click="run(fromSource)">创建来源草稿</button></div></details>
+      <p class="small muted">兼容V1/V2/V3字段导入，导出V2 JSON/PNG。导入不自动绑定外部卡片中的本地人物ID。</p>
     </aside>
-    <section v-if="cur" class="card grid" style="align-content:start">
-      <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
-        <div class="avatar" style="width:120px;height:160px" :style="cur.avatar_asset_id ? { backgroundImage: `url(${thumb(cur.avatar_asset_id)})` } : {}" />
-        <div class="grid" style="flex:1">
-          <div class="grid cols-3">
-            <label class="field">名字 name<input v-model="cur.name" /></label>
-            <label class="field">作者 creator<input v-model="cur.creator" /></label>
-            <label class="field">版本<input v-model="cur.character_version" /></label>
-          </div>
-          <div class="grid cols-2">
-            <label class="field">头像（素材库图片）<select v-model="cur.avatar_asset_id"><option :value="null">无（导出时用渐变占位图）</option><option v-for="a in images" :key="a.id" :value="a.id">{{ a.title }}</option></select></label>
-            <label class="field">标签（逗号分隔）<input v-model="cur.tagsText" /></label>
-            <label class="field">角色书 character_book <span class="small muted">（导出时一起导出；<RouterLink :to="cur.lorebook_id ? `/lorebooks?id=${cur.lorebook_id}` : '/lorebooks'">编辑世界书</RouterLink>）</span>
-              <select v-model="cur.lorebook_id"><option :value="null">无</option><option v-for="b in books" :key="b.id" :value="b.id">{{ b.name }}（{{ b.entries }} 条）</option></select></label>
-          </div>
-        </div>
-      </div>
-      <div class="row"><span v-for="[k, l] in [['basic', '基础'], ['advanced', '进阶'], ['extra', '备用开场白 / 扩展']]" :key="k" class="chip click" :class="{ on: tab === k }" @click="tab = k">{{ l }}</span></div>
-      <template v-if="tab !== 'extra'">
-        <label v-for="[k, l, h] in fields[tab]" :key="k" class="field">{{ l }}<textarea v-model="cur[k]" :style="{ minHeight: h + 'px' }" /></label>
-      </template>
-      <template v-else>
-        <label class="field">备用开场白 alternate_greetings（用单独一行 --- 分隔）<textarea v-model="cur.greetingsText" style="min-height:140px" /></label>
-        <label class="field">extensions（JSON）<textarea v-model="cur.extText" class="mono" /></label>
-      </template>
-      <p class="small muted" v-pre>支持 {{char}} / {{user}} 占位符。</p>
-      <div class="row">
-        <button v-if="cur.id" class="danger" @click="remove">删除</button>
-        <a v-if="cur.id" class="btn" :href="`/api/cards/${cur.id}/export.json`">导出 JSON</a>
-        <a v-if="cur.id" class="btn" :href="`/api/cards/${cur.id}/export.png`">导出 PNG 卡</a>
-        <button v-if="cur.id" @click="chat">✉ 开始 AI 对话</button>
-        <span class="spacer" /><button class="primary" @click="save">保存</button>
-      </div>
-    </section>
+    <section v-if="cur" class="card grid card-editor"><header class="row"><h3>{{cur.id?'编辑角色卡':'未保存角色卡'}}{{dirty?' · 有修改':''}}</h3><span class="spacer"/><button :aria-pressed="preview" @click="preview=!preview">{{preview?'收起预览':'显示预览'}}</button><button v-if="cur.id" :disabled="busy||dirty" @click="history=!history">{{history?'收起版本':'版本历史'}}</button></header>
+      <p v-if="cur.extensions?.front_import_v1" class="small muted">这是独立导入草稿；随卡扩展中的来源记录尚未自动验证或绑定本机资料。</p><form class="grid" @submit.prevent="run(save)"><fieldset class="grid" :disabled="busy"><div class="form-columns"><label class="field">名字 name<input v-model="cur.name" required maxlength="200"/></label><label class="field">作者 creator<input v-model="cur.creator" maxlength="200"/></label><label class="field">设计版本<input v-model="cur.character_version" maxlength="60"/></label></div><div v-if="cur.character_id" class="small">关联人物 <RouterLink :to="`/characters/${cur.character_id}`">#{{cur.character_id}}</RouterLink> · {{scope.world_id?'世界观 #'+scope.world_id:'独立 / 未指定世界观'}} · <RouterLink to="/oc">OC Studio / 封面创作</RouterLink></div>
+        <nav class="row" aria-label="角色卡编辑分区"><button v-for="[key,label] in [['basic','人物与开场'],['design','外貌 / 收藏'],['advanced','对话与提示词'],['extra','备用开场 / 自定义JSON']]" :key="key" type="button" :aria-pressed="tab===key" @click="setTab(key)">{{label}}</button></nav>
+        <div class="editor-columns" :class="{single:!preview}"><div class="grid editor-fields"><template v-if="fields[tab]"><label v-for="[key,label,rows] in fields[tab]" :key="key" class="field">{{label}}<textarea v-model="cur[key]" :rows="rows" maxlength="250000"/></label></template>
+        <template v-else-if="tab==='design'"><p v-if="designBlocked" class="notice">已有扩展格式未知或JSON无效。请在自定义JSON页审核，暂不覆盖它。</p><fieldset :disabled="designBlocked" class="grid"><label class="field">别名<input v-model="cur.aliasesText" maxlength="2000"/></label><label v-for="[key,label] in [['appearance','外貌与体型'],['clothing','服装与配饰'],['hair','发型与发色'],['eyes','瞳色与眼睛']]" :key="key" class="field">{{label}}<textarea :value="design[key]||''" maxlength="6000" rows="2" @input="setDesign(key,$event.target.value)"/></label><div class="row"><label><input type="checkbox" :checked="design.favorite||false" @change="setDesign('favorite',$event.target.checked)"/>收藏</label><label class="field">星级<input type="number" :value="design.stars||0" min="0" max="5" step="1" @input="setDesign('stars',Number($event.target.value))"/></label><label class="field">个人喜爱度<input type="number" :value="design.preference||0" min="0" max="100" step="1" @input="setDesign('preference',Number($event.target.value))"/></label></div><label class="field">个人备注<textarea :value="design.notes||''" rows="3" maxlength="30000" @input="setDesign('notes',$event.target.value)"/></label></fieldset></template>
+        <template v-else><label class="field">备用开场白（单独一行 --- 分隔）<textarea v-model="cur.greetingsText" rows="6"/></label><label class="field">自定义扩展 JSON（V2导出保留）<textarea v-model="cur.extText" rows="10" class="mono" @input="syncAliases($event.target.value)"/></label></template>
+        <label class="field">标签（逗号分隔）<input v-model="cur.tagsText" maxlength="20000"/></label></div><aside v-if="preview" class="card-preview"><div v-if="cur.avatar_asset_id" class="preview-avatar" :style="{backgroundImage:`url(${thumb(cur.avatar_asset_id)})`}"/><h3>{{cur.name||'未命名角色'}}</h3><p class="small muted">{{cur.aliasesText}}</p><p>{{cur.description||'人物介绍留空'}}</p><h4>开场预览</h4><p>{{cur.first_mes||'尚未填写开场白'}}</p><small>仅预览已输入文字，不调用模型或渲染器。</small></aside></div>
+        <details><summary>封面与世界书关联</summary><div class="form-columns"><section class="grid"><label class="field">素材封面搜索<input v-model="imageQuery" maxlength="95" @keydown.enter.prevent="imageOffset=0;run(chooseImages)"/></label><button type="button" @click="imageOffset=0;run(chooseImages)">查找图片</button><label class="field">引用已有图片<select v-model="cur.avatar_asset_id"><option :value="null">无封面</option><option v-if="cur.avatar_asset_id&&!images.some(i=>i.id===cur.avatar_asset_id)" :value="cur.avatar_asset_id">当前引用 #{{cur.avatar_asset_id}}</option><option v-for="i in images" :key="i.id" :value="i.id">{{i.name}}</option></select></label><div class="row"><button type="button" :disabled="!imageOffset" @click="imageOffset-=20;run(chooseImages)">上一页图片</button><button type="button" :disabled="imageOffset+20>=imageTotal" @click="imageOffset+=20;run(chooseImages)">下一页图片</button></div></section><section class="grid"><label class="field">世界书搜索<input v-model="bookQuery" maxlength="95" @keydown.enter.prevent="bookOffset=0;run(chooseBooks)"/></label><button type="button" @click="bookOffset=0;run(chooseBooks)">查找世界书</button><label class="field">关联世界书<select v-model="cur.lorebook_id"><option :value="null">无</option><option v-if="cur.lorebook_id&&!books.some(b=>b.id===cur.lorebook_id)" :value="cur.lorebook_id">当前引用 #{{cur.lorebook_id}}</option><option v-for="b in books" :key="b.id" :value="b.id">{{b.name}}{{b.world_id?' · 世界观 #'+b.world_id:' · 通用'}}</option></select></label><div class="row"><button type="button" :disabled="!bookOffset" @click="bookOffset-=20;run(chooseBooks)">上一页世界书</button><button type="button" :disabled="bookOffset+20>=bookTotal" @click="bookOffset+=20;run(chooseBooks)">下一页世界书</button></div><RouterLink :to="cur.lorebook_id?`/lorebooks?id=${cur.lorebook_id}`:'/lorebooks'">查看世界书</RouterLink></section></div></details>
+        <p class="small muted" v-pre>支持 {{char}} / {{user}} 占位符。未保存的修改不会进入导出或对话。</p><div class="row"><button v-if="cur.id" type="button" class="danger" @click="run(remove)">删除角色卡</button><a v-if="cur.id" class="btn" :href="`/api/cards/${cur.id}/export.json`">导出已保存JSON</a><a v-if="cur.id" class="btn" :href="`/api/cards/${cur.id}/export.png`">导出已保存PNG</a><button v-if="cur.id" type="button" :disabled="dirty" @click="run(chat)">开始AI对话</button><span class="spacer"/><button class="primary">保存角色卡</button></div></fieldset></form>
+      <VersionPanel v-if="history&&cur.id" :kind="'card'" :entity-id="cur.id" @restored="run(()=>open(cur.id,true))"/>
+      <button :aria-expanded="assistant" @click="assistant=!assistant">{{assistant?'收起AI辅助':'按需打开AI辅助草稿'}}</button><CardAssist v-if="assistant" :current="assistCurrent" @adopt="accept" @open-card="id=>run(()=>open(id))"/>
+    </section><section v-else class="card"><h3>选择角色卡或新建独立草稿</h3><p class="muted">手动编辑、封面引用与兼容导出不需要配置AI。</p></section></div>
   </div>
 </template>
+<style scoped>
+.cards-page,.card-editor,.editor-fields{min-width:0}.cards-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}.card-list{align-content:start}.card-list-item{text-align:left;align-items:flex-start;width:100%;white-space:normal}.card-list-item[aria-pressed=true]{border-color:var(--accent)}.card-list-item .avatar{width:38px;height:46px;flex:none}.card-list-item span{min-width:0;overflow-wrap:anywhere}.card-list-item small{display:block}.cards-page h2,.cards-page h3{margin:0}.cards-page fieldset{border:0;padding:0;margin:0;min-width:0}.cards-page input:not([type=checkbox]),.cards-page select{width:100%;min-width:0}.cards-page input[type=checkbox]{width:auto}.cards-page .row{flex-wrap:wrap}.form-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.editor-columns{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(210px,1fr);gap:20px}.editor-columns.single{grid-template-columns:minmax(0,1fr)}.card-preview{padding:16px;background:var(--bg);border:1px solid var(--line);border-radius:12px;align-self:start;position:sticky;top:86px;max-height:650px;overflow:auto;overflow-wrap:anywhere}.card-preview p{white-space:pre-wrap}.preview-avatar{height:180px;background-size:contain;background-position:center;background-repeat:no-repeat;margin-bottom:12px}.cards-page button{white-space:normal}.cards-page details>.form-columns{padding-top:12px}@media(max-width:1100px){.editor-columns{grid-template-columns:minmax(0,1fr)}.card-preview{position:static;max-height:400px}}@media(max-width:750px){.cards-layout{grid-template-columns:minmax(0,1fr)}.card-list{max-height:440px;overflow:auto}.form-columns{grid-template-columns:minmax(0,1fr)}}
+.cards-page .card-list-item{flex-wrap:nowrap;border-radius:10px;gap:10px;padding:10px}.card-list-item>span:last-child{flex:1;min-width:0}
+</style>

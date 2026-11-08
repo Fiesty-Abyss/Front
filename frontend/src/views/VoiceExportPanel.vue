@@ -1,6 +1,7 @@
 <script setup>
 import {onBeforeUnmount,ref,watch} from 'vue'
 import {api} from '../api'
+import {exportContext} from '../voiceDrafts'
 const props=defineProps({project:Object,segments:Array,archived:Boolean})
 const preview=ref(null),rows=ref([]),chosen=ref([]),offset=ref(0),total=ref(0),busy=ref(false),error=ref('')
 const pendingKey=ref('')
@@ -15,7 +16,8 @@ async function load(key=epoch){const data=await api.get(base(),{limit:20,offset:
 async function inspect(key){const data=await api.post(base()+'/preview',{...token(),segment_ids:[...chosen.value]});if(!disposed&&key===epoch){preview.value=data;pendingKey.value=requestKey()}}
 async function create(key){const ids=preview.value.snapshot.items.map(s=>s.segment_id);await api.post(base(),{...token(),segment_ids:ids,fingerprint:preview.value.fingerprint,idempotency_key:pendingKey.value});if(disposed||key!==epoch)return;preview.value=null;pendingKey.value='';offset.value=0;await load(key)}
 async function cancel(row,key){await api.post(base()+`/${row.id}/cancel`,token());if(!disposed&&key===epoch)await load(key)}
-watch(()=>[props.project?.uid,props.project?.version,props.segments?.map(s=>s.uid).join(',')],()=>{epoch++;busy.value=false;preview.value=null;chosen.value=[];rows.value=[];offset.value=0;total.value=0},{immediate:true})
+let contextUID=null
+watch(()=>exportContext(props.project,props.segments),()=>{const moved=contextUID!==props.project?.uid;contextUID=props.project?.uid;epoch++;busy.value=false;preview.value=null;pendingKey.value='';chosen.value=[];if(moved){rows.value=[];offset.value=0;total.value=0}run(load)},{immediate:true})
 watch(chosen,()=>{preview.value=null;pendingKey.value=''},{deep:true})
 onBeforeUnmount(()=>{disposed=true;epoch++})
 </script>

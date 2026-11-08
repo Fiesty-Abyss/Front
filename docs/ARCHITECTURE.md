@@ -1,5 +1,7 @@
 # 架构说明
 
+会话模型底座复用ChatSession/ChatMessage/Provider/流式接口，仅加ChatModelSelection追加快照表。模型设置带身份指纹和事务，显式绑定不随默认服务变动；无Key入快照。回复meta记录实际选择/参数/角色/上下文Hash。全局2生成与会话互斥，模型面板按需加载，无推理或第二套消息/队列。当前Draft/GUI未验，见CHAT_MODEL_SELECTION。
+
 联网资料匹配：`metadata.py`的MetadataProvider/能力目录包装既有游戏来源与Civitai并提供有限Open Library适配，`routers/metadata.py`复用jobs并按字段事务应用现有Work/Galgame。两列metadata_catalog保存来源/采用值/人工修改和刷新许可，复用versions与全备份；缓存不是权威资料。`/metadata`路由懒加载，不默认联网、下载封面或初始化任何AI/渲染引擎。[接口、安全边界与未完成范围](METADATA_CENTER.md)。
 
 ## 扫描来源增量

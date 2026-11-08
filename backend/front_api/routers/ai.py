@@ -381,6 +381,13 @@ def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
 
 
+def _provider_label(provider):
+    label = getattr(provider, 'label', None)
+    # Legacy environment providers use their complete URL as a default label.
+    # Do not persist that URL (potentially containing credentials) in a message.
+    return provider.name if not label or label == getattr(provider, 'base_url', None) else label
+
+
 def _safe_error(exc):
     import httpx
     cause = exc.__cause__
@@ -422,7 +429,7 @@ def generate(
                      for r in activated["active"]]
         meta = {"card_id": card.id, "card_name": card.name,
                 "context_sha256": hashlib.sha256(json.dumps(messages, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
-                "model": getattr(provider, "model", None), "provider": getattr(provider, "label", provider.name),
+                "model": getattr(provider, "model", None), "provider": _provider_label(provider),
                 "lore": lore_meta, "model_selection": selection, "context_budget": budget,
                 "parameters": {"temperature": getattr(provider, "temperature", None), "max_tokens": getattr(provider, "max_tokens", None)}}
         if payload.regenerate_id is not None:

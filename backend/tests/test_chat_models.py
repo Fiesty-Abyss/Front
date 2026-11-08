@@ -200,3 +200,24 @@ def test_additive_selection_table_snapshot_and_isolated_backup(client,data_dir,s
         assert saved['model']=='explicit-one'
         meta=json.loads(db.execute("SELECT meta FROM chat_messages WHERE role='assistant' ORDER BY id DESC LIMIT 1").fetchone()[0])
         assert meta['model_selection']['id']==chosen['selection']['id']
+
+
+def test_legacy_endpoint_label_and_partial_error_do_not_persist_credentials(app,client,setup_chat):
+    chat,_,_=setup_chat
+    from front_api.ai import AIUnavailable
+    class Protocol:
+        name='generated-protocol-only'
+        model='generated'
+        base_url=label='https://generated-user:generated-private-password@example.invalid/v1?key=generated-private-key'
+        def available(self):return True
+        def stream(self,messages):
+            yield 'Generated retained fragment'
+            raise AIUnavailable('generated-private-error-body '+self.base_url)
+    app.dependency_overrides[ai.provider_dep]=lambda:Protocol()
+    try:
+        response=client.post(f"/api/ai/sessions/{chat['id']}/generate",json={'content':'Generated question'})
+        assert 'generated-private-' not in response.text
+        saved=client.get(f"/api/ai/sessions/{chat['id']}").json()['messages'][-1]
+        assert saved['content']=='Generated retained fragment' and saved['meta']['provider']=='generated-protocol-only'
+        assert 'generated-private-' not in json.dumps(saved)
+    finally:app.dependency_overrides.clear()

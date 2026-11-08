@@ -40,6 +40,7 @@ async function select(file) {
 }
 onMounted(async () => {
   worlds.value = (await Worlds.list({limit:500})).items
+  if(route.query.report_id){await load(String(route.query.report_id));return}
   if(route.query.import_id){try{const run=await api.get(`/api/project-imports/${route.query.import_id}`);await load(run.report_id);return}catch(e){error.value=e.message}}
   const history = await api.get('/api/jobs?kind=project-preview')
   if (!disposed && history.length) await poll(history[0].id)

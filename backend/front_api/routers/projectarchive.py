@@ -44,6 +44,8 @@ def start(req:ImportRequest,session:Session=Depends(get_session)):
     if (req.world_id is None)==(req.new_world_name is None):
         raise HTTPException(422,'请选择一个目标世界观或填写新世界观名称')
     data=report(req.report_id)
+    try:projectpreview.import_ready(data)
+    except ValueError as exc:raise HTTPException(422,str(exc)) from None
     if len({f.index for f in req.files})!=len(req.files):
         raise HTTPException(422,'确认列表中有重复文件')
     selections=[]

@@ -1021,6 +1021,22 @@ class VoiceChapterImport(VoiceIdentity, Base):
 
 
 
+class DiscoveryRoot(TimestampMixin, Base):
+    __tablename__ = 'discovery_roots'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uid: Mapped[str] = mapped_column(String(32),default=lambda:uuid.uuid4().hex,unique=True)
+    version: Mapped[int] = mapped_column(Integer,default=1)
+    name: Mapped[str] = mapped_column(String(120))
+    path: Mapped[str] = mapped_column(Text)
+    path_key: Mapped[str] = mapped_column(String(64),unique=True)
+    config: Mapped[dict] = mapped_column(JSON,default=dict)
+    state: Mapped[str] = mapped_column(String(30),default='idle')
+    job_id: Mapped[str | None] = mapped_column(String(40))
+    report_id: Mapped[str | None] = mapped_column(String(12))
+    baseline_id: Mapped[str | None] = mapped_column(String(12))
+    stats: Mapped[dict] = mapped_column(JSON,default=dict)
+
+
 class VoiceExport(VoiceIdentity, Base):
     """Immutable request snapshot and durable export status over shared Asset files."""
     __tablename__ = 'voice_exports'

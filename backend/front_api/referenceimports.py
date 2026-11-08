@@ -27,8 +27,9 @@ def link(session,collection_id,asset_id):
 
 def start(session,body):
     report=projectpreview.load(body.report_id)
+    projectpreview.import_ready(report)
     indices=list(dict.fromkeys(body.indices))
-    if any(i<0 or i>=len(report['files']) or report['files'][i].get('error') or report['files'][i]['kind']=='bundle' for i in indices):raise HTTPException(422,'选择包含失效条目或关联模型包，请重新预览')
+    if any(i<0 or i>=len(report['files']) or report['files'][i].get('error') or not report['files'][i].get('sha256') or report['files'][i]['kind']=='bundle' for i in indices):raise HTTPException(422,'选择包含失效条目、未哈希文件或关联模型包，请重新预览')
     run=m.LibraryImport(id=uuid.uuid4().hex,report_id=body.report_id,mode=body.mode,collection_id=body.collection_id,world_id=body.world_id,work_id=body.work_id,allow_cross_scope=body.allow_cross_scope)
     for key,model in [('world_id',m.World),('work_id',m.Work),('collection_id',m.Collection)]:
         value=getattr(run,key)

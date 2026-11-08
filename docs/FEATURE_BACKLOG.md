@@ -203,3 +203,7 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 基于9095dd4检查实际环境：无活动Front；个人Web库一致性快照integrity=ok、外键0，原DB/WAL/SHM Hash不变。当前源码能启动隔离升级副本，旧字段摘要不变，完整备份/独立恢复成功。旧预览读取新结构副本可复现旧笼统错误，但历史失败来源未确认，不能认定原库损坏。
 
 拆分结构不支持/非Front/损坏/锁/权限/读取/外键/检查失败诊断，新增只读 --diagnose-data，不自动修复、建库或重置。395本机后端、12前端测试及构建通过；最终CI以本PR为准。详见audits/voice/LOCAL_STARTUP_DIAGNOSIS.md。Voice GUI、批量章节/审核、真实TTS和长期创作方向继续推进；本轮未升级个人库或安装程序。
+
+## 2026-11-08 · Voice 实际 GUI 与草稿安全
+
+基于 main 90b17e9：本机隔离生成样本完成声线/OC/模型/试听、工程、台词拆并排序、双候选试听采纳、WAV+SRT/VTT ZIP 下载及重启持久化。修复刷新丢草稿、导出历史清零、390px 横向溢出及无效声线编辑 500。并发保存拒绝覆盖，刷新保留旧片段版本，明确重载才放弃草稿。396 后端/15 前端测试与生产构建通过；无 schema 变化或新增轮询。详见 audits/voice/GUI_ACCEPTANCE.md。真实 TTS、原生窗口与整机性能仍待验收，个人库未升级。

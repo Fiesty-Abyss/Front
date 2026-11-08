@@ -166,3 +166,14 @@ def test_refreshing_project_page_cannot_overwrite_a_stale_segment_draft(client):
 def test_segment_parameter_limits(client,changes):
     p=project(client)
     assert client.post(base(p)+'/segments',json={**token(p),'text':'测试',**changes}).status_code==422
+
+
+
+def test_invalid_profile_edit_returns_404_and_preserves_original_text_and_version(client):
+    p=project(client);p,a=add(client,p,'原本应保留的台词')
+    url=base(p)+f'/segments/{a["id"]}'
+    bad=client.put(url,json={**token(p),'expected_segment_version':a['version'],'text':'不能写入的草稿','profile_id':999999})
+    assert bad.status_code==404,bad.text
+    saved=client.get(url).json()
+    assert saved['text']==a['text'] and saved['version']==a['version'] and saved['profile_id'] is None
+    assert client.get(base(p)).json()['version']==p['version']

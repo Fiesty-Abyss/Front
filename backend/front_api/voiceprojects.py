@@ -83,9 +83,10 @@ def recipe(session, project, body):
 
 
 def apply(session, project, obj, body):
+    validated=recipe(session,project,body)
     obj.text=body.text
     obj.profile_id=body.profile_id
-    obj.recipe=recipe(session,project,body)
+    obj.recipe=validated
     obj.source={**(obj.source or {}),'speaker':body.speaker,'archived':False,
         'speaker_confirmed':body.confirm_speaker if (obj.source or {}).get('suggestion') else True}
 

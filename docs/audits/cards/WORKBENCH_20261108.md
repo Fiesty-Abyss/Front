@@ -40,3 +40,7 @@ Cards 21.32kB/gzip8.58；CardAssist 7.54kB/gzip3.79且仅展开加载；初始JS
 - [候选审核与来源](../../screenshots/cards/generated-ai-review.jpg)
 - [错误反馈](../../screenshots/cards/generated-ai-error.jpg)
 - [窄屏深色](../../screenshots/cards/generated-narrow-dark.jpg)、[窄屏浅色](../../screenshots/cards/generated-narrow-light.jpg)
+
+## 同步后续主线的集成验证
+
+#67已全CI成功并正常merge为9a427b6c76b8f8163b8408d4149693ea7addd2bb。#64普通合入该main，6份文档头冲突保留双方记录；角色卡前后端与f0ebf5aa的实际生成GUI验收源一致，后端仅新增未导入启动链的标准库协议。重新构建后全量555通过/1权限跳过172.41秒，18前端测试与构建6.51秒；没有将独立分支统计相加代替实际集成执行。新head远程CI必须重新检查。之前Windows42466429802两次官方工具504失败仍如实保留，#67的绿CI不直接替代本PR。

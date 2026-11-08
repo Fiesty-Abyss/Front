@@ -1,10 +1,13 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, Cards, Lorebooks, streamPost, thumb } from '../api'
 import Modal from '../components/Modal.vue'
 import { guard, toast } from '../toast'
 
+const ChatModelPicker=defineAsyncComponent(()=>import('../components/ChatModelPicker.vue'))
+const modelState=ref(null), showModel=ref(false)
+let streamController=null, openSerial=0
 const route = useRoute()
 const status = ref(null)
 const sessions = ref([])
@@ -29,14 +32,18 @@ onMounted(async () => {
   if (id) open(id)
 })
 const card = computed(() => cards.value.find((c) => c.id === cur.value?.card_id))
+const canGenerate=computed(()=>Boolean(modelState.value?.selection || status.value?.available))
 const lastMsg = computed(() => cur.value?.messages.at(-1))
-async function refreshCtx() { if (cur.value) ctx.value = await api.get(`/api/ai/sessions/${cur.value.id}/context`) }
-async function open(id) { cur.value = await api.get(`/api/ai/sessions/${id}`); refreshCtx(); scroll() }
+async function refreshCtx() { if (cur.value) {const id=cur.value.id;try{const value=await api.get(`/api/ai/sessions/${id}/context`);if(cur.value?.id===id)ctx.value=value}catch(e){toast(e.message,true)}} }
+async function open(id) { if(streaming.value)return;const serial=++openSerial;const [chat,model]=await Promise.all([api.get(`/api/ai/sessions/${id}`),api.get(`/api/ai/sessions/${id}/model-state`)]);if(serial!==openSerial)return;cur.value=chat;modelState.value=model;ctx.value=null;showModel.value=false;refreshCtx();scroll() }
 function scroll() { nextTick(() => box.value && (box.value.scrollTop = box.value.scrollHeight)) }
 function setSession(s) { cur.value = s; refreshCtx(); loadSessions(); scroll() }
 
 async function generate(body) {
-  if (streaming.value) return
+  if (streaming.value) return false
+  const sessionId=cur.value.id
+  let completed=false
+  streamController=new AbortController()
   streaming.value = { token: null, text: '', lore: [] }
   if (body.content && !body.edit_id) {
     cur.value.messages.push({ id: 'pending', role: 'user', content: body.content, sibling_ids: [], meta: {} })
@@ -44,18 +51,20 @@ async function generate(body) {
   scroll()
   try {
     await streamPost(`/api/ai/sessions/${cur.value.id}/generate`, body, (ev, data) => {
+      if(!streaming.value || cur.value?.id!==sessionId)return
       if (ev === 'start') Object.assign(streaming.value, { token: data.token, lore: data.lore })
       else if (ev === 'delta') { streaming.value.text += data.text; scroll() }
-      else if (ev === 'done') setSession(data.session)
+      else if (ev === 'done') {completed=true;setSession(data.session)}
       else if (ev === 'error') { toast(data.detail, true); if (data.session) setSession(data.session); else open(cur.value.id) }
-    })
-  } catch (e) { toast(e.message, true); open(cur.value.id) } finally { streaming.value = null }
+    }, streamController.signal)
+  } catch (e) { toast(e.message, true); open(cur.value.id) } finally { streaming.value = null;streamController=null }
+  return completed
 }
-function send() {
+async function send() {
   const text = input.value.trim()
   if (!text) return
-  input.value = ''
-  generate({ content: text })
+  const sent=await generate({ content: text })
+  if(sent && input.value.trim()===text)input.value=''
 }
 async function stop() {
   if (streaming.value?.token) await api.post(`/api/ai/generations/${streaming.value.token}/stop`).catch(() => {})
@@ -82,10 +91,12 @@ async function newSession(cardId) {
   await loadSessions(); open(s.id)
 }
 async function rename() {
+  if(streaming.value)return
   const t = prompt('对话标题', cur.value.title)
   if (t) setSession(await api.patch(`/api/ai/sessions/${cur.value.id}`, { title: t }))
 }
 async function toggleBook(id) {
+  if(streaming.value)return
   const ids = cur.value.lorebook_ids.includes(id) ? cur.value.lorebook_ids.filter((x) => x !== id) : [...cur.value.lorebook_ids, id]
   setSession(await api.patch(`/api/ai/sessions/${cur.value.id}`, { lorebook_ids: ids }))
 }
@@ -93,6 +104,7 @@ async function remove() {
   if (!confirm('删除这个对话？')) return
   await guard(() => api.del(`/api/ai/sessions/${cur.value.id}`), '已删除'); cur.value = null; loadSessions()
 }
+onBeforeUnmount(()=>{if(streaming.value?.token)api.post(`/api/ai/generations/${streaming.value.token}/stop`).catch(()=>{});streamController?.abort();streaming.value=null})
 /** 把（动作）和 *动作* 渲染成斜体灰字 */
 function rich(text) {
   const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
@@ -100,31 +112,33 @@ function rich(text) {
 }
 </script>
 <template>
-  <div v-if="status && !status.available" class="notice" style="margin-bottom:14px">
+  <div v-if="status && !status.available && !modelState?.selection" class="notice" style="margin-bottom:14px">
     AI 服务尚未配置：在 <RouterLink to="/settings">设置</RouterLink> 里添加一个 OpenAI 兼容服务（Ollama、LM Studio、OpenAI、DeepSeek……）并设为对话服务，或设置环境变量
     <span class="mono">FRONT_AI_BASE_URL</span> / <span class="mono">FRONT_AI_MODEL</span>。会话、开场白与历史分支可以照常查看和切换。
   </div>
-  <div v-else-if="status" class="small muted" style="margin-bottom:10px">已连接：{{ status.label }} · <span class="mono">{{ status.model }}</span>（流式输出）</div>
-  <div class="grid" style="grid-template-columns: 250px 1fr; align-items:start">
+  <div v-else-if="status" class="small muted" style="margin-bottom:10px">所选服务：{{modelState?.selection?.snapshot?.provider_name || status.label}} · <span class="mono">{{modelState?.selection?.snapshot?.model || status.model}}</span>（可用性以实际请求为准）</div>
+  <div class="grid chat-layout">
     <aside class="card grid" style="align-content:start;gap:8px">
-      <select @change="newSession($event.target.value); $event.target.value = ''"><option value="">＋ 选择角色卡开始新对话</option><option v-for="c in cards" :key="c.id" :value="c.id">{{ c.name }}</option></select>
+      <select :disabled="Boolean(streaming)" aria-label="选择角色卡开始对话" @change="newSession($event.target.value); $event.target.value = ''"><option value="">＋ 选择角色卡开始新对话</option><option v-for="c in cards" :key="c.id" :value="c.id">{{ c.name }}</option></select>
       <div v-for="s in sessions" :key="s.id" class="card sess" :class="{ on: cur?.id === s.id }" @click="open(s.id)">
         <b>{{ s.title }}</b>
         <div class="small muted ell">{{ s.last }}</div>
         <div class="small muted">{{ s.messages }} 条<template v-if="s.total_messages > s.messages"> · 共 {{ s.total_messages }} 条（含分支）</template></div>
       </div>
     </aside>
-    <section v-if="cur" class="card" style="display:flex;flex-direction:column;height:calc(100vh - 170px);min-height:560px">
+    <section v-if="cur" class="card chat-pane">
       <div class="row" style="margin-bottom:8px">
         <div class="avatar" style="width:34px;height:34px" :style="card?.avatar_asset_id ? { backgroundImage: `url(${thumb(card.avatar_asset_id)})` } : {}" />
-        <b style="cursor:pointer" title="点击改名" @click="rename">{{ cur.title }}</b>
+        <button class="ghost" :disabled="Boolean(streaming)" aria-label="重命名会话" @click="rename">{{ cur.title }}</button>
         <span class="small muted">{{ cur.messages.length }} 条 · 共 {{ cur.total_messages }} 条（含分支）</span>
         <span class="spacer" />
         <span v-for="b in ctx?.lorebooks || []" :key="b.id" class="chip" :title="b.world_id ? '世界观自动关联' : ''"><Ico g="❧" />{{ b.name }}</span>
         <button class="ghost small" title="为这个对话额外启用世界书" @click="showBooks = !showBooks"><Ico g="＋" />世界书</button>
         <button class="ghost small" @click="refreshCtx(); showCtx = true">查看上下文</button>
-        <button class="ghost small danger" @click="remove">删除</button>
+        <button class="ghost small" :disabled="Boolean(streaming)" @click="showModel=!showModel">模型与预算</button>
+        <button class="ghost small danger" :disabled="Boolean(streaming)" @click="remove">删除</button>
       </div>
+      <ChatModelPicker v-if="showModel" :key="cur.id" :session-id="cur.id" @selected="modelState=$event;refreshCtx()" />
       <div v-if="showBooks" class="row small" style="gap:6px;margin-bottom:8px">
         <span class="muted">为这个对话额外启用：</span>
         <span v-for="b in books" :key="b.id" class="chip click" :class="{ on: cur.lorebook_ids.includes(b.id) }" @click="toggleBook(b.id)">{{ b.name }}</span>
@@ -141,6 +155,7 @@ function rich(text) {
                 {{ m.sibling_ids.indexOf(m.id) + 1 }} / {{ m.sibling_ids.length }}
                 <button class="ghost" :disabled="m.sibling_ids.at(-1) === m.id || streaming" @click="swipe(m, 1)">›</button>
               </span>
+              <span v-if="m.meta?.model" class="muted" :title="JSON.stringify(m.meta.parameters || {})">{{m.meta.provider}} · {{m.meta.model}}<template v-if="m.meta.model_selection"> · 配置 #{{m.meta.model_selection.id}}</template></span>
               <span v-if="m.meta?.greeting !== undefined" class="muted">开场白</span>
               <span v-if="m.meta?.lore?.length" class="lore" :title="m.meta.lore.map((l) => `${l.title}（${l.reason}）`).join('\n')"><Ico g="❧" />世界书 {{ m.meta.lore.length }} 条</span>
               <span v-if="m.meta?.interrupted" class="muted">已停止</span>
@@ -166,7 +181,7 @@ function rich(text) {
       <form class="row" style="margin-top:10px;flex-wrap:nowrap" @submit.prevent="send">
         <textarea v-model="input" placeholder="输入消息…（Ctrl+Enter 发送；用（括号）写动作）" style="min-height:48px" @keydown.ctrl.enter.prevent="send" />
         <button v-if="streaming" type="button" class="danger" @click="stop">■ 停止</button>
-        <button v-else class="primary" :disabled="!status?.available">发送</button>
+        <button v-else class="primary" :disabled="!canGenerate">发送</button>
       </form>
     </section>
     <section v-else class="card empty">选择左侧的对话，或用角色卡开始一个新对话</section>
@@ -179,7 +194,7 @@ function rich(text) {
         <span class="small muted">{{ editing.msg.role === 'user' ? '“另开分支”会保留原消息，在新分支里重新生成回复。' : '直接替换这条回复的文字。' }}</span>
         <span class="spacer" />
         <button class="ghost" @click="saveEdit(false)">直接修改</button>
-        <button v-if="editing.msg.role === 'user'" class="primary" :disabled="!status?.available" @click="saveEdit(true)">另开分支并发送</button>
+        <button v-if="editing.msg.role === 'user'" class="primary" :disabled="!canGenerate" @click="saveEdit(true)">另开分支并发送</button>
       </div>
     </div>
   </Modal>
@@ -197,6 +212,9 @@ function rich(text) {
   </Modal>
 </template>
 <style scoped>
+.chat-layout{grid-template-columns:250px minmax(0,1fr);align-items:start}.chat-pane{display:flex;flex-direction:column;min-width:0;height:calc(100vh - 170px);min-height:560px;overflow:auto}
+@media(max-width:800px){.chat-layout{grid-template-columns:minmax(0,1fr)}.chat-pane{height:auto;min-height:600px}.col{max-width:90%}}
+@media(prefers-reduced-motion:reduce){.caret{animation:none}}
 .sess { cursor: pointer; padding: 10px; overflow: hidden; min-width: 0; }
 .sess.on { border-color: var(--accent); }
 .ell { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

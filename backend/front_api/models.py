@@ -665,6 +665,14 @@ class ChatSession(TimestampMixin, Base):
     )
 
 
+class ChatModelSelection(TimestampMixin, Base):
+    """Append-only explicit model choices for an existing chat; no credentials."""
+    __tablename__ = "chat_model_selections"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("chat_sessions.id", ondelete="CASCADE"), index=True)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 

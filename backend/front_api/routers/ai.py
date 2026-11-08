@@ -3,19 +3,24 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import functools
+import inspect
 import threading
 import uuid
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path as APIPath, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models as m
 from .. import schemas as s
+from .. import chatmodels
 from ..ai import AIProvider, AIUnavailable
+from ..ai.provider import NOT_CONFIGURED
 from ..ai import lore as lore_mod
 from ..ai import registry
 from ..ai.prompts import build_relation_messages, build_roleplay_messages, parse_relations
@@ -23,9 +28,40 @@ from ..crud import get_or_404
 from ..db import get_session, new_session
 
 router = APIRouter(prefix="/api/ai", tags=["AI 接口"])
+ChatId = Annotated[int, APIPath(ge=1, le=2**63-1)]
 
 # 正在进行的流式生成：token -> 停止标记
 _running: dict[str, threading.Event] = {}
+_generation_lock = threading.RLock()
+_session_running: dict[int, str] = {}
+
+
+def _idle(session_id):
+    if session_id in _session_running:
+        raise HTTPException(409, "此会话正在生成，请先停止并等待完成，再编辑或切换")
+
+
+def _release(session_id, token):
+    with _generation_lock:
+        _running.pop(token, None)
+        if _session_running.get(session_id) == token:
+            _session_running.pop(session_id, None)
+
+
+
+def _guard_chat_mutation(fn):
+    signature = inspect.signature(fn)
+    @functools.wraps(fn)
+    def guarded(*args, **kwargs):
+        values = signature.bind(*args, **kwargs).arguments
+        with _generation_lock:
+            sid = values.get('session_id')
+            if sid is None:
+                msg = get_or_404(values['session'], m.ChatMessage, values['message_id'])
+                sid = msg.session_id
+            _idle(sid)
+            return fn(*args, **kwargs)
+    return guarded
 
 
 def provider_dep(session: Session = Depends(get_session)) -> AIProvider:
@@ -133,6 +169,30 @@ def build_context(session: Session, chat: m.ChatSession, card: m.CharacterCard, 
     return messages, activated
 
 
+@router.get("/sessions/{session_id}/model-state")
+def model_state(session_id: ChatId, session: Session = Depends(get_session)):
+    return chatmodels.state(session, get_or_404(session, m.ChatSession, session_id))
+
+
+@router.get("/sessions/{session_id}/model-history")
+def model_history(session_id: ChatId, limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0, le=2**31-1), session: Session = Depends(get_session)):
+    from sqlalchemy import func
+    get_or_404(session, m.ChatSession, session_id)
+    if not 1 <= limit <= 100 or offset < 0:
+        raise HTTPException(422, "分页范围无效")
+    stmt = select(m.ChatModelSelection).where(m.ChatModelSelection.session_id == session_id)
+    rows = session.scalars(stmt.order_by(m.ChatModelSelection.id.desc()).limit(limit).offset(offset))
+    return {'items': [chatmodels.output(row) for row in rows], 'total': session.scalar(select(func.count()).select_from(stmt.subquery()))}
+
+
+@router.post("/sessions/{session_id}/model-selection")
+def model_selection(session_id: ChatId, body: chatmodels.Selection, session: Session = Depends(get_session)):
+    with _generation_lock:
+        _idle(session_id)
+        session.connection().exec_driver_sql('BEGIN IMMEDIATE')
+        return chatmodels.choose(session, get_or_404(session, m.ChatSession, session_id), body)
+
+
 # ---------- 会话 ----------
 @router.get("/sessions")
 def list_sessions(card_id: int | None = None, session: Session = Depends(get_session)) -> list[dict[str, Any]]:
@@ -169,12 +229,13 @@ def create_session(payload: s.ChatSessionCreate, session: Session = Depends(get_
 
 
 @router.get("/sessions/{session_id}", response_model=s.ChatSessionRead)
-def get_chat(session_id: int, session: Session = Depends(get_session)) -> Any:
+def get_chat(session_id: ChatId, session: Session = Depends(get_session)) -> Any:
     return serialize(get_or_404(session, m.ChatSession, session_id))
 
 
 @router.patch("/sessions/{session_id}", response_model=s.ChatSessionRead)
-def update_chat(session_id: int, payload: s.ChatSessionUpdate, session: Session = Depends(get_session)) -> Any:
+@_guard_chat_mutation
+def update_chat(session_id: ChatId, payload: s.ChatSessionUpdate, session: Session = Depends(get_session)) -> Any:
     chat = get_or_404(session, m.ChatSession, session_id)
     data = payload.model_dump(exclude_unset=True)
     if "lorebook_ids" in data:
@@ -189,13 +250,15 @@ def update_chat(session_id: int, payload: s.ChatSessionUpdate, session: Session 
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
-def delete_chat(session_id: int, session: Session = Depends(get_session)) -> None:
+@_guard_chat_mutation
+def delete_chat(session_id: ChatId, session: Session = Depends(get_session)) -> None:
     session.delete(get_or_404(session, m.ChatSession, session_id))
     session.commit()
 
 
 @router.post("/sessions/{session_id}/select", response_model=s.ChatSessionRead)
-def select_branch(session_id: int, payload: s.ChatSelect, session: Session = Depends(get_session)) -> Any:
+@_guard_chat_mutation
+def select_branch(session_id: ChatId, payload: s.ChatSelect, session: Session = Depends(get_session)) -> Any:
     chat = get_or_404(session, m.ChatSession, session_id)
     if not any(x.id == payload.message_id for x in chat.messages):
         raise HTTPException(404, "消息不在这个对话里")
@@ -206,16 +269,21 @@ def select_branch(session_id: int, payload: s.ChatSelect, session: Session = Dep
 
 
 @router.get("/sessions/{session_id}/context")
-def chat_context(session_id: int, session: Session = Depends(get_session)) -> dict[str, Any]:
+def chat_context(session_id: ChatId, session: Session = Depends(get_session)) -> dict[str, Any]:
     """查看下一次发送给模型的完整上下文与激活的世界书条目（调试用）。"""
     chat = get_or_404(session, m.ChatSession, session_id)
     card = get_or_404(session, m.CharacterCard, chat.card_id)
     messages, activated = build_context(session, chat, card, path_to(chat, chat.head_id))
     books = books_for(session, chat, card)
-    return {"messages": messages, "lore": activated, "lorebooks": [{"id": b.id, "name": b.name, "world_id": b.world_id} for b in books]}
+    selection = chatmodels.latest(session, chat)
+    budget = None
+    if selection and selection.snapshot.get('schema') == 1:
+        messages, budget = chatmodels.bound_context(messages, selection.snapshot['context_characters'])
+    return {"messages": messages, "budget": budget, "model_state": chatmodels.state(session, chat), "lore": activated, "lorebooks": [{"id": b.id, "name": b.name, "world_id": b.world_id} for b in books]}
 
 
 @router.patch("/messages/{message_id}", response_model=s.ChatSessionRead)
+@_guard_chat_mutation
 def edit_message(message_id: int, payload: s.ChatMessageUpdate, session: Session = Depends(get_session)) -> Any:
     """直接修改消息内容（不产生分支）。想保留原文另开分支，请用 generate 的 edit_id。"""
     msg = get_or_404(session, m.ChatMessage, message_id)
@@ -228,6 +296,7 @@ def edit_message(message_id: int, payload: s.ChatMessageUpdate, session: Session
 
 
 @router.delete("/messages/{message_id}", response_model=s.ChatSessionRead)
+@_guard_chat_mutation
 def delete_message(message_id: int, session: Session = Depends(get_session)) -> Any:
     """删除一条消息及其后的全部分支。"""
     msg = get_or_404(session, m.ChatMessage, message_id)
@@ -290,14 +359,18 @@ def _prepare(session: Session, chat: m.ChatSession, payload: s.ChatGenerate) -> 
     return user_msg.id, user_msg
 
 
-def _save_reply(session_id: int, parent_id: int | None, content: str, meta: dict[str, Any]) -> dict[str, Any]:
+def _save_reply(session_id: ChatId, parent_id: int | None, content: str, meta: dict[str, Any], expected_head=None) -> dict[str, Any]:
     from ..maintenance import operation
     with operation(lambda:None), new_session() as db:
         chat = db.get(m.ChatSession, session_id)
+        if chat is None or (parent_id is not None and not any(x.id == parent_id for x in chat.messages)):
+            raise AIUnavailable('会话或生成来源已被删除，未创建失去关联的回复')
+        active_parent = chat.head_id == expected_head
         msg = m.ChatMessage(session_id=session_id, role="assistant", content=content, parent_id=parent_id, meta=meta)
         db.add(msg)
         db.flush()
-        chat.head_id = msg.id
+        if active_parent:
+            chat.head_id = msg.id
         chat.updated_at = msg.created_at
         db.commit()
         db.refresh(chat)
@@ -308,49 +381,75 @@ def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
 
 
+def _safe_error(exc):
+    import httpx
+    cause = exc.__cause__
+    status = str(cause.response.status_code) if isinstance(cause, httpx.HTTPStatusError) else ''
+    return f'AI服务调用失败 {status}；用户消息及已完成部分已保留，请检查服务后显式重试'
+
+
 def has_active_generations():
     return bool(_running)
 
 
 @router.post("/sessions/{session_id}/generate")
 def generate(
-    session_id: int,
+    session_id: ChatId,
     payload: s.ChatGenerate,
     session: Session = Depends(get_session),
     provider: AIProvider = Depends(provider_dep),
 ) -> Any:
     """流式（Server-Sent Events）生成回复。事件：start（含 token，可用于停止）/ delta / done / error。"""
-    chat = get_or_404(session, m.ChatSession, session_id)
-    card = get_or_404(session, m.CharacterCard, chat.card_id)
-    if not provider.available():
-        try:
-            provider.chat([])
-        except AIUnavailable as exc:
-            raise HTTPException(503, str(exc)) from exc
-    parent_id, user_msg = _prepare(session, chat, payload)
-    messages, activated = build_context(session, chat, card, path_to(chat, parent_id))
-    lore_meta = [{"entry_id": r["entry_id"], "lorebook_id": r["lorebook_id"], "title": r["title"], "reason": r["reason"]}
-                 for r in activated["active"]]
-    meta: dict[str, Any] = {"model": getattr(provider, "model", None), "provider": getattr(provider, "label", provider.name),
-                            "lore": lore_meta}
-    if payload.regenerate_id is not None:
-        meta["regenerated_from"] = payload.regenerate_id
-
-    if not payload.stream:
-        try:
-            reply = provider.chat(messages)
-        except AIUnavailable as exc:
-            raise HTTPException(503, str(exc)) from exc
-        return _save_reply(chat.id, parent_id, reply, meta)["session"]
-
     token = uuid.uuid4().hex[:12]
     stop = threading.Event()
-    _running[token] = stop
-    stream_fn = getattr(provider, "stream", None)
+    with _generation_lock:
+        _idle(session_id)
+        if len(_running) >= 2:
+            raise HTTPException(429, '已有两个对话在生成，请等待完成；不自动排队付费请求')
+        _session_running[session_id], _running[token] = token, stop
+    try:
+        chat = get_or_404(session, m.ChatSession, session_id)
+        card = get_or_404(session, m.CharacterCard, chat.card_id)
+        provider, selection = chatmodels.resolve(session, chat, provider)
+        if not provider.available():
+            raise HTTPException(503, NOT_CONFIGURED)
+        parent_id, user_msg = _prepare(session, chat, payload)
+        messages, activated = build_context(session, chat, card, path_to(chat, parent_id))
+        budget = None
+        if selection:
+            messages, budget = chatmodels.bound_context(messages, selection['snapshot']['context_characters'])
+        lore_meta = [{"entry_id": r["entry_id"], "lorebook_id": r["lorebook_id"], "title": r["title"], "reason": r["reason"]}
+                     for r in activated["active"]]
+        meta = {"card_id": card.id, "card_name": card.name,
+                "context_sha256": hashlib.sha256(json.dumps(messages, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
+                "model": getattr(provider, "model", None), "provider": getattr(provider, "label", provider.name),
+                "lore": lore_meta, "model_selection": selection, "context_budget": budget,
+                "parameters": {"temperature": getattr(provider, "temperature", None), "max_tokens": getattr(provider, "max_tokens", None)}}
+        if payload.regenerate_id is not None:
+            meta['regenerated_from'] = payload.regenerate_id
+        if not payload.stream:
+            try:
+                reply = provider.chat(messages)
+                if not isinstance(reply, str) or len(reply) > 64000:
+                    raise AIUnavailable('invalid response')
+            except AIUnavailable as exc:
+                raise HTTPException(503, _safe_error(exc)) from None
+            if stop.is_set():
+                meta['interrupted'] = True
+            return _save_reply(chat.id, parent_id, reply, meta, chat.head_id)['session']
+        expected_head = chat.head_id
+        stream_fn = getattr(provider, 'stream', None)
+    except BaseException:
+        _release(session_id, token)
+        raise
+    finally:
+        if not payload.stream:
+            _release(session_id, token)
 
     def events() -> Iterator[str]:
         parts: list[str] = []
         saved = False
+        output_characters = 0
         try:
             yield _sse("start", {"token": token, "user_message_id": user_msg.id if user_msg else None, "parent_id": parent_id,
                                  "lore": lore_meta})
@@ -360,27 +459,30 @@ def generate(
                     if stop.is_set():
                         meta["interrupted"] = True
                         break
+                    if not isinstance(piece, str) or output_characters + len(piece) > 64000:
+                        raise AIUnavailable('response budget')
+                    output_characters += len(piece)
                     parts.append(piece)
                     yield _sse("delta", {"text": piece})
             except AIUnavailable as exc:
                 if parts:
-                    meta["error"] = str(exc)
-                    res = _save_reply(chat.id, parent_id, "".join(parts), meta)
+                    meta["error"] = _safe_error(exc)
+                    res = _save_reply(chat.id, parent_id, "".join(parts), meta, expected_head)
                     saved = True
-                    yield _sse("error", {"detail": str(exc), **res})
+                    yield _sse("error", {"detail": meta['error'], **res})
                 else:
                     saved = True
-                    yield _sse("error", {"detail": str(exc)})
+                    yield _sse("error", {"detail": _safe_error(exc)})
                 return
-            res = _save_reply(chat.id, parent_id, "".join(parts), meta)
+            res = _save_reply(chat.id, parent_id, "".join(parts), meta, expected_head)
             saved = True
             yield _sse("done", res)
         finally:
             try:
                 if not saved and parts:  # Keep generation registered through the final partial save.
                     meta["interrupted"] = True
-                    _save_reply(chat.id, parent_id, "".join(parts), meta)
-            finally:_running.pop(token, None)
+                    _save_reply(chat.id, parent_id, "".join(parts), meta, expected_head)
+            finally:_release(session_id, token)
 
     return StreamingResponse(events(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -396,7 +498,7 @@ def stop_generation(token: str) -> None:
 
 @router.post("/sessions/{session_id}/messages", response_model=s.ChatSessionRead)
 def send_message(
-    session_id: int,
+    session_id: ChatId,
     payload: s.ChatSend,
     session: Session = Depends(get_session),
     provider: AIProvider = Depends(provider_dep),

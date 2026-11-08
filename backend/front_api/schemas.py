@@ -453,7 +453,7 @@ class ChatSessionRead(Timestamps):
 
 
 class ChatSend(BaseModel):
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=64000)
 
 
 class ChatSessionUpdate(BaseModel):
@@ -465,7 +465,7 @@ class ChatSessionUpdate(BaseModel):
 class ChatGenerate(BaseModel):
     """content：发送新消息（接在 parent_id 或当前 head 后）；edit_id：编辑某条用户消息并另开分支；
     regenerate_id：重新生成某条 AI 回复（作为它的兄弟分支）；都不填：直接让 AI 接着当前 head 回复。"""
-    content: str | None = None
+    content: str | None = Field(default=None, max_length=64000)
     parent_id: int | None = None
     edit_id: int | None = None
     regenerate_id: int | None = None

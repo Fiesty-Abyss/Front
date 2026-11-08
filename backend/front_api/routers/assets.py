@@ -56,6 +56,11 @@ def _trim(d: dict[str, Any]) -> dict[str, Any]:
     if f:
         d["content"] = None
         d["meta"] = {**d["meta"], "file": {k: v for k, v in f.items() if k not in ("preview", "entries", "motion_files", "material_names", "textures")}}
+    # Reference declarations/transcripts are detail/version data, not gallery
+    # payload. The shared media metadata remains available for thumbnails and
+    # playback; this projection never modifies the stored Asset JSON.
+    if any(key in (d.get('meta') or {}) for key in ('voice_reference','voice_reference_qc')):
+        d['meta']={key:value for key,value in d['meta'].items() if key not in ('voice_reference','voice_reference_qc')}
     return d
 
 

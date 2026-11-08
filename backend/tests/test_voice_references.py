@@ -224,3 +224,28 @@ def test_future_reference_and_qc_schema_not_overwritten(client):
     assert client.post(endpoint(a)+'/inspect',json=token(current)|{'confirm_local_analysis':True}).status_code==409
     assert client.get(f'/api/assets/{a["id"]}').json()['meta']==future
     assert client.get('/api/voice/references/'+str(2**100)).status_code==422
+
+
+def test_long_reference_text_does_not_bloat_shared_asset_lists(client):
+    from test_voice_exports import audio
+    ids=[]
+    for number in range(3):
+        a,_,_=audio(client,value=number+41);ids.append(a['id'])
+        row=client.get(endpoint(a)).json()
+        data={'reference_text':'T'*20000,'license':'L'*20000,'notes':'N'*5000,'source':'S'*2000}
+        r=client.put(endpoint(a),json={**token(row),'data':data});assert r.status_code==200
+    current=client.get('/api/voice/references/'+str(ids[0])).json()
+    check=client.post('/api/voice/references/'+str(ids[0])+'/inspect',json=token(current)|{'confirm_local_analysis':True})
+    assert check.status_code==200 and wait(client,check.json())['status']=='done'
+    page=client.get('/api/assets',params={'kind':'audio','limit':3})
+    assert page.status_code==200
+    assert len(page.content)<10000,f'Asset list contains {len(page.content)} bytes for three reference audio records'
+    assert all('voice_reference' not in a['meta'] and 'voice_reference_qc' not in a['meta'] for a in page.json()['items'])
+    print('generated_three_reference_asset_list_bytes='+str(len(page.content)))
+    assert len(client.get('/api/voice/references').content)<2000
+    assert len(client.get('/api/audio/tracks').content)<5000
+    for aid in ids:
+        asset=client.get(f'/api/assets/{aid}').json()
+        assert asset['meta']['voice_reference']['data']['reference_text']=='T'*20000
+        assert client.get(f'/api/voice/references/{aid}').json()['data']['license']=='L'*20000
+    assert client.get('/api/assets/'+str(ids[0])).json()['meta']['voice_reference_qc']['pcm']['frames']==400

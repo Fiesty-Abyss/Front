@@ -1,5 +1,7 @@
 ## 2026-11-08 · 联网资料匹配首闭环
 
+2026-11-08 Live2D协议与研究增量：独立codex/live2d-renderer-protocol从main b84b856a9ca5ec4037c2fd68afb7ee7f505b4896开发；仅自研RendererAdapter/NullRenderer、有界UTF-8命令、世代/动作/表情/口型声明/幂等/关闭/EOF原型。真实自有CLI子进程、101次切换等21定向与最终542后端/1权限跳过194.91秒、15前端及构建通过；不渲染/读模型或初始化GPU，不挂接Studio启动链。Bandori/Neocari固定GPL来源与当前官方SDK/Core另有证据，不复制、不下载Core或接受协议。[研究/协议/限制](research/LIVE2D_RENDERER_ARCHITECTURE.md)。
+
 资料发现#62正常merge为47054ea，精确head f3bd6d28常规42458154437、Windows42458154440均成功（冻结、ACL、迁移、签名协议、NSIS/便携及完整性，非公开发布）。下一独立资料匹配增量补游戏/图书/Hash候选、Work/Galgame字段来源/人工保护/不可变历史；修复FD误匹配与上传封面被刷新替换。521本机后端/1权限跳过、15前端与构建、实际生成GUI/390px深浅/重启/隔离备份恢复已验，真实Open Library与Mock分开；本增量远程CI/合并以PR精确head为准。[验收](audits/metadata/CENTER_20261108.md)。ISBN/Edition/动漫/更多来源、C/D/E/F和长期Voice/专业引擎/签名发布仍待。
 
 ## 2026-11-08 · 多根来源与候选归档

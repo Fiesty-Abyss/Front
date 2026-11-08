@@ -1,5 +1,9 @@
 # 路线图
 
+2026-11-08 Live2D协议与研究增量：独立codex/live2d-renderer-protocol从main b84b856a9ca5ec4037c2fd68afb7ee7f505b4896开发；仅自研RendererAdapter/NullRenderer、有界UTF-8命令、世代/动作/表情/口型声明/幂等/关闭/EOF原型。真实自有CLI子进程、101次切换等21定向与最终542后端/1权限跳过194.91秒、15前端及构建通过；不渲染/读模型或初始化GPU，不挂接Studio启动链。Bandori/Neocari固定GPL来源与当前官方SDK/Core另有证据，不复制、不下载Core或接受协议。[研究/协议/限制](research/LIVE2D_RENDERER_ARCHITECTURE.md)。
+
+#62/#63已合并；#64角色卡待Windows官方工具504恢复，#65严格有限重试待CI，#66聊天模型底座Draft因GUI启动被自动审批拒绝。Python310安装资源也504，不能视作兼容通过。当前不因CI受阻堆叠依赖；这些分支均基于同一已合并main，不把未合并代码当主线。群聊/叙事/选项、桌面目录/导航、合法真实渲染与所有长期创作方向继续保留。
+
 2026-11-08推进：资料发现#62已合并main47054ea，常规及Windows构建全成功。资料匹配首闭环在独立分支实现：游戏/图书/模型Hash候选、Work/Galgame来源/人工确认/版本，521本机后端与15前端、构建和真实生成GUI通过，远程CI仍以本PR精确head为准。[范围](METADATA_CENTER.md)明确保留ISBN/版次/动漫和更多来源、角色卡/多模式聊天、桌面导航与Live2D协议原型，未把规划当完成。
 
 当前资料发现/角色互动轮：先交付多根来源与候选归档，再统一显式联网匹配及字段来源/人工覆盖，随后完善角色卡辅助、多模式会话、桌面目录/导航与Live2D独立接口原型。第一增量复用ProjectPreview/Asset/jobs并增加来源配置表，生成GUI/续扫/备份/506后端与15前端/构建已验，远程CI以当前PR为准；其余阶段尚未因文档纳入而完成。[参考初查](research/CREATIVE_REFERENCE_20261108.md)已锁定Koi/Bandori源码和许可，禁止复制GPL实现或默认获得专有SDK再分发资格。Voice与所有长期创作/桌面签名方向保持。

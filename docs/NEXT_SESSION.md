@@ -1,5 +1,34 @@
 # 最新接续 · 资料发现与角色互动轮 · 2026-11-08
 
+## 2026-11-08 · 停止前收敛状态（Live2D协议分支）
+
+截至本提交最新fetch main **b84b856a9ca5ec4037c2fd68afb7ee7f505b4896**，即#63；#62/#63精确head与成功CI见下文历史。根checkout仍3aaa9e1且clean，未升级个人安装/库。当前工作树.cache/worktrees/live2d-protocol，codex/live2d-renderer-protocol为独立分支，非其他未合并PR的堆叠基线。
+
+### 已提交与CI门槛
+
+- #62多根目录与候选归档、#63联网资料匹配均正常merge；#62常规42458154437/Windows42458154440、#63常规42461583921/Windows42461583955成功。范围和未完成内容见DISCOVERY/METADATA_CENTER。
+- #64角色卡head f0ebf5aa95cebee738de7239f74ebf49ed2da5c8：534本机后端/1跳过、18前端/构建与生成真实GUI/390px/版本恢复/重启/隔离备份通过；常规42466429793成功；Windows42466429802尝试1/2分别因官方NSIS helper/ZIP HTTP504失败，未合并，不算完整Windows通过。没有无限重跑或门槛豁免。
+- #65 codex/windows-bundle-retry，head24816bad14c16962277f62ffa92064d1aed2f921：27专题、548本机后端/1跳过、15前端/构建通过。常规42469928766的backend/frontend成功，但Python310在setup-python下载官方3.10.22 Linux26.04包时504，尚未运行兼容测试；Windows42469928847以实时结果为准。仅官方工具502/503/504有限重试，不更改签名/Hash/版本/镜像，不保证持续上游故障消失。
+- #66 codex/chat-model-snapshots为Draft：模型/参数追加快照、预算/互斥/实际回复来源、安全错误/URL标签及草稿保留。最新534本机后端/1跳过199.12秒、13专题（旧49联合专题另记）、15前端/构建通过。原6c34 head常规42470114817在Python310安装504，旧Windows42470114805已在更新后申请取消，不能拿旧head结果代替最新；实际head/CI必须查询。隔离GUI服务创建/启动组合命令被自动审批拒绝blocked by policy，未执行/未绕过，未创建聊天生成目录；即使CI绿也须GUI/窄屏/键盘/重启后才转Ready。
+- 当前Live2D协议原型：最终542本机后端/1权限跳过194.91秒（live2d-protocol-final）、21专题（含真实自有CLI子进程/UTF-8/EOF/超长输入/101切换）、15前端及构建6.18秒。仅生成目录、无模型/文件/SDK/GPU/网络监听/应用初始化，代码最后修改提交82a7247，后续文档提交不代表多做了渲染。创建本PR后按其精确head检查普通/Windows全部CI；不因其他分支失败就跳过。
+
+以上统计来自各自b84基线独立分支，**不能相加作最终集成通过数**。待main可推进时，普通merge最新main进各分支（不强推），保留文档所有记录、重跑真正集成全量/构建/CI再合并。目前未执行含所有未合并代码的最终集成验收。
+
+### 下一轮精确操作
+
+1. git fetch origin main并用gh pr list/view核实#64/#65/#66和当前协议PR的head/CI/冲突；不要沿用本文时间截面的状态。官方资源下载仍504时先保留失败，不改Python最低版本/镜像或绕过签名/保护。#65若全绿且无冲突可按授权正常merge；否则保留。
+2. main推进后先收敛#64：普通merge origin/main、处理文档头保留双方内容、后端全量/前端测试构建/Windows全部CI，再正常merge。角色卡没有真实语义质量/自动封面/直接小说转卡新界面，已有OC/抽取证据流程继续复用。
+3. 协议原型可在适用CI全绿且无冲突后普通merge，无GUI变化；实际渲染仍待合法运行时、Core/Framework版本配套、真实模型/GPU/窗口。绝不复制GPL实现或打包第三方模型。固定参考与官方当前版本证据见research/LIVE2D_RENDERER_ARCHITECTURE。
+4. #66保持Draft直至可批准执行的隔离GUI验收；之后再按独立增量做群聊参与者/逐角色上下文与模型、有限轮次、旁白/剧情与选项分支。已有单人编辑/重生/分支不重写；模型面板不等于多模式完成。原生目录选择/外链导航、更多图书匹配也仍待。
+
+### 数据、资源与长期方向
+
+A/B专属private/discovery-20261108-v2、C专属private/cards-20261108-v1均核对生成标记并认证关闭，control.stopped=true；令牌不得打印/提交。十个生成发现源与生成原地封面Hash保持；不是重新验证个人原件的Hash。浏览器临时尺寸已重置，公开截图全部生成；C截图在#64分支，不要使用用户模型/小说作公开演示。
+
+没有停止个人8000、访问旧WebUI/模型/原始世界观或替换个人库/安装；没有真实/付费AI调用、Core下载/协议接受、摄像头/GPU或公开Release。测试PYTHONPATH指向当前工作树backend，TEMP/TMP在E:/Skill/front/.cache/tmp；不要误用根旧editable包或重放旧准备脚本。
+
+原型未改前端/业务DB/API/依赖，初始bundle与基线相同；无整机CPU/RSS/PrivateBytes/Heap/GPU/FPS或冷启动/泄漏新结论。Voice真实TTS/数据集/训练/制作、Live2D动作/道具/面捕/玄宝酱授权、Krita/笔刷/压感、真实OC/生图、小说语义、3D、游戏音声/特典、大库、正式Windows/签名更新/插件方向完整保留。
+
 ## 基线、分支和权限
 
 开始时fetch的origin/main为`3309edaab8c2c7c2eb7f6506e03f9641a73c9dc1`，#54–#61均合并、main CI42454312706成功。#62精确head f3bd6d28cb045d2a109aecf02a6eb873d0923444全部CI成功：常规42458154437、Windows42458154440（冻结/ACL/迁移/更新签名协议/NSIS/便携/完整性），已按授权正常merge。最新已核实main为`47054ea9bb471d4e346fbbb406b8d61bece7bcdd`。当前独立`codex/metadata-center`从该main创建，待本PR精确head全部适用CI；未通过前不合并、不堆叠下一功能。合并后fetch实际main再开独立分支。

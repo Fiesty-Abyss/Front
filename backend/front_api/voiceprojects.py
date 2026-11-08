@@ -138,6 +138,14 @@ def touch(session,project,note):
 
 
 def render(session,obj,current):
+    job=None
+    if obj.status in ('queued','running','interrupted') and obj.snapshot.get('job_id'):
+        from . import jobs
+        job=jobs.get(obj.snapshot['job_id'])
+        if job and job.status in ('cancelled','error','interrupted'):
+            # Fetch the committed terminal cause before the UI stops polling.
+            # Do not write/recover/replay anything from a serializer.
+            session.refresh(obj)
     status='ok' if obj.snapshot.get('audio_ref') else 'not_generated'
     try:
         vs.sample(session,obj.snapshot.get('audio_ref') or {})
@@ -151,8 +159,6 @@ def render(session,obj,current):
             status='scope_changed'
     effective=obj.status;execution_issue=''
     if obj.status in ('queued','running','interrupted') and obj.snapshot.get('job_id'):
-        from . import jobs
-        job=jobs.get(obj.snapshot['job_id'])
         # A list/detail transaction may still hold an older ORM row while the
         # worker has committed the candidate and marked its job done. Never
         # turn that successful concurrent completion into a fabricated error;

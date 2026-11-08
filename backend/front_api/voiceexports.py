@@ -88,7 +88,12 @@ def describe(row,detail=True):
     effective=row.status
     if row.status in ('queued','running','interrupted') and row.job_id:
         job=jobs.get(row.job_id)
-        if job and job.status in ('cancelled','error','interrupted'):effective=job.status
+        if job and job.status in ('cancelled','error','interrupted'):
+            from sqlalchemy.orm import object_session
+            session=object_session(row)
+            if session:session.refresh(row)
+            effective=row.status
+            if row.status in ('queued','running','interrupted'):effective=job.status
     result={'id':row.id,'uid':row.uid,'project_id':row.project_id,'fingerprint':row.fingerprint,
         'status':effective,'recorded_status':row.status,'job_id':row.job_id,'error_code':row.error_code,'asset_id':row.asset_id,
         'created_at':row.created_at}
@@ -139,7 +144,7 @@ def inspect_pcm(path,job):
             channels,width,rate,frames=audio.getnchannels(),audio.getsampwidth(),audio.getframerate(),audio.getnframes()
             if audio.getcomptype()!='NONE' or channels not in (1,2) or width not in (1,2,3,4) or not 8000<=rate<=192000 or frames*1000//rate<1:
                 raise HTTPException(422,'仅支持完整PCM WAV')
-            count=0;peak=0;squares=0;remaining=frames
+            count=0;peak=0;squares=0;near_full=0;near_zero=0;remaining=frames
             while remaining:
                 job.check();n=min(remaining,8192);block=audio.readframes(n)
                 if len(block)!=n*channels*width:raise HTTPException(422,'WAV数据截断')
@@ -147,12 +152,18 @@ def inspect_pcm(path,job):
                 if width==2:
                     values=array.array('h');values.frombytes(block)
                     if sys.byteorder!='little':values.byteswap()
-                    peak=max(peak,max(abs(x) for x in values));squares+=sum(x*x for x in values);count+=len(values)
+                    count+=len(values)
+                    for value in values:
+                        magnitude=abs(value)
+                        if magnitude>peak:peak=magnitude
+                        squares+=value*value;near_full+=magnitude>=32760;near_zero+=magnitude<=32
             db=lambda value:round(20*math.log10(value/32768),2) if value else None
             return {'channels':channels,'sample_width':width,'sample_rate':rate,'frames':frames,'pcm_bytes':frames*channels*width,
                 'duration_seconds':frames/rate,'peak_dbfs':db(peak) if width==2 else None,
                 'rms_dbfs':db(math.sqrt(squares/count)) if count else None,'level_measured':width==2,
-                'silent':peak==0 if width==2 else None,'levels_method':'all_samples_pcm16' if width==2 else 'unsupported_bit_depth'}
+                'silent':peak==0 if width==2 else None,'levels_method':'all_samples_pcm16' if width==2 else 'unsupported_bit_depth',
+                'near_full_scale_samples_ratio':near_full/count if count else None,
+                'near_zero_samples_ratio':near_zero/count if count else None}
     except (wave.Error,EOFError):raise HTTPException(422,'音频不是支持的PCM WAV') from None
 
 

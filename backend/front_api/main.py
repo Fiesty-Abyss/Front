@@ -30,6 +30,7 @@ from .routers import ocdrawing
 from .routers import audio,referenceimports
 from .routers import bonuses, modelassets, voice, voicedialogue, voicetasks
 from .routers import voicelocal
+from .routers import voicereferences
 from .routers import voiceexports as voiceexports_router
 from .routers import voicebooks as voicebooks_router
 
@@ -99,6 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         voicedialogue.router,
         voicetasks.router,
         voicelocal.router,
+        voicereferences.router,
         voicebooks_router.router,
         voiceexports_router.router,
         exports.router,

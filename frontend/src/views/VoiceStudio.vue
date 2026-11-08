@@ -1,12 +1,20 @@
 <script setup>
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
+import {onBeforeRouteLeave} from 'vue-router'
 import { api } from '../api'
 import VersionPanel from '../components/VersionPanel.vue'
 const AssetPicker = defineAsyncComponent(() => import('../components/AssetPicker.vue'))
 const AudioPlayer = defineAsyncComponent(() => import('../viewers/AudioPlayer.vue'))
 const VoiceProjects = defineAsyncComponent(() => import('./VoiceProjects.vue'))
+const VoiceReferenceAssets=defineAsyncComponent(()=>import('./VoiceReferenceAssets.vue'))
+const referenceMode=ref(false),referencesRef=ref(null),savedMetadata=ref('')
 const projectMode = ref(false),projectsRef=ref(null)
-async function leaveProjects(key){if(projectMode.value&&projectsRef.value&&!projectsRef.value.canLeave())return;projectMode.value=false;await run(()=>changeTab(key))}
+const metadataDirty=()=>Boolean(draft.value)&&JSON.stringify(draft.value)!==savedMetadata.value
+const leaveMetadata=()=>projectMode.value||referenceMode.value||!metadataDirty()||window.confirm('声线/模型/引擎资料尚未保存，确认放弃草稿？')
+const leaveReferences=()=>!referenceMode.value||!referencesRef.value||referencesRef.value.canLeave()
+async function leaveProjects(key){if(!leaveReferences()||!leaveMetadata()||(projectMode.value&&projectsRef.value&&!projectsRef.value.canLeave()))return;referenceMode.value=false;projectMode.value=false;await run(()=>changeTab(key))}
+function enterProjects(){if(!leaveReferences()||!leaveMetadata())return;referenceMode.value=false;projectMode.value=true;sample.value=null;picker.value=false}
+function enterReferences(){if(referenceMode.value)return;if(!leaveMetadata()||(projectMode.value&&projectsRef.value&&!projectsRef.value.canLeave()))return;projectMode.value=false;referenceMode.value=true;sample.value=null;picker.value=false}
 const tab = ref('profiles'), rows = ref([]), total = ref(0), offset = ref(0), q = ref(''), error = ref(''), busy = ref(false)
 const draft = ref(null), current = ref(null), picker = ref(false), sample = ref(null), diagnose = ref(null)
 let disposed = false, sequence = 0
@@ -27,11 +35,11 @@ async function load() {
 function adopt(row) {
   current.value = row; const value = defaults()
   for (const key of Object.keys(value)) value[key] = row[key] ?? value[key]
-  draft.value = value; sample.value = null; diagnose.value = null
+  draft.value = value; savedMetadata.value=JSON.stringify(value);sample.value = null; diagnose.value = null
 }
-async function open(id) { const row = await api.get(`${base()}/${id}`); if(!disposed) adopt(row) }
+async function open(id) { if(!leaveMetadata())return;const row = await api.get(`${base()}/${id}`); if(!disposed) adopt(row) }
 async function changeTab(value) { tab.value=value; offset.value=0; q.value=''; draft.value=null; current.value=null; sample.value=null; picker.value=false; await load() }
-function create() { current.value=null; draft.value=defaults(); sample.value=null; diagnose.value=null }
+function create() { if(!leaveMetadata())return;current.value=null; draft.value=defaults();savedMetadata.value=JSON.stringify(draft.value); sample.value=null; diagnose.value=null }
 async function save() {
   const row = current.value ? await api.put(`${base()}/${current.value.id}`, {...draft.value, expected_uid:current.value.uid, expected_version:current.value.version}) : await api.post(base(), draft.value)
   if(!disposed) { adopt(row); await load() }
@@ -52,15 +60,18 @@ async function listen() {
 }
 async function checkPath() { diagnose.value = await api.post(`${base()}/${current.value.id}/diagnose`, {}) }
 async function restored() { await open(current.value.id); await load() }
-onMounted(() => run(load))
-onBeforeUnmount(() => {disposed=true; sequence++; sample.value=null})
+function unload(event){if(!projectMode.value&&!referenceMode.value&&metadataDirty()){event.preventDefault();event.returnValue=''}}
+onBeforeRouteLeave(()=>projectMode.value||referenceMode.value?true:!busy.value&&leaveMetadata())
+onMounted(() => {window.addEventListener('beforeunload',unload);run(load)})
+onBeforeUnmount(() => {disposed=true; sequence++; sample.value=null;window.removeEventListener('beforeunload',unload)})
 </script>
 <template>
   <div class="voice grid">
     <header><div class="eyebrow">CREATION · VOICE</div><h1>AI Voice Studio</h1><p class="muted">声线、模型、授权与配音工程。引擎按需连接，不会自动启动服务或下载模型。</p></header>
     <p v-if="error" class="notice" role="alert">{{ error }}</p>
-    <nav class="row" aria-label="Voice 工作区"><button v-for="(label,key) in labels" :key="key" :disabled="busy" :aria-pressed="!projectMode&&tab===key" @click="leaveProjects(key)">{{ label }}</button><button :disabled="busy" :aria-pressed="projectMode" @click="projectMode=true;sample=null;picker=false">配音工程</button><RouterLink to="/audio">音声收藏</RouterLink><RouterLink to="/characters">角色百科</RouterLink><RouterLink to="/oc">OC Studio</RouterLink></nav>
+    <nav class="row" aria-label="Voice 工作区"><button v-for="(label,key) in labels" :key="key" :disabled="busy" :aria-pressed="!projectMode&&!referenceMode&&tab===key" @click="leaveProjects(key)">{{ label }}</button><button :disabled="busy" :aria-pressed="projectMode" @click="enterProjects">配音工程</button><button :disabled="busy" :aria-pressed="referenceMode" @click="enterReferences">参考音频</button><RouterLink to="/audio">音声收藏</RouterLink><RouterLink to="/characters">角色百科</RouterLink><RouterLink to="/oc">OC Studio</RouterLink></nav>
     <VoiceProjects v-if="projectMode" ref="projectsRef"/>
+    <VoiceReferenceAssets v-else-if="referenceMode" ref="referencesRef"/>
     <div v-else class="workspace">
       <aside class="card grid">
         <form class="row" @submit.prevent="offset=0; run(load)"><input v-model="q" aria-label="搜索名称" maxlength="200" placeholder="搜索名称"/><button :disabled="busy">搜索</button></form>
@@ -100,7 +111,7 @@ onBeforeUnmount(() => {disposed=true; sequence++; sample.value=null})
         <AudioPlayer v-if="sample" :key="sample.id+'-'+sample.sha256" :asset="sample"/>
         <VersionPanel v-if="current" :key="kind()+'-'+current.uid+'-'+current.version" :kind="kind()" :entity-id="current.id" @restored="run(restored)"/>
       </section>
-      <div v-else class="card empty">选择或新建声线档案；配音工程可整理台词、关联手动音频并导出。当前未启用真实 TTS。</div>
+      <div v-else class="card empty">选择或新建声线档案；配音工程可整理台词、关联手动音频并导出。档案与手动音频可离线使用；合成需单独明确启用并核对服务。</div>
     </div>
     <AssetPicker v-if="picker" @close="picker=false" @pick="asset=>run(()=>pick(asset))"/>
   </div>

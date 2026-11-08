@@ -83,7 +83,7 @@ def run(job,uid):
                     raise AdapterError('project_scope_changed')
                 if snapshot.get('origin')=='gpt_sovits':
                     from .voiceinference import reference_scope
-                    try:reference_scope(session,project,snapshot['local_request']['reference'])
+                    try:reference_scope(session,project,snapshot['local_request']['reference'],session.get(m.VoiceProfile,segment.profile_id) if segment.profile_id else None)
                     except HTTPException:raise AdapterError('reference_scope_changed') from None
                 job.check()
                 asset,_=ingest_stream(session,output,'mock-marker.wav' if snapshot.get('origin')=='mock' else 'local-tts.wav',mime='audio/wav',kind='audio',title='Mock测试音（非语音）' if snapshot.get('origin')=='mock' else '本机TTS API音频候选',expected_sha=result.sha256,

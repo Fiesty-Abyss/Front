@@ -52,18 +52,31 @@ def sqlite_copy(source,dest,check=lambda:None):
         if dst.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise ValueError('SQLite快照完整性检查失败')
 
 
+def schema_findings(db,complete=False):
+    """Shared structural inspection; names stay in private backup diagnostics."""
+    names={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    allowed=set(Base.metadata.tables)|{'search_index','search_index_content','search_index_data','search_index_idx','search_index_docsize','search_index_config','sqlite_sequence','sqlite_stat1','sqlite_stat4'}
+    result={'unknown_tables':sorted(names-allowed),'unknown_columns':[], 'missing_tables':[], 'missing_columns':[],
+            'missing_core':sorted({'assets','worlds','characters'}-names)}
+    for name,table in Base.metadata.tables.items():
+        if name in names:
+            cols={r[1] for r in db.execute(f'PRAGMA table_info("{name}")')}
+            result['unknown_columns'].extend(f'{name}.{x}' for x in sorted(cols-set(table.columns.keys())))
+            if complete:result['missing_columns'].extend(f'{name}.{x}' for x in sorted(set(table.columns.keys())-cols))
+        elif complete:result['missing_tables'].append(name)
+    return result
+
+
 def schema_issues(path,complete=False):
-    with closing(sqlite3.connect(path)) as db,db:
-        names={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        allowed=set(Base.metadata.tables)|{'search_index','search_index_content','search_index_data','search_index_idx','search_index_docsize','search_index_config','sqlite_sequence','sqlite_stat1','sqlite_stat4'}
-        issues=[f'当前程序不认识数据库表：{x}' for x in names-allowed]
-        for name,table in Base.metadata.tables.items():
-            if name in names:
-                cols={r[1] for r in db.execute(f'PRAGMA table_info("{name}")')}
-                issues.extend(f'当前程序不认识字段：{name}.{x}' for x in cols-set(table.columns.keys()))
-                if complete:issues.extend(f'迁移后仍缺少字段：{name}.{x}' for x in set(table.columns.keys())-cols)
-            elif complete:issues.append(f'迁移后仍缺少数据表：{name}')
-        if not {'assets','worlds','characters'}<=names:issues.append('不是可识别的Front数据库')
+    # A check must never create a missing database or mutate an existing one.
+    uri=Path(path).resolve().as_uri()+'?mode=ro'
+    with closing(sqlite3.connect(uri,uri=True)) as db:
+        findings=schema_findings(db,complete)
+        issues=[f'当前程序不认识数据库表：{x}' for x in findings['unknown_tables']]
+        issues.extend(f'当前程序不认识字段：{x}' for x in findings['unknown_columns'])
+        issues.extend(f'迁移后仍缺少字段：{x}' for x in findings['missing_columns'])
+        issues.extend(f'迁移后仍缺少数据表：{x}' for x in findings['missing_tables'])
+        if findings['missing_core']:issues.append('不是可识别的Front数据库')
         if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok':issues.append('数据库完整性检查失败')
         return issues
 

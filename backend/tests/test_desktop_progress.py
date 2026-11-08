@@ -99,7 +99,7 @@ def test_real_startup_phases_backup_restore_and_failure_do_not_expose_paths(tmp_
         db.execute('CREATE TABLE generated_future_format(id INTEGER)')
     rejected = ProgressSidecar(folder)
     try:
-        assert rejected.wait() == {'error': 'database_incompatible_or_damaged'}
+        assert rejected.wait() == {'error': 'database_schema_incompatible'}
         rejected.process.wait(timeout=15)
         assert rejected.process.returncode == 1
         assert all('private-name' not in json.dumps(e) for e in rejected.events)

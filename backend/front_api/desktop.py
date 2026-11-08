@@ -73,13 +73,10 @@ def prepare_data(settings, progress=None):
     from .db import Base
     from .migrate import COLUMNS
     import sqlite3
-    try:
-        issues = backups.schema_issues(settings.db_path)
-    except sqlite3.DatabaseError as exc:
-        raise RuntimeError('database_incompatible_or_damaged') from exc
-    if issues:
-        raise RuntimeError('database_incompatible_or_damaged')
-    with contextlib.closing(sqlite3.connect(settings.db_path)) as db:
+    from .database_diagnostics import inspect_database, StartupDatabaseError
+    diagnostic=inspect_database(settings.db_path)
+    if diagnostic.code!='ok':raise StartupDatabaseError(diagnostic)
+    with contextlib.closing(sqlite3.connect(settings.db_path.resolve().as_uri()+'?mode=ro',uri=True)) as db:
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         missing = bool(set(Base.metadata.tables) - tables)
         for table, column, _ in COLUMNS:
@@ -204,8 +201,11 @@ def serve(folder: Path, progress=None):
         logger.addHandler(handler)
         logger.info('Preparing local data')
         try:
+            from . import __version__
+            logger.info('Backend version: %s',__version__)
             if progress: progress('checking_database', None, None)
             migration_needed = prepare_data(settings, progress)
+            logger.info('Schema preparation complete: migration_needed=%s',bool(migration_needed))
             from .main import create_app
             import uvicorn
             if progress: progress('migrating' if migration_needed else 'initializing_database', None, None)
@@ -229,7 +229,10 @@ def serve(folder: Path, progress=None):
                 asyncio.run(runner())
             logger.info('Local service stopped')
         except Exception as exc:
-            logger.error('Sidecar failed: %s',type(exc).__name__)
+            from .database_diagnostics import StartupDatabaseError
+            if isinstance(exc,StartupDatabaseError):
+                logger.error('Database startup stopped: code=%s metrics=%s',exc.diagnostic.code,json.dumps(exc.diagnostic.metrics,sort_keys=True))
+            else:logger.error('Sidecar failed: %s',type(exc).__name__)
             raise
         finally:
             handler.close();logger.removeHandler(handler)
@@ -240,7 +243,14 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--data-dir',required=True)
     parser.add_argument('--startup-events',action='store_true')
+    parser.add_argument('--diagnose-data',action='store_true',help='Read-only database classification; does not start or migrate Front')
     args=parser.parse_args()
+    if args.diagnose_data:
+        from .database_diagnostics import inspect_database
+        from . import __version__
+        result=inspect_database(Path(args.data_dir)/'front.db')
+        print(json.dumps({'code':result.code,'metrics':result.metrics,'backend_version':__version__}),flush=True)
+        raise SystemExit(0 if result.code=='ok' else 1)
     try:
         def progress(phase, done, total):
             # Fixed phase IDs and counters only; never filenames, paths or credentials.
@@ -248,7 +258,8 @@ def main():
         serve(Path(args.data_dir), progress if args.startup_events else None)
     except Exception as exc:
         # Only stable codes cross the shell pipe; never raw paths, tokens or provider exceptions.
-        known={'data_directory_in_use','data_directory_unwritable','database_incompatible_or_damaged','upgrade_backup_incomplete'}
+        from .database_diagnostics import CODES
+        known={'data_directory_in_use','data_directory_unwritable','database_incompatible_or_damaged','upgrade_backup_incomplete'}|CODES
         code=str(exc) if str(exc) in known else 'sidecar_initialization_failed'
         print(json.dumps({'error':code}),flush=True)
         raise SystemExit(1)

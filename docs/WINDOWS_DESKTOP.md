@@ -86,3 +86,6 @@ Windows Actions 先执行后端测试、前端生产构建及冻结 Sidecar 冒�
 #28已合并到接管main1508a5c；早前“待CI合并”是历史状态。新性能采样与资源生命周期修复见[DESKTOP_PERFORMANCE_A](audits/v0.7/DESKTOP_PERFORMANCE_A.md)。真正干净Windows、安装卸载升级与正式签名更新仍需按[矩阵](audits/v0.7/DESKTOP_VALIDATION_MATRIX.md)验收。
 
 只读采样：`python desktop/profiling.py <本实例外壳PID> --output <隔离报告路径>`。工作集求和重复共享页，私有提交不是物理RAM，GPU计数另列；不可测项返回null及coverage。工具不输出进程命令行、访问令牌或页面内容，不改变进程优先级或工作集。
+
+
+2026-11-08：发现并修正父PID复用误计。今后使用创建时间/句柄核对版采样器；未知值不能计0，未校正的12进程样本作废，不回推历史指标均有问题。详见 [PROCESS_IDENTITY](audits/v0.7/PROCESS_IDENTITY.md)。

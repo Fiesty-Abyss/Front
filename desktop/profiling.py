@@ -10,22 +10,59 @@ from pathlib import Path
 import subprocess
 
 
+def verified_tree(pid: int, rows: list[dict]):
+    """A parent PID alone is not ownership: Windows reuses IDs after exit."""
+    grouped={}
+    children={}
+    for row in rows:
+        if not isinstance(row,dict):continue
+        key=row.get('pid');parent=row.get('parent')
+        if type(key) is not int or key<=0 or type(parent) is not int:continue
+        grouped.setdefault(key,[]).append(row)
+        children.setdefault(parent,[]).append(row)
+    roots=grouped.get(pid,[])
+    def born(row):
+        value=row.get('created_filetime')
+        return value if type(value) is int and value>0 else None
+    if len(roots)!=1 or born(roots[0]) is None:return []
+    result=[];pending=[roots[0]];seen={pid}
+    while pending:
+        row=pending.pop(0);item=dict(row)
+        item['unverified_children']=0;item['pid_reuse_exclusions']=0
+        unknown=set()
+        for child in sorted(children.get(row['pid'],[]),key=lambda r:r['pid']):
+            key=child['pid']
+            if key in seen:continue
+            created=born(child)
+            if len(grouped[key])!=1 or created is None:
+                unknown.add(key);continue
+            if created<born(row):
+                item['pid_reuse_exclusions']+=1;continue
+            seen.add(key);pending.append(child)
+        item['unverified_children']=len(unknown)
+        result.append(item)
+    return result
+
+
 def process_tree(pid: int):
     script = r'''
-$all=Get-CimInstance Win32_Process
-$ids=@(ROOTPID)
-do {$new=@($all | Where-Object {$_.ParentProcessId -in $ids -and $_.ProcessId -notin $ids} | ForEach-Object ProcessId);$ids+=$new} while($new.Count)
-@($all | Where-Object {$_.ProcessId -in $ids} | ForEach-Object {
+[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false)
+$ErrorActionPreference='Stop'
+@(Get-CimInstance Win32_Process | ForEach-Object {
  $role=if($_.Name -eq 'msedgewebview2.exe'){if($_.CommandLine -match '--type=([^ ]+)'){$matches[1]}else{'browser'}}elseif($_.Name -eq 'front-backend.exe'){'backend'}elseif($_.ProcessId -eq ROOTPID){'shell'}else{'helper'}
- [pscustomobject]@{pid=$_.ProcessId;parent=$_.ParentProcessId;name=$_.Name;role=$role}
+ [pscustomobject]@{pid=[int]$_.ProcessId;parent=[int]$_.ParentProcessId;name=$_.Name;role=$role;created_filetime=if($_.CreationDate){$_.CreationDate.ToUniversalTime().ToFileTimeUtc()}else{$null}}
 }) | ConvertTo-Json -Compress
 '''.replace('ROOTPID', str(int(pid)))
-    raw = subprocess.check_output(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script], text=True, encoding='utf-8', timeout=20)
-    rows = json.loads(raw or '[]')
-    return rows if isinstance(rows, list) else [rows]
+    try:
+        raw = subprocess.check_output(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script], text=True, encoding='utf-8', timeout=20,stderr=subprocess.DEVNULL)
+        rows = json.loads(raw or '[]')
+        if isinstance(rows,dict):rows=[rows]
+        return verified_tree(pid,rows) if isinstance(rows,list) else []
+    except (subprocess.SubprocessError,OSError,ValueError):
+        return []  # Unknown, never a fabricated zero-memory process tree.
 
 
-def working_set(pid: int):
+def working_set(pid: int, expected_created: int | None = None):
     if os.name != 'nt':
         raise RuntimeError('Windows telemetry only')
     kernel = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -42,6 +79,16 @@ def working_set(pid: int):
     if not handle:
         return {'available': False, 'error': 'process_exited_or_access_denied'}
     try:
+        if expected_created is not None:
+            created,exited,kernel_time,user_time=(wintypes.FILETIME() for _ in range(4))
+            kernel.GetProcessTimes.argtypes=[wintypes.HANDLE,*([ctypes.POINTER(wintypes.FILETIME)]*4)]
+            kernel.GetProcessTimes.restype=wintypes.BOOL
+            if not kernel.GetProcessTimes(handle,ctypes.byref(created),ctypes.byref(exited),ctypes.byref(kernel_time),ctypes.byref(user_time)):
+                return {'available':False,'error':'process_identity_unavailable'}
+            actual=(created.dwHighDateTime<<32)|created.dwLowDateTime
+            # CIM CreationDate has microsecond precision, FILETIME has 100ns.
+            if abs(actual-expected_created)>10:
+                return {'available':False,'error':'process_identity_changed'}
         counters = Counters(); counters.cb = ctypes.sizeof(counters)
         if not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
             return {'available': False, 'error': 'memory_query_failed'}
@@ -88,12 +135,23 @@ try {
 
 def snapshot(pid: int, include_gpu=True):
     rows = process_tree(pid)
-    for row in rows: row.update(working_set(row['pid']))
+    for row in rows:
+        row.update(working_set(row['pid'],row['created_filetime']) if 'created_filetime' in row else working_set(row['pid']))
     fields = ('working_set','private_commit','private_resident','shareable_resident','currently_shared_resident','proportional_resident_estimate')
     coverage = {name: {'measured': sum(name in row for row in rows), 'expected': len(rows)} for name in fields}
     totals = {name: sum(row[name] for row in rows) if rows and coverage[name]['measured'] == len(rows) else None for name in fields}
-    return {'processes': rows, 'totals': totals, 'coverage': coverage, 'gpu': gpu_memory([r['pid'] for r in rows]) if include_gpu and rows else None,
-            'notes': ['working_set sum double-counts shared pages', 'private_commit is not physical RAM',
+    uncertain=sum(r.get('unverified_children',0) for r in rows)
+    if uncertain:totals={name:None for name in fields}
+    gpu=None
+    if include_gpu and rows:
+        gpu=gpu_memory([r['pid'] for r in rows]) if all(r.get('available') for r in rows) else {'available':False,'error':'process_measurement_unavailable'}
+        after={r['pid']:r.get('created_filetime') for r in process_tree(pid)}
+        if any(r.get('created_filetime') is None or after.get(r['pid'])!=r['created_filetime'] for r in rows):
+            gpu={'available':False,'error':'process_identity_changed_during_gpu_sample'}
+    lineage={'root_observed':bool(rows),'creation_time_verified':bool(rows) and all('created_filetime' in r for r in rows),
+        'unverified_children':uncertain,'pid_reuse_exclusions':sum(r.get('pid_reuse_exclusions',0) for r in rows)}
+    return {'processes': rows, 'totals': totals, 'coverage': coverage, 'gpu':gpu,'lineage':lineage,
+            'notes': ['only creation-time-verified parent edges are included; missing lineage means unknown totals', 'working_set sum double-counts shared pages', 'private_commit is not physical RAM',
                       'resident split sampled independently', 'proportional estimate overstates pages shared by more than 7 processes',
                       'GPU dedicated/shared counters are separate from CPU process accounting; do not add them to working sets']}
 

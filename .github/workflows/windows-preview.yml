@@ -80,7 +80,7 @@ jobs:
         run: cargo test --release --locked --manifest-path desktop/src-tauri/Cargo.toml startup_tests
       - name: Build Tauri x64 NSIS installer and bundle shared resources
         working-directory: desktop
-        run: npm run build -- --ci -- --locked
+        run: python bundle_retry.py
       - name: Package portable preview and hashes
         run: python desktop/package_portable.py
       - name: Independently verify packaged files, CRC, hashes and manifest

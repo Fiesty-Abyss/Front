@@ -12,7 +12,38 @@ router=APIRouter(prefix='/api/voice/projects',tags=['Voice exports'])
 @router.post('/{project_id}/exports/preview')
 def preview(project_id:int,body:ve.Preview,session:Session=Depends(get_session)):
     project=vp.start(session,project_id,body)
-    return ve.plan(session,project,body.segment_ids)
+    return ve.plan(session,project,body.segment_ids,body.pause_ms,body.segment_refs)
+
+
+@router.post('/{project_id}/exports/preflight')
+def preflight(project_id:int,body:ve.Preview,session:Session=Depends(get_session)):
+    project=vp.start(session,project_id,body)
+    result=ve.plan(session,project,body.segment_ids,body.pause_ms,body.segment_refs)
+    session.rollback()
+    return ve.preflight(result['snapshot'],result['fingerprint']).to_dict()
+
+
+@router.get('/{project_id}/exports/segments')
+def candidates(project_id:int,chapter:int|None=Query(None,ge=0,le=2147483647),limit:int=Query(20,ge=1,le=100),
+               offset:int=Query(0,ge=0,le=2147483647),session:Session=Depends(get_session)):
+    project=get_or_404(session,m.VoiceProject,project_id);q=vp.active(project_id)
+    if chapter is not None:q=q.where(m.VoiceSegment.source['book']['chapter_index'].as_integer()==chapter)
+    total=session.scalar(select(func.count()).select_from(q.subquery()))
+    rows=session.scalars(q.order_by(m.VoiceSegment.position,m.VoiceSegment.id).offset(offset).limit(limit)).all()
+    result=[]
+    for row in rows:
+        accepted=session.scalars(select(m.VoiceRender).where(m.VoiceRender.segment_id==row.id,m.VoiceRender.status=='accepted')).all()
+        issue='';valid=False
+        try:
+            fingerprint=vp.fingerprint(session,row)[0]
+            if len(accepted)==1:
+                state=vp.render(session,accepted[0],fingerprint);valid=not state['stale'] and state['audio_status']=='ok'
+        except HTTPException:issue='reference_invalid'
+        confirmed=not row.source.get('suggestion') or bool(row.source.get('speaker_confirmed'))
+        result.append({'id':row.id,'uid':row.uid,'version':vs.version_id(session,row),'preview':row.text[:160],
+            'speaker':row.source.get('speaker','旁白'),'chapter_index':(row.source.get('book') or {}).get('chapter_index'),
+            'confirmed':confirmed,'accepted_current':valid,'issue':issue})
+    return {'total':total,'project_uid':project.uid,'project_version':vs.version_id(session,project),'items':result}
 
 
 @router.post('/{project_id}/exports',status_code=201)

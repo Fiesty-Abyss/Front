@@ -57,9 +57,120 @@ $ErrorActionPreference='Stop'
         raw = subprocess.check_output(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script], text=True, encoding='utf-8', timeout=20,stderr=subprocess.DEVNULL)
         rows = json.loads(raw or '[]')
         if isinstance(rows,dict):rows=[rows]
-        return verified_tree(pid,rows) if isinstance(rows,list) else []
+        result = verified_tree(pid,rows) if isinstance(rows,list) else []
+        if result:
+            return [dict(row, inventory_method='cim') for row in result]
     except (subprocess.SubprocessError,OSError,ValueError):
+        pass
+    try:
+        return verified_tree(pid, _toolhelp_process_rows(pid))
+    except OSError:
         return []  # Unknown, never a fabricated zero-memory process tree.
+
+
+def _stamp_toolhelp(root, entries, snapshot_time, birth):
+    """Open handles only for the requested candidate tree, not every system PID.
+
+    A PID born after snapshot creation could refer to a replacement process;
+    its old parent edge must not be trusted, even if its handle is readable.
+    """
+    rows = [r for r in entries if isinstance(r, dict) and type(r.get('pid')) is int
+            and r['pid'] > 0 and type(r.get('parent')) is int]
+    if sum(r['pid'] == root for r in rows) != 1:
+        return []
+    children = {}
+    for row in rows:
+        children.setdefault(row['parent'], []).append(row['pid'])
+    pending = [root]; wanted = set()
+    while pending:
+        pid = pending.pop()
+        if pid in wanted:
+            continue
+        wanted.add(pid); pending.extend(children.get(pid, []))
+    result = []
+    for row in rows:
+        if row['pid'] not in wanted:
+            continue
+        created = birth(row['pid'])
+        if type(created) is not int or created <= 0 or created > snapshot_time:
+            created = None
+        name = str(row.get('name', ''))
+        role = ('shell' if row['pid'] == root else 'backend' if name.lower() == 'front-backend.exe'
+                else 'webview2_unknown' if name.lower() == 'msedgewebview2.exe' else 'helper')
+        result.append({'pid': row['pid'], 'parent': row['parent'], 'name': name,
+                       'role': role, 'created_filetime': created, 'inventory_method': 'toolhelp',
+                       'role_detail_available': role != 'webview2_unknown'})
+    return result
+
+
+def _toolhelp_process_rows(root):
+    """Toolhelp metadata + limited-query creation time; no process memory reads.
+
+    No WMI repair, elevated access, command-line scraping or process control.
+    Detailed WebView2 subroles require CIM and remain explicitly unknown here.
+    """
+    if os.name != 'nt':
+        return []
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+
+    class ProcessEntry(ctypes.Structure):
+        _fields_ = [('dwSize', wintypes.DWORD), ('cntUsage', wintypes.DWORD),
+                    ('th32ProcessID', wintypes.DWORD), ('th32DefaultHeapID', ctypes.c_size_t),
+                    ('th32ModuleID', wintypes.DWORD), ('cntThreads', wintypes.DWORD),
+                    ('th32ParentProcessID', wintypes.DWORD), ('pcPriClassBase', wintypes.LONG),
+                    ('dwFlags', wintypes.DWORD), ('szExeFile', wintypes.WCHAR * 260)]
+
+    kernel.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    kernel.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    for name in ('Process32FirstW', 'Process32NextW'):
+        fn = getattr(kernel, name)
+        fn.argtypes = [wintypes.HANDLE, ctypes.POINTER(ProcessEntry)]
+        fn.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.GetSystemTimeAsFileTime.argtypes = [ctypes.POINTER(wintypes.FILETIME)]
+    kernel.GetSystemTimeAsFileTime.restype = None
+    kernel.GetProcessTimes.argtypes = [wintypes.HANDLE, *([ctypes.POINTER(wintypes.FILETIME)] * 4)]
+    kernel.GetProcessTimes.restype = wintypes.BOOL
+    before = wintypes.FILETIME()
+    kernel.GetSystemTimeAsFileTime(ctypes.byref(before))
+    snapshot_time = (before.dwHighDateTime << 32) | before.dwLowDateTime
+    snapshot = kernel.CreateToolhelp32Snapshot(0x00000002, 0)  # TH32CS_SNAPPROCESS only
+    if not snapshot or snapshot == ctypes.c_void_p(-1).value:
+        return []
+    entries = []
+    try:
+        entry = ProcessEntry(); entry.dwSize = ctypes.sizeof(entry)
+        if not kernel.Process32FirstW(snapshot, ctypes.byref(entry)):
+            return []
+        while True:
+            entries.append({'pid': int(entry.th32ProcessID), 'parent': int(entry.th32ParentProcessID),
+                            'name': entry.szExeFile})
+            if len(entries) >= 100_000:
+                return []
+            if not kernel.Process32NextW(snapshot, ctypes.byref(entry)):
+                if ctypes.get_last_error() != 18:  # ERROR_NO_MORE_FILES
+                    return []  # Partial inventory cannot support complete totals.
+                break
+    finally:
+        kernel.CloseHandle(snapshot)
+
+    def birth(pid):
+        handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return None
+        try:
+            created, exited, kernel_time, user_time = (wintypes.FILETIME() for _ in range(4))
+            if not kernel.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(exited),
+                                          ctypes.byref(kernel_time), ctypes.byref(user_time)):
+                return None
+            return (created.dwHighDateTime << 32) | created.dwLowDateTime
+        finally:
+            kernel.CloseHandle(handle)
+
+    return _stamp_toolhelp(root, entries, snapshot_time, birth)
 
 
 def working_set(pid: int, expected_created: int | None = None):
@@ -146,7 +257,8 @@ def snapshot(pid: int, include_gpu=True):
     if include_gpu and rows:
         gpu=gpu_memory([r['pid'] for r in rows]) if all(r.get('available') for r in rows) else {'available':False,'error':'process_measurement_unavailable'}
         after={r['pid']:r.get('created_filetime') for r in process_tree(pid)}
-        if any(r.get('created_filetime') is None or after.get(r['pid'])!=r['created_filetime'] for r in rows):
+        if any(type(r.get('created_filetime')) is not int or type(after.get(r['pid'])) is not int
+               or abs(after[r['pid']]-r['created_filetime'])>10 for r in rows):
             gpu={'available':False,'error':'process_identity_changed_during_gpu_sample'}
     lineage={'root_observed':bool(rows),'creation_time_verified':bool(rows) and all('created_filetime' in r for r in rows),
         'unverified_children':uncertain,'pid_reuse_exclusions':sum(r.get('pid_reuse_exclusions',0) for r in rows)}

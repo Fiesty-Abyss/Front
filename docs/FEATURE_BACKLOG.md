@@ -326,3 +326,7 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 实际发现PID复用使旧采样器误纳入更早的无关子树。现在核对父子创建时间、OpenProcess句柄身份和GPU采样后身份；未知数据不计为0。9进程原生启动早期短样本已验证归属，但不作内存改善、峰值、TTI或泄漏结论。439后端/15前端及构建通过；无应用启动开销/迁移/依赖变化。详见 audits/v0.7/PROCESS_IDENTITY.md。真实TTS、完整原生交互、导出扩展、参考质量/数据集与长期创作方向仍保留。
 
 多角色、剧情与记忆的接口/预算/分支约束现仅为[设计](CHAT_MODES_DESIGN.md)，尚未实现；不把文档视为可运行能力。
+
+## 2026-11-09 · Windows进程测量可靠性
+
+增加CIM失效时的只读Toolhelp/创建时间回退开发增量，修复真实环境清单为空导致的验收失败；不改变系统配置，不将未知内存伪装为零，WebView2子角色不足明确标未知。只在显式测量时执行，不增加常驻依赖；见audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md。

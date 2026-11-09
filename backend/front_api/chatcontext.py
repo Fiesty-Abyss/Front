@@ -29,8 +29,12 @@ def trim(messages, limit=None, max_messages=40):
         total -= chars
         count -= len(group)
     removed = {i for group in omitted for i in group['positions']}
+    samples = [{**group, 'positions': group['positions'][:8], 'roles': group['roles'][:8],
+                'messages': len(group['positions'])} for group in omitted[:20]]
     return [m for i, m in enumerate(messages) if i not in removed], {
         'characters': total, 'limit': limit, 'max_history_messages': max_messages,
         'dropped_messages': len(removed), 'dropped_turns': sum('user' in g['roles'] for g in omitted),
-        'dropped_units': len(omitted), 'dropped_introductions': sum('user' not in g['roles'] for g in omitted), 'omitted': omitted,
+        'dropped_units': len(omitted), 'dropped_introductions': sum('user' not in g['roles'] for g in omitted),
+        'omitted': samples, 'omitted_details_truncated': len(omitted)>20 or any(len(g['positions'])>8 for g in omitted),
+        'omitted_through': max(removed) if removed else None,
         'unit': 'characters-not-tokens', 'turn_definition': 'user-and-following-assistants; introductions-counted-separately'}

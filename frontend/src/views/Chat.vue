@@ -48,7 +48,7 @@ onMounted(async () => {
 const card = computed(() => cards.value.find((c) => c.id === cur.value?.card_id))
 const canGenerate=computed(()=>Boolean(modelState.value?.selection || status.value?.available))
 const lastMsg = computed(() => cur.value?.messages.at(-1))
-async function refreshCtx() { if (cur.value) {const id=cur.value.id, serial=++contextSerial;ctx.value=null;try{const value=await api.get(`/api/ai/sessions/${id}/context`);if(!disposed && cur.value?.id===id && serial===contextSerial)ctx.value=value}catch(e){if(!disposed && serial===contextSerial)toast(e.message,true)}} }
+async function refreshCtx(omittedOffset=0) { if (cur.value) {const id=cur.value.id, serial=++contextSerial;ctx.value=null;try{const value=await api.get(`/api/ai/sessions/${id}/context`,{omitted_offset:omittedOffset});if(!disposed && cur.value?.id===id && serial===contextSerial)ctx.value=value}catch(e){if(!disposed && serial===contextSerial)toast(e.message,true)}} }
 async function open(id) { if(disposed || streaming.value)return;const serial=++openSerial;const [chat,model]=await Promise.all([api.get(`/api/ai/sessions/${id}`),api.get(`/api/ai/sessions/${id}/model-state`)]);if(disposed || serial!==openSerial)return;cur.value=chat;modelState.value=model;ctx.value=null;showModel.value=false;refreshCtx();scroll() }
 function scroll() { nextTick(() => box.value && (box.value.scrollTop = box.value.scrollHeight)) }
 function setSession(s) { if(disposed)return;cur.value = s; refreshCtx(); loadSessions(); scroll() }
@@ -230,7 +230,7 @@ function rich(text) {
         <template v-if="ctx.lore.skipped.length"> · 超出预算被跳过：<span v-for="l in ctx.lore.skipped" :key="l.entry_id" class="chip">{{ l.title }}</span></template>
       </div>
       <p v-if="ctx.budget" class="notice">本次 {{ctx.budget.characters}} 字符（不是 token），省略 {{ctx.budget.dropped_messages}} 条消息：{{ctx.budget.dropped_turns}} 个完整问答轮次<span v-if="ctx.budget.dropped_introductions">，另 {{ctx.budget.dropped_introductions}} 个开场白单元</span>。仅影响请求，不删除历史。</p>
-      <details v-if="ctx.omitted_messages?.length"><summary>查看本次不发送的历史内容</summary><div v-for="m in ctx.omitted_messages" :key="m.position" class="card"><b>请求位置 {{m.position}} · {{m.role}}</b><p style="white-space:pre-wrap">{{m.content}}</p></div></details>
+      <details v-if="ctx.omitted_messages?.length" open><summary>本次不发送的历史摘要（每页20条，每条前240字符）</summary><div v-for="m in ctx.omitted_messages" :key="m.position" class="card"><b>请求位置 {{m.position}} · {{m.role}} · {{m.characters}} 字符</b><p style="white-space:pre-wrap">{{m.content}}<span v-if="m.truncated">…（摘要，原文仍在会话历史）</span></p></div><nav class="row"><button :disabled="!ctx.omitted_offset" @click="refreshCtx(Math.max(0,ctx.omitted_offset-ctx.omitted_limit))">上页省略摘要</button><span>{{ctx.omitted_offset+1}}–{{ctx.omitted_offset+ctx.omitted_messages.length}} / {{ctx.omitted_total}}</span><button :disabled="ctx.omitted_offset+ctx.omitted_limit>=ctx.omitted_total" @click="refreshCtx(ctx.omitted_offset+ctx.omitted_limit)">下页省略摘要</button></nav></details>
       <div v-for="(m, i) in ctx.messages" :key="i" class="card" style="background:var(--panel2);padding:8px 12px">
         <div class="small muted mono">{{ m.role }}</div><div class="small" style="white-space:pre-wrap">{{ m.content }}</div>
       </div>

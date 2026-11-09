@@ -271,7 +271,9 @@ def select_branch(session_id: ChatId, payload: s.ChatSelect, session: Session = 
 
 
 @router.get("/sessions/{session_id}/context")
-def chat_context(session_id: ChatId, session: Session = Depends(get_session)) -> dict[str, Any]:
+def chat_context(session_id: ChatId, session: Session = Depends(get_session),
+                 omitted_offset: int = Query(0, ge=0, le=1000000),
+                 omitted_limit: int = Query(20, ge=1, le=100)) -> dict[str, Any]:
     """查看下一次发送给模型的完整上下文与激活的世界书条目（调试用）。"""
     chat = get_or_404(session, m.ChatSession, session_id)
     card = get_or_404(session, m.CharacterCard, chat.card_id)
@@ -280,8 +282,21 @@ def chat_context(session_id: ChatId, session: Session = Depends(get_session)) ->
     selection = chatmodels.latest(session, chat)
     original = messages
     messages, budget = chatmodels.bound_context(messages, selection.snapshot['context_characters'] if selection and selection.snapshot.get('schema') == 1 else None)
-    omitted_messages = [dict(position=i, **original[i]) for group in budget['omitted'] for i in group['positions']]
-    return {"messages": messages, "omitted_messages": omitted_messages, "budget": budget, "model_state": chatmodels.state(session, chat), "lore": activated, "lorebooks": [{"id": b.id, "name": b.name, "world_id": b.world_id} for b in books]}
+    through = budget['omitted_through']
+    omitted_messages = []
+    offset = 0
+    if through is not None:
+        for i, message in enumerate(original):
+            if i>through: break
+            if message['role']=='system': continue
+            if offset>=omitted_offset and len(omitted_messages)<omitted_limit:
+                omitted_messages.append(dict(position=i, role=message['role'], content=message['content'][:240],
+                                             characters=len(message['content']), truncated=len(message['content'])>240))
+            offset+=1
+            if len(omitted_messages)>=omitted_limit: break
+    return {"messages": messages, "head_id": chat.head_id, "omitted_messages": omitted_messages,
+            "omitted_total": budget['dropped_messages'], "omitted_offset": omitted_offset, "omitted_limit": omitted_limit,
+            "budget": budget, "model_state": chatmodels.state(session, chat), "lore": activated, "lorebooks": [{"id": b.id, "name": b.name, "world_id": b.world_id} for b in books]}
 
 
 @router.patch("/messages/{message_id}", response_model=s.ChatSessionRead)

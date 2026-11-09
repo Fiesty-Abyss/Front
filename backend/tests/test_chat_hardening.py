@@ -175,6 +175,34 @@ def test_preview_omissions_and_rejected_budget_leave_database_unchanged(client,c
     assert client.get(url).json()==before and not ai.has_active_generations()
 
 
+def test_long_context_omission_preview_is_bounded_and_paged(client,chat,tmp_path):
+    with new_session() as db:
+        c=db.get(m.ChatSession,chat['id']);parent=c.head_id
+        for i in range(120):
+            for role in ('user','assistant'):
+                row=m.ChatMessage(session_id=c.id,parent_id=parent,role=role,content=f'{role}-{i} '+('X'*4096))
+                db.add(row);db.flush();parent=row.id
+        row=m.ChatMessage(session_id=c.id,parent_id=parent,role='user',content='current request')
+        db.add(row);db.flush();c.head_id=row.id;db.commit()
+    url=f"/api/ai/sessions/{chat['id']}"
+    p=client.post('/api/ai/providers',json={'name':'generated','base_url':'http://generated.invalid/v1','chat_model':'generated'}).json()
+    expected=client.get(url+'/model-state').json()['expected']
+    assert client.post(url+'/model-selection',json={'provider_id':p['id'],'model':'generated','context_characters':1024,'expected':expected}).status_code==200
+    response=client.get(url+'/context')
+    assert response.status_code==200 and len(response.content)<16000
+    page=response.json()
+    assert page['budget']['dropped_messages']==241 and page['budget']['dropped_turns']==120
+    assert page['omitted_total']==241 and len(page['omitted_messages'])==20
+    assert any(m['truncated'] for m in page['omitted_messages'])
+    assert len(page['budget']['omitted'])<=20
+    later=client.get(url+'/context?omitted_offset=20&omitted_limit=20').json()
+    assert later['head_id']==page['head_id']
+    assert not ({m['position'] for m in page['omitted_messages']} & {m['position'] for m in later['omitted_messages']})
+    assert client.get(url+'/context?omitted_limit=101').status_code==422
+    (tmp_path/'omission-preview.json').write_text(json.dumps({'response_bytes':len(response.content),
+        'omitted_messages':241,'page_size':20,'excerpt_characters':240,'gui':False}),encoding='utf-8')
+
+
 def test_asgi_disconnect_task_cancels_before_first_body(client,chat):
     res=response(chat,Provider())
     async def run():

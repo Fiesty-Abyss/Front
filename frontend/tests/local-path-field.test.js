@@ -23,14 +23,15 @@ const renderer=createRenderer({
   parentNode:node=>node.parent,nextSibling:()=>null,
 })
 function fixture({desktop=true,...props}={}) {
-  let finish,calls=0
-  globalThis.window=desktop?{__TAURI_INTERNALS__:{invoke:()=>{calls++;return new Promise(resolve=>{finish=resolve})}}}:{}
+  let finish,notify,calls=0
+  const opened=new Promise(resolve=>{notify=resolve})
+  globalThis.window=desktop?{__TAURI_INTERNALS__:{invoke:()=>{calls++;notify();return new Promise(resolve=>{finish=resolve})}}}:{}
   const state=reactive({modelValue:'old generated directory',label:'测试目录',purpose:'asset_folder',...props})
   const values=[],root={children:[]}
   const app=renderer.createApp({render:()=>h(Field,{...state,'onUpdate:modelValue':value=>values.push(value)})})
   app.mount(root)
   const find=type=>{const walk=n=>n.type===type?n:n.children?.map(walk).find(Boolean);return walk(root)}
-  return {app,state,values,find,get calls(){return calls},finish:value=>finish(value)}
+  return {app,state,values,find,opened,get calls(){return calls},finish:value=>finish(value)}
 }
 test('web input remains manual with no native invocation',()=>{
   const f=fixture({desktop:false});assert.equal(f.find('button'),undefined)
@@ -48,20 +49,20 @@ test('Enter belongs to the path input; native button keyboard activation cannot 
 })
 test('native open is explicit, cancellation leaves input unchanged and permits retry',async()=>{
   const f=fixture();assert.equal(f.calls,0)
-  const first=f.find('button').props.onClick();await new Promise(setImmediate)
+  const first=f.find('button').props.onClick();await f.opened
   assert.equal(f.calls,1);await nextTick();assert.equal(f.find('button').props.disabled,true)
   f.finish(null);await first;await nextTick();assert.deepEqual(f.values,[])
-  const second=f.find('button').props.onClick();await new Promise(setImmediate);f.finish('E:/generated/中文 & space');await second
+  const second=f.find('button').props.onClick();f.finish('E:/generated/中文 & space');await second
   assert.deepEqual(f.values,['E:/generated/中文 & space']);f.app.unmount()
 })
 test('typing while picker is open prevents a late replacement',async()=>{
-  const f=fixture();const pending=f.find('button').props.onClick();await new Promise(setImmediate)
+  const f=fixture();const pending=f.find('button').props.onClick();await f.opened
   f.state.modelValue='new manual value';await nextTick();f.finish('E:/old pick');await pending
   assert.deepEqual(f.values,[]);f.app.unmount()
 })
 test('leaving the component or disabling the operation prevents late replacement',async()=>{
   for(const leave of [true,false]) {
-    const f=fixture();const pending=f.find('button').props.onClick();await new Promise(setImmediate)
+    const f=fixture();const pending=f.find('button').props.onClick();await f.opened
     if(leave)f.app.unmount();else {f.state.disabled=true;await nextTick()}
     f.finish('E:/old pick');await pending;assert.deepEqual(f.values,[]);if(!leave)f.app.unmount()
   }

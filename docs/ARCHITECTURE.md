@@ -307,3 +307,11 @@ GPT-SoVITS适配须先锁定官方提交与API契约，模拟协议测试和真�
 ## ISBN版次元数据
 
 bookmeta仅标准库ISBN校验/版次JSON规范化；metadata.OpenLibrary复用已有固定主机、有限响应与jobs，以OL…M具体版本和OL…W作品分开。新字段复用Work.metadata_catalog/versions/完整备份，不增加表/服务/推理。只有主动检索联网，单次受控JSON跳转，人工字段和source_id刷新许可保护保留，见BOOK_EDITIONS。
+
+## Character Soul
+
+SoulIdentity只提供稳定随机UID和明确世界观身份；SoulLink保存现有角色/OC/Card/Voice/Live2D/Asset/Chat/Lore引用的创建身份、世界观/作品/角色范围，不拥有原数据。SoulMemory为可审核的角色共享、会话或分支记忆；不修改正式百科、小说或聊天树。
+
+souls业务层使用BEGIN IMMEDIATE/revision、原EntityVersion/VersionBlob和整库备份。FTS5 trigram沿用本地检索栈，独立索引防止角色记忆进入全局搜索；有限召回先做范围/审核过滤再核验来源，返回引用及sent_to_ai:false。分支检查为有预算的ID递归CTE。/souls和版本面板按需加载，不启动embedding、TTS或桌面工具。
+
+本轮没有实际聊天上下文注入；待#66合法收敛后复用其完整问答预算器，不能另造裁剪路径。公开GPL架构研究与原创实现/权限边界详见[CHARACTER_SOUL](CHARACTER_SOUL.md)。

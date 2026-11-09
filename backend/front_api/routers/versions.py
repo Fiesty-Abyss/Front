@@ -123,6 +123,11 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
     if isinstance(obj, (m.VoiceProject, m.VoiceSegment)):
         from ..voiceprojects import validate_restore
         validate_restore(session, obj, data)
+    soul_revision = None
+    if isinstance(obj, (m.SoulIdentity, m.SoulLink, m.SoulMemory)):
+        from ..souls import validate_restore
+        validate_restore(session, obj, data)
+        soul_revision = obj.revision
     for key,created_at in data.get('_references',{}).items():
         column=obj.__table__.c[key]
         for fk in column.foreign_keys:
@@ -150,6 +155,12 @@ def restore(kind:str,entity_id:int,version_id:int,body:Restore,session:Session=D
             if value is not None and isinstance(c.type,Date):value=date.fromisoformat(value)
             setattr(obj,c.key,value)
         if '_tag_ids' in data:obj.tags=resolve_tags(session,data['_tag_ids'])
+        if soul_revision is not None:
+            obj.revision = soul_revision + 1
+            if isinstance(obj, m.SoulMemory):
+                # Restoring content is not a silent approval of an old suggestion.
+                obj.review = 'pending'
+                obj.allow_injection = False
         if isinstance(obj,m.OCStudy):
             from ..ocstudy import sync_collection
             sync_collection(session,obj)

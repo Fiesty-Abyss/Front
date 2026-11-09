@@ -1,5 +1,17 @@
 # Front 持续功能库 · 当前接续
 
+## Character Soul · 2026-11-09 独立增量
+
+| 功能 | 场景/复用 | 复杂度/资源 | 状态/风险/下一步 |
+| --- | --- | --- | --- |
+| SOUL-IDENTITY | 百科/OC/Card/Voice/Live2D/Asset/Chat/Lore 的稳定显式引用，支持独立角色 | 中；三张轻量元数据表，无模型/新依赖 | 已实现并用生成数据验证；UID/创建身份、世界观/作品/角色范围防复用；正式来源不改写 |
+| SOUL-REVIEW | 七类记忆、消息/分支证据、人工确认/拒绝/冲突/停用、历史恢复 | 中高；复用 EntityVersion/完整备份 | 手动闭环实际浏览器通过；恢复/编辑重新待审，停用不等于历史/备份清除 |
+| SOUL-RECALL | SQLite FTS、固定/重要度/时间、本地有限字数引用预览 | 中；最多检查200候选，无embedding | 1k/10k生成测量与范围回归；只返回sent_to_ai:false，尚未接聊天 |
+| SOUL-CONTEXT / EXTRACTION | 确认记忆注入、可选AI建议、摘要与语义冲突 | 高；复用#66预算/Provider/jobs | 待#66合法GUI验收并合并；默认不开自动提取，不上传私人会话 |
+| SOUL-PRIVATE-GROUP | 群聊公共场景与各角色私有记忆 | 高；有限轮次/预算 | 未开发，不堆叠悬空PR；桌面Agent不在本轮范围 |
+
+见 [设计与许可证研究](CHARACTER_SOUL.md)、[验收/性能](audits/soul/ACCEPTANCE_20261109.md)。Voice/TTS/训练、Live2D合法运行时与署名、Krita/压感、OC/LoRA、小说世界观、3D、游戏音声特典、大库与正式桌面更新目标继续保留。#66/#71/#72仍按各自GUI门槛独立收敛。
+
 ## 当前状态 · 2026-11-09（覆盖下方历史截面）
 
 本轮实际代码分别在#66/#71/#72，仍为Draft，未将GUI缺口当通过；精确head/CI/首次失败及测试边界见 [NEXT_SESSION](NEXT_SESSION.md)。不是main已安装能力，也没有群聊/剧情依赖链。

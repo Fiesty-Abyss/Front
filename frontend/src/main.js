@@ -36,6 +36,7 @@ const routes = [
   { path: '/generate', component: () => import('./views/Generate.vue'), meta: { title: '出图' } },
   { path: '/cards', component: () => import('./views/Cards.vue'), meta: { title: '角色卡' } },
   { path: '/chat', component: () => import('./views/Chat.vue'), meta: { title: 'AI 对话' } },
+  { path: '/souls', component: () => import('./views/SoulStudio.vue'), meta: { title: 'Character Soul' } },
   { path: '/lorebooks', component: () => import('./views/Lorebooks.vue'), meta: { title: '世界书' } },
   { path: '/extract', component: () => import('./views/Extract.vue'), meta: { title: '从小说抽取角色' } },
   { path: '/settings', component: () => import('./views/Settings.vue'), meta: { title: '设置' } },

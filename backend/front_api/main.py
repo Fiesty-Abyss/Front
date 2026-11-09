@@ -33,6 +33,7 @@ from .routers import voicelocal
 from .routers import voicereferences
 from .routers import discovery as discovery_router
 from .routers import metadata as metadata_router
+from .routers import souls as souls_router
 from .routers import voiceexports as voiceexports_router
 from .routers import voicebooks as voicebooks_router
 
@@ -68,6 +69,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from .cardassist import recover as recover_card_drafts
     recover_card_drafts(engine)
     ensure_fts(engine)
+    from .souls import ensure_fts as ensure_soul_fts
+    ensure_soul_fts(engine)
     if not _hooks_installed:
         assets.install_delete_hook()
         from .archiveidentity import install
@@ -97,6 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         system.router,
         discovery_router.router,
         metadata_router.router,
+        souls_router.router,
         backups_router.router,
         oc_router.router,
         ocimages.router,

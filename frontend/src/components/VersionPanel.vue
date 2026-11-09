@@ -71,7 +71,9 @@ async function confirmPending() {
 <template>
   <section class="version-panel grid">
     <p v-if="error" class="notice" role="alert">{{ error }}</p>
-    <p class="small muted">明确启用后记录后续编辑；保存的是已提交资料。恢复会追加版本，不改写原始文件。原地索引不会自动保存旧图原件。</p>
+    <p v-if="kind === 'soul_memory'" class="small muted">记忆编辑自动保留历史。恢复会追加新版本，并重新进入待审状态；引用许可需要再次确认。</p>
+    <p v-else-if="kind === 'soul' || kind === 'soul_link'" class="small muted">身份与关联编辑自动保留历史。恢复会追加新版本，失效的来源身份不能自动恢复。</p>
+    <p v-else class="small muted">明确启用后记录后续编辑；保存的是已提交资料。恢复会追加版本，不改写原始文件。原地索引不会自动保存旧图原件。</p>
     <div class="row"><label class="field grow">版本说明<input v-model="note" maxlength="500" /></label><button :disabled="busy" @click="run(save)">{{ page.enabled ? '保存当前版本' : '启用版本记录' }}</button><button :disabled="busy" @click="run(load)">刷新历史</button></div>
     <div v-if="pending" class="notice grid" role="alert"><p>{{ pending.type === 'restore' ? '恢复会替换已保存资料并追加新版本，未保存的编辑不会采用；不改写源文件。' : '固定版本会将原文件复制到Front托管目录，占用额外磁盘空间；原件保持不变。' }}</p><div class="row"><button :disabled="busy" @click="run(confirmPending)">确认执行{{ pending.type === 'restore' ? '恢复' : '固定' }}</button><button @click="pending = null">取消</button></div></div>
     <template v-if="page.enabled">

@@ -63,11 +63,6 @@ Voice真实TTS/授权声线/数据集/切片转写/独立训练/MP3续拼，Live
 
 # 最新接续 · 聊天收敛与ISBN版次
 
-## 2026-11-09 · 新增独立路径选择 Draft
-
-开发基线 origin/main `69cb89bf21468c8f501b74f3d4297be9867e991c`，独立 `codex/desktop-path-picker`；不依赖 #66，未改旧根工作树/个人库。六类入口、共享输入与官方 Rust Dialog 桥接已实现，无新表。28 项前端/构建8.18秒；后端605通过/1跳过/1既有CIM进程清单失败，单组8通过/1同失败，诊断为系统CIM返回0x80004005，未改断言或WMI配置。本机 MSVC link.exe 缺失，编译未完成，Windows CI/真实 GUI 尚待。检查当前 PR 精确 head 后继续，验收前 Draft；不要用伪造 bridge 或聊天服务绕过审批。
-
-#66 在 `codex/chat-model-snapshots` 单独修复完整轮次预算、SSE 生命周期、稳定分页和测量索引，合规 GUI 仍缺，不转 Ready、不提前开发依赖它的群聊/剧情。后续先核对两个分支最新 CI/测试记录，再按 [桌面验收](DESKTOP_PATH_PICKER.md) 使用隔离生成路径，不改个人 8000 或原始资料。下列 11-08 条目均为历史截面。
 ## 2026-11-09 · 独立 ISBN UI 开发
 
 基线 main `69cb89bf21468c8f501b74f3d4297be9867e991c`；分支 `codex/metadata-edition-ui` 仅补已有API的版次核对与可选年份，无迁移/Provider。606后端通过/1权限跳过215.28秒，22前端通过/构建7.62秒。#66上下文/流式/分页在原分支收敛，仍缺聊天GUI；#71原生路径为独立Draft。此分支也须真实GUI和精确head CI后才Ready，不把SSR当浏览器验证。
@@ -121,6 +116,10 @@ A/B与角色卡上轮生成实例已关闭；本轮没有重启它们或个人80
 本次文档前快照已[归档](audits/chat/PRE_HANDOFF_20261108.md)，更早记录见原audits；长期Backlog/PRD与授权条件保留。
 
 多角色/剧情只完成后续约束文档，**没有实现新调度或数据表**：[CHAT_MODES_DESIGN](CHAT_MODES_DESIGN.md)。优先完成#66真实验收，再按其中门槛逐步实施。
+
+## 2026-11-09 · CIM失效时的只读遥测回退
+
+独立开发分支codex/windows-process-inventory：当前主机CIM空清单/0x80004005使既有进程身份测试失败；为desktop/profiling.py增加Toolhelp进程元数据和限定权限GetProcessTimes回退，保留PID创建时间核验、未知覆盖与CIM详细角色优先。专项15项含真实Windows当前/专属子进程通过；不修系统、不提权、不运行AI或用户软件。完整测试/精确head CI后才能合并，见[audit](audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md)。#66仍须真实聊天GUI；Soul与ISBN由各自独立分支推进，不复制未合并代码。
 
 ## 2026-11-09 · #72 GUI补验
 

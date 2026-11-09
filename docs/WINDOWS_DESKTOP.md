@@ -89,3 +89,7 @@ Windows Actions 先执行后端测试、前端生产构建及冻结 Sidecar 冒�
 
 
 2026-11-08：发现并修正父PID复用误计。今后使用创建时间/句柄核对版采样器；未知值不能计0，未校正的12进程样本作废，不回推历史指标均有问题。详见 [PROCESS_IDENTITY](audits/v0.7/PROCESS_IDENTITY.md)。
+
+## 进程清单回退
+
+开发测量工具在CIM失败时可用Windows Toolhelp快照与限定权限GetProcessTimes；创建时间和候选树仍核验，回退下WebView2细分角色未知，不能按猜测分类。见[audit](audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md)。不修系统/提权，不新增常驻依赖或产品启动轮询。

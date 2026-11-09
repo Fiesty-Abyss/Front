@@ -1,6 +1,3 @@
-## 2026-11-09 · 独立桌面路径选择 Draft
-
-基于 main69cb89b，新增窄权限原生路径桥接与六类工作区入口，复用原有预览/导入，不写源文件。28 项前端测试/生产构建通过；后端605通过/1权限跳过/1既有CIM查询失败，诊断为系统HRESULT0x80004005，未改断言/配置。Rust 本机缺少 MSVC linker，Windows CI 与真实原生 GUI 尚待，不宣称完成桌面交付。无新数据库迁移。#66 未合并，多角色/剧情不提前依赖。范围与接续见 [DESKTOP_PATH_PICKER](DESKTOP_PATH_PICKER.md) 和 [NEXT_SESSION](NEXT_SESSION.md)。
 ## 2026-11-09 · 图书版次核对界面
 
 基于 main69cb89b 独立补已有 Metadata Center 的 ISBN 说明、可选年份、作品/版次标识和无目标时字段核对。22项前端测试/生产构建7.62秒、606后端通过/1权限跳过215.28秒。真实GUI/Windows CI单独核对，不将SSR当GUI。没有新表/来源/依赖，原人工替换/来源和版本恢复保留。#66与#71各自独立验收，长期 Voice/Live2D/绘画/硬件/正式发布目标未删。见 [EDITION_UI_20261109](audits/metadata/EDITION_UI_20261109.md)。

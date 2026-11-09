@@ -21,9 +21,6 @@ Voice真实TTS/声库/数据集/切片/训练/MP3续拼、Live2D合法运行时/
 
 # Front 持续功能库
 
-## 2026-11-09 · 原生路径选择增量（待验收）
-
-DESKTOP-PICKERS 已在独立 main 分支实现六类工作区的选择桥接与共享输入组件，复用原扫描/归档 API，无新表或文件库。依赖官方 Dialog，复杂度中、点击时才加载；风险为 IPC 范围与迟到覆盖，已加 origin/单实例租约/输入保护。当前 Draft，Windows 编译与真实原生 GUI 未验；见 [范围与证据](DESKTOP_PATH_PICKER.md)。CHAT-GUI/#66 仍独立 Draft，多角色/剧情不提前堆叠。其余长期任务保持原状态。
 ## 2026-11-09 · 版次核对 UI（开发待验收）
 
 META-EDITIONS-UI 复用 #69 与现有 Metadata Center，增加 ISBN 搜索说明、可选年份、OL作品/版次标识、无目标档案的字段摘要和来源中文字段名；无新Provider/表/常驻服务。复杂度低中、文本按当前详情显示；风险为错误译本/人工覆盖，仍需字段确认且不推断缺失作者。生成Vue SSR/搜索体测试已补，实际GUI/Windows CI待核对。见 [范围](audits/metadata/EDITION_UI_20261109.md)。群聊/#66、桌面路径选择另为独立分支，长期 Voice/Live2D/绘画/硬件/正式发布任务不变。
@@ -333,6 +330,10 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 实际发现PID复用使旧采样器误纳入更早的无关子树。现在核对父子创建时间、OpenProcess句柄身份和GPU采样后身份；未知数据不计为0。9进程原生启动早期短样本已验证归属，但不作内存改善、峰值、TTI或泄漏结论。439后端/15前端及构建通过；无应用启动开销/迁移/依赖变化。详见 audits/v0.7/PROCESS_IDENTITY.md。真实TTS、完整原生交互、导出扩展、参考质量/数据集与长期创作方向仍保留。
 
 多角色、剧情与记忆的接口/预算/分支约束现仅为[设计](CHAT_MODES_DESIGN.md)，尚未实现；不把文档视为可运行能力。
+
+## 2026-11-09 · Windows进程测量可靠性
+
+增加CIM失效时的只读Toolhelp/创建时间回退开发增量，修复真实环境清单为空导致的验收失败；不改变系统配置，不将未知内存伪装为零，WebView2子角色不足明确标未知。只在显式测量时执行，不增加常驻依赖；见audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md。
 
 ## 2026-11-09 · ISBN实际验收补充
 

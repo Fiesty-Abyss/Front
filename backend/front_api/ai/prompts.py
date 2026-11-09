@@ -11,7 +11,7 @@ def _fill(text: str, char: str, user: str) -> str:
     return (text or "").replace("{{char}}", char).replace("{{user}}", user).replace("<BOT>", char).replace("<USER>", user)
 
 
-def build_roleplay_messages(card: Any, history: list[dict[str, str]], user_name: str = "User", max_history: int = 40,
+def build_roleplay_messages(card: Any, history: list[dict[str, str]], user_name: str = "User", max_history: int | None = 40,
                             lore: dict[str, str] | None = None) -> list[dict[str, str]]:
     """lore = {"before_char": 文本, "after_char": 文本}，来自世界书激活结果。"""
     char = card.name
@@ -33,7 +33,8 @@ def build_roleplay_messages(card: Any, history: list[dict[str, str]], user_name:
     if lore.get("after_char"):
         parts.append(f"【世界书（补充）】\n{_fill(lore['after_char'], char, user_name)}")
     messages = [{"role": "system", "content": "\n\n".join(parts)}]
-    messages.extend(history[-max_history:])
+    from ..chatcontext import trim
+    messages.extend(trim(history, max_messages=max_history)[0] if max_history is not None else history)
     if card.post_history_instructions:
         messages.append({"role": "system", "content": _fill(card.post_history_instructions, char, user_name)})
     return messages

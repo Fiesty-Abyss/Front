@@ -35,6 +35,12 @@ COLUMNS: list[tuple[str, str, str]] = [
 ]
 
 
+CHAT_INDEXES = [
+    ('chat_sessions', 'ix_chat_sessions_updated_id', ('updated_at', 'id')),
+    ('chat_messages', 'ix_chat_messages_session', ('session_id',)),
+]
+
+
 def upgrade(engine: Engine) -> list[str]:
     insp = inspect(engine)
     added: list[str] = []
@@ -68,6 +74,11 @@ def upgrade(engine: Engine) -> list[str]:
             if "ix_assets_world_date_id" not in {i["name"] for i in inspect(conn).get_indexes("assets")}:
                 conn.execute(text("CREATE INDEX ix_assets_world_date_id ON assets(world_id, work_date, id)"))
                 added.append("index:ix_assets_world_date_id")
+        for table, name, columns in CHAT_INDEXES:
+            if insp.has_table(table) and set(columns) <= {c['name'] for c in inspect(conn).get_columns(table)}:
+                if name not in {i['name'] for i in inspect(conn).get_indexes(table)}:
+                    conn.execute(text(f"CREATE INDEX {name} ON {table}({','.join(columns)})"))
+                    added.append('index:' + name)
     return added
 
 

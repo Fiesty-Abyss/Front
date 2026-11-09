@@ -136,23 +136,40 @@ class OpenAICompatibleProvider:
                         resp.read()
                         yield resp.json()["choices"][0]["message"]["content"] or ""
                         return
+                    finished = False
                     for line in resp.iter_lines():
                         line = line.strip()
                         if not line.startswith("data:"):
                             continue
                         data = line[5:].strip()
                         if data == "[DONE]":
+                            finished = True
                             break
+                        if not data:
+                            continue
                         try:
                             chunk = json.loads(data)
-                        except ValueError:
-                            continue
+                        except ValueError as exc:
+                            raise AIUnavailable("AI流返回无效JSON") from exc
+                        if not isinstance(chunk, dict):
+                            raise AIUnavailable("AI流返回无效对象")
                         if chunk.get("error"):
                             raise AIUnavailable(f"AI 服务返回错误: {chunk['error']}")
-                        for choice in chunk.get("choices") or []:
-                            piece = (choice.get("delta") or {}).get("content")
+                        choices = chunk.get("choices")
+                        if not isinstance(choices, list):
+                            raise AIUnavailable("AI流缺少choices数组")
+                        for choice in choices:
+                            if not isinstance(choice, dict) or not isinstance(choice.get('delta', {}), dict):
+                                raise AIUnavailable("AI流返回无效delta")
+                            if choice.get('finish_reason') is not None:
+                                finished = True
+                            piece = choice.get('delta', {}).get('content')
+                            if piece is not None and not isinstance(piece, str):
+                                raise AIUnavailable("AI流文字格式无效")
                             if piece:
                                 yield piece
+                    if not finished:
+                        raise AIUnavailable("AI流在结束标记前断开")
         except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
             raise self._error(exc) from exc
 

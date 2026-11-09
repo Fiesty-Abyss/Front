@@ -4,7 +4,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 from .db import Base
-from .migrate import COLUMNS
+from .migrate import COLUMNS, CHAT_INDEXES
 
 
 def before_schema_change(settings):
@@ -16,6 +16,8 @@ def before_schema_change(settings):
         for table, column, _ in COLUMNS:
             if table in tables and column not in {r[1] for r in source.execute(f'PRAGMA table_info("{table}")')}:
                 missing.append(f'{table}.{column}')
+        indexes = {r[0] for r in source.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+        missing += ['index:' + name for table, name, _ in CHAT_INDEXES if table in tables and name not in indexes]
         if not missing:
             return
         folder = settings.data_dir / 'backups' / ('pre-schema-' + uuid.uuid4().hex)

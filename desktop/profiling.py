@@ -130,12 +130,14 @@ def _toolhelp_process_rows(root):
     kernel.CloseHandle.restype = wintypes.BOOL
     kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
     kernel.OpenProcess.restype = wintypes.HANDLE
-    kernel.GetSystemTimeAsFileTime.argtypes = [ctypes.POINTER(wintypes.FILETIME)]
-    kernel.GetSystemTimeAsFileTime.restype = None
+    # Use precise UTC for a strict comparison with process creation FILETIME.
+    # A tick-rounded wall clock can predate a just-created, already-live child.
+    kernel.GetSystemTimePreciseAsFileTime.argtypes = [ctypes.POINTER(wintypes.FILETIME)]
+    kernel.GetSystemTimePreciseAsFileTime.restype = None
     kernel.GetProcessTimes.argtypes = [wintypes.HANDLE, *([ctypes.POINTER(wintypes.FILETIME)] * 4)]
     kernel.GetProcessTimes.restype = wintypes.BOOL
     before = wintypes.FILETIME()
-    kernel.GetSystemTimeAsFileTime(ctypes.byref(before))
+    kernel.GetSystemTimePreciseAsFileTime(ctypes.byref(before))
     snapshot_time = (before.dwHighDateTime << 32) | before.dwLowDateTime
     snapshot = kernel.CreateToolhelp32Snapshot(0x00000002, 0)  # TH32CS_SNAPPROCESS only
     if not snapshot or snapshot == ctypes.c_void_p(-1).value:

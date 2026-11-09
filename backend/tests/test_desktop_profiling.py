@@ -140,20 +140,25 @@ def test_native_webview_role_and_access_denial_are_not_fabricated():
 
 @pytest.mark.skipif(os.name != 'nt', reason='requires real Windows Toolhelp API')
 def test_real_toolhelp_current_process_and_owned_child_without_cim(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
     import subprocess
     import sys
     # The base interpreter avoids a venv launcher creating an extra grandchild.
-    child = subprocess.Popen([sys._base_executable, '-c', 'import time; time.sleep(15)'],
-                             creationflags=subprocess.CREATE_NO_WINDOW)
+    child = subprocess.Popen([sys._base_executable, '-c', 'import time; print("ready", flush=True); time.sleep(15)'],
+                             stdout=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
+    readiness = ThreadPoolExecutor(max_workers=1)
     try:
+        # Wait for this exact child to execute, not an arbitrary timing sleep.
+        assert readiness.submit(child.stdout.readline).result(timeout=5) == b'ready\r\n'
         monkeypatch.setattr(profiling.subprocess, 'check_output', lambda *a, **k: (_ for _ in ()).throw(OSError('generated CIM unavailable')))
         rows = profiling.process_tree(os.getpid())
         assert rows and rows[0]['pid'] == os.getpid()
         observed = {r['pid']: r for r in rows}
-        assert child.pid in observed and observed[child.pid]['parent'] == os.getpid()
+        assert child.pid in observed and observed[child.pid]['parent'] == os.getpid(), {'rows': rows, 'child': child.pid, 'returncode': child.poll()}
         assert all(r['inventory_method'] == 'toolhelp' for r in rows)
         birth = observed[child.pid]['created_filetime']
         assert profiling.working_set(child.pid, birth)['available']
         assert profiling.working_set(child.pid, birth+10_000_000)['error'] == 'process_identity_changed'
     finally:
         child.terminate(); child.wait(timeout=5)
+        child.stdout.close(); readiness.shutdown(wait=True)

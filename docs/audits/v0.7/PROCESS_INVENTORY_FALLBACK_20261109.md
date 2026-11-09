@@ -15,6 +15,8 @@
 5. 回退显式标记 `inventory_method:toolhelp`。没有CIM命令行时，WebView2子角色为 `webview2_unknown`，不能伪称浏览器/渲染器/GPU角色已区分。
 6. GPU前后身份检查沿用既有句柄检查的1微秒精度容差，兼容CIM微秒与原生100ns FILETIME的表示差异；真实身份变化仍拒绝。
 
+7. 快照前UTC边界使用[GetSystemTimePreciseAsFileTime](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsystemtimepreciseasfiletime)的高精度时间，避免粗粒度时钟落在刚创建进程之前。保留“快照后出生则未知”规则，不增加宽松时间窗口；目标Windows10/11具备该API（官方最低Windows8）。
+
 这只是显式执行的开发测量工具，不加入Front启动路径、Sidecar常驻任务或角色桌面Agent。没有改产品业务、SQLite架构、用户资料或模型文件。
 
 ## 官方API核对
@@ -34,3 +36,9 @@
 正常合入已验收的#72主线 c351084d684219b838f821d8fea43ce5bd6a679a 后，本机完整后端 **612通过/1既有跳过，187.37秒**；前端 **22项通过**，生产构建 **7.37秒**。此前原CIM失败已在本机真实Windows API回退下通过；没有将其跳过。
 
 精确head远端CI结果在PR与NEXT_SESSION收尾记录。所有长期创作、Soul/聊天/Voice/Live2D、绘画、大库和正式桌面发布计划保留。
+
+## 首轮Windows失败与后续修正
+
+旧head9b8fd4b的Windows42634383975实际失败：611通过/1跳过/1失败，714.37秒；强制CIM失效的真实专属子进程未出现在验证清单。没有把这项失败跳过。该日志没有保留原始快照/创建时间，无法确定是初始化可见性还是时钟边界，不宣称已经复现其唯一原因。本机30次即建即测生成子进程均通过，最接近快照的创建时间仍早约2ms。
+
+现修正测试fixture为等待专属子进程stdout的ready（5秒上限），不靠固定sleep/重试；仍要求同一PID/父PID、真实内存与错误出生时间拒绝，失败会打印有界元数据便于诊断，finally回收子进程/管道/就绪线程。同时产品采样改高精度UTC，以消除文档确认的粗时钟比较风险。最新head必须重跑完整本机及WindowsCI；e14后端曾成功也不代替修正后的精确head。

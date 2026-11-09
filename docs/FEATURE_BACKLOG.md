@@ -1,17 +1,5 @@
 # Front 持续功能库 · 当前接续
 
-## Character Soul · 2026-11-09 独立增量
-
-| 功能 | 场景/复用 | 复杂度/资源 | 状态/风险/下一步 |
-| --- | --- | --- | --- |
-| SOUL-IDENTITY | 百科/OC/Card/Voice/Live2D/Asset/Chat/Lore 的稳定显式引用，支持独立角色 | 中；三张轻量元数据表，无模型/新依赖 | 已实现并用生成数据验证；UID/创建身份、世界观/作品/角色范围防复用；正式来源不改写 |
-| SOUL-REVIEW | 七类记忆、消息/分支证据、人工确认/拒绝/冲突/停用、历史恢复 | 中高；复用 EntityVersion/完整备份 | 手动闭环实际浏览器通过；恢复/编辑重新待审，停用不等于历史/备份清除 |
-| SOUL-RECALL | SQLite FTS、固定/重要度/时间、本地有限字数引用预览 | 中；最多检查200候选，无embedding | 1k/10k生成测量与范围回归；只返回sent_to_ai:false，尚未接聊天 |
-| SOUL-CONTEXT / EXTRACTION | 确认记忆注入、可选AI建议、摘要与语义冲突 | 高；复用#66预算/Provider/jobs | 待#66合法GUI验收并合并；默认不开自动提取，不上传私人会话 |
-| SOUL-PRIVATE-GROUP | 群聊公共场景与各角色私有记忆 | 高；有限轮次/预算 | 未开发，不堆叠悬空PR；桌面Agent不在本轮范围 |
-
-见 [设计与许可证研究](CHARACTER_SOUL.md)、[验收/性能](audits/soul/ACCEPTANCE_20261109.md)。Voice/TTS/训练、Live2D合法运行时与署名、Krita/压感、OC/LoRA、小说世界观、3D、游戏音声特典、大库与正式桌面更新目标继续保留。#66/#71/#72仍按各自GUI门槛独立收敛。
-
 ## 当前状态 · 2026-11-09（覆盖下方历史截面）
 
 本轮实际代码分别在#66/#71/#72，仍为Draft，未将GUI缺口当通过；精确head/CI/首次失败及测试边界见 [NEXT_SESSION](NEXT_SESSION.md)。不是main已安装能力，也没有群聊/剧情依赖链。
@@ -342,6 +330,10 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 实际发现PID复用使旧采样器误纳入更早的无关子树。现在核对父子创建时间、OpenProcess句柄身份和GPU采样后身份；未知数据不计为0。9进程原生启动早期短样本已验证归属，但不作内存改善、峰值、TTI或泄漏结论。439后端/15前端及构建通过；无应用启动开销/迁移/依赖变化。详见 audits/v0.7/PROCESS_IDENTITY.md。真实TTS、完整原生交互、导出扩展、参考质量/数据集与长期创作方向仍保留。
 
 多角色、剧情与记忆的接口/预算/分支约束现仅为[设计](CHAT_MODES_DESIGN.md)，尚未实现；不把文档视为可运行能力。
+
+## 2026-11-09 · Windows进程测量可靠性
+
+增加CIM失效时的只读Toolhelp/创建时间回退开发增量，修复真实环境清单为空导致的验收失败；不改变系统配置，不将未知内存伪装为零，WebView2子角色不足明确标未知。只在显式测量时执行，不增加常驻依赖；见audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md。
 
 ## 2026-11-09 · ISBN实际验收补充
 

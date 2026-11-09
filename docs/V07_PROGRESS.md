@@ -4,12 +4,6 @@
 
 ## 2026-11-08 · 本轮收敛（历史）
 
-## 2026-11-09 · Character Soul 独立冲刺（详见最新 NEXT_SESSION）
-
-基于main 6e8c95c，新增可审核身份/显式跨模块引用、七类记忆、分支证据、FTS有界本地召回、EntityVersion恢复、分页导出、升级前快照及完整备份。没有AI调用、自动记忆提取或实际聊天注入，不依赖未合并#66。生成样本真实浏览器手动闭环、重启、390px/主题/Tab/失败保留输入通过，真实HTTP完整备份和独立恢复 verified；原活动库未替换。设计与实测详见[CHARACTER_SOUL](CHARACTER_SOUL.md)及[audits/soul](audits/soul/ACCEPTANCE_20261109.md)。
-
-#66/#71/#72保持各自验收门槛；#71本轮补原生模型文件/中文特殊路径/再次取消/浅色/重启退出证据，尚未全验。其余长线创作/Voice/Live2D/绘画/小说/游戏/3D/大库/正式桌面发布目标不变。准确PR、head、CI与最终测试数量在最新[NEXT_SESSION](NEXT_SESSION.md)，下方为历史记录。
-
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。

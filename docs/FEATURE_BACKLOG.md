@@ -330,3 +330,7 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 实际发现PID复用使旧采样器误纳入更早的无关子树。现在核对父子创建时间、OpenProcess句柄身份和GPU采样后身份；未知数据不计为0。9进程原生启动早期短样本已验证归属，但不作内存改善、峰值、TTI或泄漏结论。439后端/15前端及构建通过；无应用启动开销/迁移/依赖变化。详见 audits/v0.7/PROCESS_IDENTITY.md。真实TTS、完整原生交互、导出扩展、参考质量/数据集与长期创作方向仍保留。
 
 多角色、剧情与记忆的接口/预算/分支约束现仅为[设计](CHAT_MODES_DESIGN.md)，尚未实现；不把文档视为可运行能力。
+
+## 2026-11-09 · ISBN实际验收补充
+
+#72真实Open Library公开ISBN/作品查询、来源字段、人工保护/版本恢复、并发冲突、输入校验、390px/Tab/导航已验，详见audits/metadata/EDITION_UI_20261109.md；CI与合并状态以精确head为准。未读取个人库，无新服务/推理/封面抓取依赖。所有长期创作/Voice/Live2D/绘画/群聊/桌面目标保留。

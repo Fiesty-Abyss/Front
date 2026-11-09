@@ -116,3 +116,7 @@ A/B与角色卡上轮生成实例已关闭；本轮没有重启它们或个人80
 本次文档前快照已[归档](audits/chat/PRE_HANDOFF_20261108.md)，更早记录见原audits；长期Backlog/PRD与授权条件保留。
 
 多角色/剧情只完成后续约束文档，**没有实现新调度或数据表**：[CHAT_MODES_DESIGN](CHAT_MODES_DESIGN.md)。优先完成#66真实验收，再按其中门槛逐步实施。
+
+## 2026-11-09 · #72 GUI补验
+
+#72已在隔离生成Work上真实完成Open Library ISBN具体版次/作品级区别、作者缺失、来源字段、人工内容保护、空字段应用、追加版本恢复、并发冲突、错误ISBN/年份、390px、Tab与浏览器返回；见[audit](audits/metadata/EDITION_UI_20261109.md)。原始用户资料未操作。正常合入6e8c95c后精确head重新CI，全门槛满足才合并；#66仍Draft，不启动群聊依赖。Character Soul独立#74由另一合法工作树开发，不把其未合并代码复制到本分支。

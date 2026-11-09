@@ -1,5 +1,11 @@
 # 最新接续 · 聊天收敛与ISBN版次
 
+## 2026-11-09 · 独立 ISBN UI 开发
+
+基线 main `69cb89bf21468c8f501b74f3d4297be9867e991c`；分支 `codex/metadata-edition-ui` 仅补已有API的版次核对与可选年份，无迁移/Provider。606后端通过/1权限跳过215.28秒，22前端通过/构建7.62秒。#66上下文/流式/分页在原分支收敛，仍缺聊天GUI；#71原生路径为独立Draft。此分支也须真实GUI和精确head CI后才Ready，不把SSR当浏览器验证。
+
+接续见 [EDITION_UI_20261109](audits/metadata/EDITION_UI_20261109.md)。不重试被拒绝的聊天服务，不操作个人8000/资料库。下面11-08记录均为历史截面，最新PR/CI必须重新获取。
+
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。

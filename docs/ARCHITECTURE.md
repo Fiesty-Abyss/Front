@@ -306,4 +306,6 @@ GPT-SoVITS适配须先锁定官方提交与API契约，模拟协议测试和真�
 
 ## ISBN版次元数据
 
+前端 Metadata 继续使用同一来源候选/详情/应用接口；BookRecordSummary 只投影来源版次信息，不持有新存储或发起网络请求。可选年份复用原Search.year；非book搜索不带隐藏作者/年份。OL…W作品与经来源标记的OL…M版次在界面中明确分开；来源字段仍需逐项人工应用。
+
 bookmeta仅标准库ISBN校验/版次JSON规范化；metadata.OpenLibrary复用已有固定主机、有限响应与jobs，以OL…M具体版本和OL…W作品分开。新字段复用Work.metadata_catalog/versions/完整备份，不增加表/服务/推理。只有主动检索联网，单次受控JSON跳转，人工字段和source_id刷新许可保护保留，见BOOK_EDITIONS。

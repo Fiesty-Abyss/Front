@@ -1,5 +1,9 @@
 # Front 持续功能库
 
+## 2026-11-09 · 版次核对 UI（开发待验收）
+
+META-EDITIONS-UI 复用 #69 与现有 Metadata Center，增加 ISBN 搜索说明、可选年份、OL作品/版次标识、无目标档案的字段摘要和来源中文字段名；无新Provider/表/常驻服务。复杂度低中、文本按当前详情显示；风险为错误译本/人工覆盖，仍需字段确认且不推断缺失作者。生成Vue SSR/搜索体测试已补，实际GUI/Windows CI待核对。见 [范围](audits/metadata/EDITION_UI_20261109.md)。群聊/#66、桌面路径选择另为独立分支，长期 Voice/Live2D/绘画/硬件/正式发布任务不变。
+
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。

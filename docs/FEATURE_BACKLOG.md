@@ -331,6 +331,10 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 
 多角色、剧情与记忆的接口/预算/分支约束现仅为[设计](CHAT_MODES_DESIGN.md)，尚未实现；不把文档视为可运行能力。
 
+## 2026-11-09 · Windows进程测量可靠性
+
+增加CIM失效时的只读Toolhelp/创建时间回退开发增量，修复真实环境清单为空导致的验收失败；不改变系统配置，不将未知内存伪装为零，WebView2子角色不足明确标未知。只在显式测量时执行，不增加常驻依赖；见audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md。
+
 ## 2026-11-09 · ISBN实际验收补充
 
 #72真实Open Library公开ISBN/作品查询、来源字段、人工保护/版本恢复、并发冲突、输入校验、390px/Tab/导航已验，详见audits/metadata/EDITION_UI_20261109.md；CI与合并状态以精确head为准。未读取个人库，无新服务/推理/封面抓取依赖。所有长期创作/Voice/Live2D/绘画/群聊/桌面目标保留。

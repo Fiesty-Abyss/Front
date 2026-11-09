@@ -1,4 +1,5 @@
 <script setup>
+import LocalPathField from '../components/LocalPathField.vue'
 import { defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 const ProjectImportPanel=defineAsyncComponent(()=>import('../components/ProjectImportPanel.vue'))
 import { useRoute } from 'vue-router'
@@ -49,7 +50,7 @@ onMounted(async () => {
 <template>
   <div class="grid">
     <div class="card grid"><h2 style="margin:0">项目文件只读预览</h2><p class="small muted" style="margin:0">扫描阶段只读，不执行脚本或调用 AI。正式归档必须在下方明确选择并确认。</p>
-      <form class="grid" @submit.prevent="scan"><label class="field">本机项目目录<input v-model="form.path" required placeholder="输入任意原创项目文件夹路径" /></label>
+      <form class="grid" @submit.prevent="scan"><LocalPathField v-model="form.path" label="本机项目目录" purpose="project_folder" :disabled="busy" required placeholder="输入任意原创项目文件夹路径"/>
         <div class="row"><label class="row small"><input v-model="form.recursive" type="checkbox" style="width:auto" />包含子目录</label><span class="spacer" /><label class="field">重复项的世界观参考范围<select v-model="form.world_id"><option value="">未选择 / 新项目预览</option><option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.name }} · #{{ w.id }}</option></select></label><button class="primary" :disabled="busy || !form.path">扫描预览</button></div>
       </form>
     </div>

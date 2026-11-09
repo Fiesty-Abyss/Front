@@ -4,6 +4,7 @@ use std::{fs, io::{BufRead, BufReader, Write}, net::TcpStream, path::{Path, Path
 use serde::Deserialize;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 mod updates;
+mod paths;
 #[cfg(test)]
 mod updater_tests;
 #[cfg(windows)]
@@ -201,8 +202,10 @@ fn start_service(binary: &Path, folder: &Path, cancelled:&AtomicBool, progress:i
 fn main() {
     let started=Instant::now();
     let result=tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![updates::desktop_update])
+    .invoke_handler(tauri::generate_handler![updates::desktop_update, paths::desktop_pick_path])
     .setup(move|app| {
+        #[cfg(windows)]
+        app.handle().plugin(tauri_plugin_dialog::init())?;
         if let Some(key)=option_env!("FRONT_UPDATE_PUBLIC_KEY").filter(|v|!v.trim().is_empty()) {
             app.handle().plugin(tauri_plugin_updater::Builder::new().pubkey(key).build())?;
         }
@@ -251,6 +254,10 @@ fn main() {
                 let url=format!("http://127.0.0.1:{}/_desktop/bootstrap#{}",port,service.ready.token);
                 let allowed_origin=format!("http://127.0.0.1:{}",port);
                 handle.manage(updates::Updates::new(folder.clone(),allowed_origin.clone(),handle.package_info().version.to_string())?);
+                handle.manage(paths::PathPicker::new(allowed_origin.clone()));
+                handle.add_capability(tauri::ipc::CapabilityBuilder::new("front-path-picker")
+                    .local(false).window("main").remote(format!("{allowed_origin}/*"))
+                    .permission("allow-desktop-pick-path"))?;
                 handle.add_capability(tauri::ipc::CapabilityBuilder::new("front-updates")
                     .local(false).window("main").remote(format!("{allowed_origin}/*"))
                     .permission("allow-desktop-update"))?;

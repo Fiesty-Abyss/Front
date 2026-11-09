@@ -1,4 +1,5 @@
 <script setup>
+import LocalPathField from '../components/LocalPathField.vue'
 import QuickSearch from '../components/QuickSearch.vue'
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -134,8 +135,8 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
 
   <Modal v-if="scan" title="扫描模型目录" @close="scan = null">
     <div class="grid">
-      <label class="field">模型目录（运行 Front 的这台电脑上，例如 SD WebUI 或 ComfyUI 的 models 文件夹）
-        <div class="row" style="flex-wrap:nowrap"><input v-model="scanForm.path" class="mono" placeholder="D:/sd-webui/models" @keyup.enter="doScan" /><button class="primary" :disabled="!scanForm.path || busy === 'scan'" @click="doScan">扫描预览</button></div></label>
+      <LocalPathField v-model="scanForm.path" label="模型目录（运行 Front 的这台电脑上）" purpose="models_folder" :disabled="!!busy" mono placeholder="D:/sd-webui/models" @enter="doScan"/>
+      <button class="primary" :disabled="!scanForm.path || !!busy" @click="doScan">扫描预览</button>
       <div class="row small">
         <label class="row" style="gap:4px"><input v-model="scanForm.recursive" type="checkbox" style="width:auto" />包含子文件夹</label>
         <label class="row" style="gap:4px"><input v-model="scanForm.compute_hash" type="checkbox" style="width:auto" />登记时计算哈希（SHA256 / AutoV1-3，大模型较慢，后台进行）</label>
@@ -167,7 +168,8 @@ const missingHash = computed(() => items.value.filter((m) => m.local_path && !m.
 
   <Modal v-if="editing" :title="editing.id ? '编辑模型' : '登记模型'" @close="editing = null">
     <div class="grid">
-      <label class="field">本地路径（运行 Front 的这台电脑上）<div class="row" style="flex-wrap:nowrap"><input v-model="editing.local_path" class="mono" placeholder="D:/sd-webui/models/Lora/xxx.safetensors" /><button :disabled="!!busy" @click="inspect(false)">读取信息</button><button :disabled="!!busy" @click="editing.id ? hashOne() : inspect(true)">{{ busy === 'hash' ? '计算中…' : '计算哈希' }}</button></div></label>
+      <LocalPathField :key="editing.id||'new'" v-model="editing.local_path" label="本地路径（运行 Front 的这台电脑上）" purpose="model_file" :disabled="!!busy" mono placeholder="D:/sd-webui/models/Lora/xxx.safetensors"/>
+      <div class="row"><button :disabled="!!busy" @click="inspect(false)">读取信息</button><button :disabled="!!busy" @click="editing.id ? hashOne() : inspect(true)">{{ busy === 'hash' ? '计算中…' : '计算哈希' }}</button></div>
       <div class="grid cols-3">
         <label class="field">名称<input v-model="editing.name" /></label>
         <label class="field">类型<select v-model="editing.kind"><option v-for="(l, k) in LABELS.modelKind" :key="k" :value="k">{{ l }}</option></select></label>

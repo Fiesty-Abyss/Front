@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path as APIPath, Query
-from fastapi.responses import StreamingResponse
+from ..chatstream import OwnedIterator, OwnedStreamResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -165,7 +165,7 @@ def books_for(session: Session, chat: m.ChatSession, card: m.CharacterCard) -> l
 def build_context(session: Session, chat: m.ChatSession, card: m.CharacterCard, history: list[m.ChatMessage]) -> tuple[list[dict], dict]:
     turns = [{"role": msg.role, "content": msg.content} for msg in history if msg.role in ("user", "assistant", "system")]
     activated = lore_mod.activate(books_for(session, chat, card), [t["content"] for t in turns])
-    messages = build_roleplay_messages(card, turns, chat.user_name, lore=lore_mod.split_positions(activated["active"]))
+    messages = build_roleplay_messages(card, turns, chat.user_name, max_history=None, lore=lore_mod.split_positions(activated["active"]))
     return messages, activated
 
 
@@ -194,18 +194,20 @@ def model_selection(session_id: ChatId, body: chatmodels.Selection, session: Ses
 
 
 # ---------- 会话 ----------
+@router.get("/sessions/page")
+def session_page(card_id: int | None = Query(None, ge=1, le=2**63-1), q: str = Query('', max_length=95),
+                 limit: int = Query(50, ge=1, le=100), cursor: str | None = Query(None, max_length=512),
+                 session: Session = Depends(get_session)):
+    from ..chatlisting import page
+    return page(session, card_id=card_id, q=q, limit=limit, cursor=cursor)
+
+
 @router.get("/sessions")
-def list_sessions(card_id: int | None = None, session: Session = Depends(get_session)) -> list[dict[str, Any]]:
-    stmt = select(m.ChatSession).order_by(m.ChatSession.updated_at.desc())
-    if card_id is not None:
-        stmt = stmt.where(m.ChatSession.card_id == card_id)
-    out = []
-    for c in session.scalars(stmt).all():
-        path = path_to(c, c.head_id)
-        last = path[-1].content[:60] if path else ""
-        out.append({"id": c.id, "card_id": c.card_id, "title": c.title, "messages": len(path), "total_messages": len(c.messages),
-                    "last": last, "updated_at": c.updated_at.isoformat()})
-    return out
+def list_sessions(card_id: int | None = Query(None, ge=1, le=2**63-1), q: str = Query('', max_length=95),
+                  limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0, le=2**31-1),
+                  session: Session = Depends(get_session)) -> list[dict[str, Any]]:
+    from ..chatlisting import page
+    return page(session, card_id=card_id, q=q, limit=limit, offset=offset, legacy=True)['items']
 
 
 @router.post("/sessions", response_model=s.ChatSessionRead, status_code=201)
@@ -276,10 +278,10 @@ def chat_context(session_id: ChatId, session: Session = Depends(get_session)) ->
     messages, activated = build_context(session, chat, card, path_to(chat, chat.head_id))
     books = books_for(session, chat, card)
     selection = chatmodels.latest(session, chat)
-    budget = None
-    if selection and selection.snapshot.get('schema') == 1:
-        messages, budget = chatmodels.bound_context(messages, selection.snapshot['context_characters'])
-    return {"messages": messages, "budget": budget, "model_state": chatmodels.state(session, chat), "lore": activated, "lorebooks": [{"id": b.id, "name": b.name, "world_id": b.world_id} for b in books]}
+    original = messages
+    messages, budget = chatmodels.bound_context(messages, selection.snapshot['context_characters'] if selection and selection.snapshot.get('schema') == 1 else None)
+    omitted_messages = [dict(position=i, **original[i]) for group in budget['omitted'] for i in group['positions']]
+    return {"messages": messages, "omitted_messages": omitted_messages, "budget": budget, "model_state": chatmodels.state(session, chat), "lore": activated, "lorebooks": [{"id": b.id, "name": b.name, "world_id": b.world_id} for b in books]}
 
 
 @router.patch("/messages/{message_id}", response_model=s.ChatSessionRead)
@@ -354,7 +356,7 @@ def _prepare(session: Session, chat: m.ChatSession, payload: s.ChatGenerate) -> 
     session.add(user_msg)
     session.flush()
     chat.head_id = user_msg.id
-    session.commit()
+    session.flush()
     session.refresh(chat)
     return user_msg.id, user_msg
 
@@ -422,9 +424,8 @@ def generate(
             raise HTTPException(503, NOT_CONFIGURED)
         parent_id, user_msg = _prepare(session, chat, payload)
         messages, activated = build_context(session, chat, card, path_to(chat, parent_id))
-        budget = None
-        if selection:
-            messages, budget = chatmodels.bound_context(messages, selection['snapshot']['context_characters'])
+        messages, budget = chatmodels.bound_context(messages, selection['snapshot']['context_characters'] if selection else None)
+        session.commit()  # Invalid context budgets must not commit a new turn or branch head.
         lore_meta = [{"entry_id": r["entry_id"], "lorebook_id": r["lorebook_id"], "title": r["title"], "reason": r["reason"]}
                      for r in activated["active"]]
         meta = {"card_id": card.id, "card_name": card.name,
@@ -447,6 +448,7 @@ def generate(
         expected_head = chat.head_id
         stream_fn = getattr(provider, 'stream', None)
     except BaseException:
+        session.rollback()
         _release(session_id, token)
         raise
     finally:
@@ -456,42 +458,60 @@ def generate(
     def events() -> Iterator[str]:
         parts: list[str] = []
         saved = False
+        chunks = None
+        failure = None
         output_characters = 0
         try:
-            yield _sse("start", {"token": token, "user_message_id": user_msg.id if user_msg else None, "parent_id": parent_id,
-                                 "lore": lore_meta})
+            yield _sse("start", {"token": token, "user_message_id": user_msg.id if user_msg else None,
+                                  "parent_id": parent_id, "lore": lore_meta})
             try:
-                chunks = stream_fn(messages) if stream_fn else iter([provider.chat(messages)])
-                for piece in chunks:
-                    if stop.is_set():
-                        meta["interrupted"] = True
-                        break
-                    if not isinstance(piece, str) or output_characters + len(piece) > 64000:
-                        raise AIUnavailable('response budget')
-                    output_characters += len(piece)
-                    parts.append(piece)
-                    yield _sse("delta", {"text": piece})
-            except AIUnavailable as exc:
-                if parts:
-                    meta["error"] = _safe_error(exc)
-                    res = _save_reply(chat.id, parent_id, "".join(parts), meta, expected_head)
-                    saved = True
-                    yield _sse("error", {"detail": meta['error'], **res})
-                else:
-                    saved = True
-                    yield _sse("error", {"detail": _safe_error(exc)})
-                return
-            res = _save_reply(chat.id, parent_id, "".join(parts), meta, expected_head)
+                if not stop.is_set():
+                    chunks = iter(stream_fn(messages) if stream_fn else [provider.chat(messages)])
+                    for piece in chunks:
+                        if stop.is_set():
+                            break
+                        if not isinstance(piece, str) or output_characters + len(piece) > 64000:
+                            raise AIUnavailable('invalid response budget or type')
+                        output_characters += len(piece)
+                        parts.append(piece)
+                        yield _sse("delta", {"text": piece})
+            except Exception as exc:
+                failure = _safe_error(exc)
+            finally:
+                close = getattr(chunks, 'close', None)
+                if close:
+                    try: close()
+                    except Exception: pass
+                chunks = None
+            if stop.is_set():
+                meta['interrupted'] = True
+            if failure:
+                meta['error'] = failure
+            if parts:
+                res = _save_reply(chat.id, parent_id, ''.join(parts), meta, expected_head)
+            else:
+                with new_session() as db:
+                    current = get_or_404(db, m.ChatSession, session_id)
+                    res = {'message_id': None, 'session': json.loads(s.ChatSessionRead.model_validate(serialize(current)).model_dump_json())}
+                if not failure and not stop.is_set():
+                    failure = 'AI服务没有返回可用文字，用户消息已保留'
             saved = True
-            yield _sse("done", res)
+            _release(session_id, token)  # Save/close upstream before a terminal event permits a new turn.
+            yield _sse('error' if failure else 'done', dict(res, **({'detail': failure} if failure else {})))
         finally:
             try:
-                if not saved and parts:  # Keep generation registered through the final partial save.
-                    meta["interrupted"] = True
-                    _save_reply(chat.id, parent_id, "".join(parts), meta, expected_head)
-            finally:_release(session_id, token)
+                close = getattr(chunks, 'close', None)
+                if close:
+                    try: close()
+                    except Exception: pass
+                if not saved and parts:
+                    meta['interrupted'] = True
+                    _save_reply(chat.id, parent_id, ''.join(parts), meta, expected_head)
+            finally:
+                _release(session_id, token)
 
-    return StreamingResponse(events(), media_type="text/event-stream",
+    owner = OwnedIterator(events(), stop, lambda: _release(session_id, token))
+    return OwnedStreamResponse(owner, media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 

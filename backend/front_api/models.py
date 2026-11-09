@@ -15,6 +15,7 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     Integer,
+    Index,
     LargeBinary,
     String,
     Table,
@@ -668,6 +669,7 @@ class CharacterCardDraft(TimestampMixin, Base):
 
 class ChatSession(TimestampMixin, Base):
     __tablename__ = "chat_sessions"
+    __table_args__ = (Index("ix_chat_sessions_updated_id", "updated_at", "id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     card_id: Mapped[int] = mapped_column(ForeignKey("character_cards.id", ondelete="CASCADE"))
@@ -691,6 +693,7 @@ class ChatModelSelection(TimestampMixin, Base):
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
+    __table_args__ = (Index("ix_chat_messages_session", "session_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[int] = mapped_column(ForeignKey("chat_sessions.id", ondelete="CASCADE"))

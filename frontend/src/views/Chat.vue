@@ -11,6 +11,8 @@ let streamController=null, openSerial=0, contextSerial=0, disposed=false
 const route = useRoute()
 const status = ref(null)
 const sessions = ref([])
+const sessionSearch=ref(''),sessionFilter=ref(''),sessionNext=ref(null),sessionBusy=ref(false),sessionCursors=ref([null])
+let sessionSerial=0
 const cards = ref([])
 const books = ref([])
 const cur = ref(null)
@@ -22,7 +24,19 @@ const editing = ref(null) // { msg, text }
 const showCtx = ref(false)
 const showBooks = ref(false)
 
-async function loadSessions() { sessions.value = await api.get('/api/ai/sessions') }
+async function loadSessions(reset=true, cursor=null, trail=[null]) {
+  if(disposed)return
+  const serial=++sessionSerial;sessionBusy.value=true
+  try {
+    const data=await api.get('/api/ai/sessions/page',{q:sessionFilter.value,limit:50,cursor:reset?null:cursor})
+    if(disposed || serial!==sessionSerial)return
+    sessions.value=data.items;sessionNext.value=data.next_cursor;sessionCursors.value=reset?[null]:trail
+  } catch(e) {if(!disposed && serial===sessionSerial)toast(e.message,true)}
+  finally{if(!disposed && serial===sessionSerial)sessionBusy.value=false}
+}
+function searchSessions(){sessionFilter.value=sessionSearch.value;loadSessions()}
+function nextSessionPage(){if(sessionBusy.value || !sessionNext.value)return;const c=sessionNext.value;loadSessions(false,c,[...sessionCursors.value,c])}
+function previousSessionPage(){if(sessionBusy.value || sessionCursors.value.length<2)return;const trail=sessionCursors.value.slice(0,-1);loadSessions(false,trail.at(-1),trail)}
 onMounted(async () => {
   status.value = await api.get('/api/ai/status')
   cards.value = (await Cards.list({ limit: 500 })).items
@@ -35,9 +49,9 @@ const card = computed(() => cards.value.find((c) => c.id === cur.value?.card_id)
 const canGenerate=computed(()=>Boolean(modelState.value?.selection || status.value?.available))
 const lastMsg = computed(() => cur.value?.messages.at(-1))
 async function refreshCtx() { if (cur.value) {const id=cur.value.id, serial=++contextSerial;ctx.value=null;try{const value=await api.get(`/api/ai/sessions/${id}/context`);if(!disposed && cur.value?.id===id && serial===contextSerial)ctx.value=value}catch(e){if(!disposed && serial===contextSerial)toast(e.message,true)}} }
-async function open(id) { if(streaming.value)return;const serial=++openSerial;const [chat,model]=await Promise.all([api.get(`/api/ai/sessions/${id}`),api.get(`/api/ai/sessions/${id}/model-state`)]);if(serial!==openSerial)return;cur.value=chat;modelState.value=model;ctx.value=null;showModel.value=false;refreshCtx();scroll() }
+async function open(id) { if(disposed || streaming.value)return;const serial=++openSerial;const [chat,model]=await Promise.all([api.get(`/api/ai/sessions/${id}`),api.get(`/api/ai/sessions/${id}/model-state`)]);if(disposed || serial!==openSerial)return;cur.value=chat;modelState.value=model;ctx.value=null;showModel.value=false;refreshCtx();scroll() }
 function scroll() { nextTick(() => box.value && (box.value.scrollTop = box.value.scrollHeight)) }
-function setSession(s) { cur.value = s; refreshCtx(); loadSessions(); scroll() }
+function setSession(s) { if(disposed)return;cur.value = s; refreshCtx(); loadSessions(); scroll() }
 
 async function generate(body) {
   if (streaming.value) return false
@@ -58,7 +72,7 @@ async function generate(body) {
       else if (ev === 'done') {completed=true;setSession(data.session)}
       else if (ev === 'error') { toast(data.detail, true); if (data.session) setSession(data.session); else needsReload=true }
     }, streamController.signal)
-  } catch (e) { if(!disposed)toast(e.message, true);needsReload=true } finally {
+  } catch (e) { if(!disposed)toast(streamController?.signal.aborted?'已停止本次接收；外部服务可能仍在处理':e.message, !streamController?.signal.aborted);needsReload=true } finally {
     streaming.value = null;streamController=null
     if(needsReload && !disposed && cur.value?.id===sessionId){try{await open(sessionId)}catch(e){toast(e.message,true)}}
   }
@@ -71,7 +85,8 @@ async function send() {
   if(sent && input.value.trim()===text)input.value=''
 }
 async function stop() {
-  if (streaming.value?.token) await api.post(`/api/ai/generations/${streaming.value.token}/stop`).catch(() => {})
+  if (streaming.value?.token) api.post(`/api/ai/generations/${streaming.value.token}/stop`).catch(() => {})
+  streamController?.abort()
 }
 async function swipe(msg, dir) {
   const i = msg.sibling_ids.indexOf(msg.id) + dir
@@ -108,7 +123,9 @@ async function remove() {
   if (!confirm('删除这个对话？')) return
   await guard(() => api.del(`/api/ai/sessions/${cur.value.id}`), '已删除'); cur.value = null; loadSessions()
 }
-onBeforeUnmount(()=>{disposed=true;if(streaming.value?.token)api.post(`/api/ai/generations/${streaming.value.token}/stop`).catch(()=>{});streamController?.abort();streaming.value=null})
+function stopReceiving(){if(streaming.value?.token)fetch(`/api/ai/generations/${streaming.value.token}/stop`,{method:'POST',keepalive:true}).catch(()=>{});streamController?.abort()}
+onMounted(()=>window.addEventListener('pagehide',stopReceiving))
+onBeforeUnmount(()=>{disposed=true;++openSerial;++sessionSerial;++contextSerial;window.removeEventListener('pagehide',stopReceiving);stopReceiving();streaming.value=null})
 /** 把（动作）和 *动作* 渲染成斜体灰字 */
 function rich(text) {
   const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
@@ -124,11 +141,14 @@ function rich(text) {
   <div class="grid chat-layout">
     <aside class="card grid" style="align-content:start;gap:8px">
       <select :disabled="Boolean(streaming)" aria-label="选择角色卡开始对话" @change="newSession($event.target.value); $event.target.value = ''"><option value="">＋ 选择角色卡开始新对话</option><option v-for="c in cards" :key="c.id" :value="c.id">{{ c.name }}</option></select>
-      <div v-for="s in sessions" :key="s.id" class="card sess" :class="{ on: cur?.id === s.id }" @click="open(s.id)">
+      <form class="row" @submit.prevent="searchSessions"><input v-model="sessionSearch" aria-label="按会话名称搜索" placeholder="搜索会话" maxlength="95" style="min-width:0;width:100%"/><button :disabled="sessionBusy">搜索</button></form>
+      <button type="button" v-for="s in sessions" :key="s.id" class="card sess" :class="{ on: cur?.id === s.id }" @click="open(s.id)" :disabled="Boolean(streaming)">
         <b>{{ s.title }}</b>
         <div class="small muted ell">{{ s.last }}</div>
-        <div class="small muted">{{ s.messages }} 条<template v-if="s.total_messages > s.messages"> · 共 {{ s.total_messages }} 条（含分支）</template></div>
-      </div>
+        <div class="small muted">共 {{ s.total_messages }} 条（含分支）；详情按需读取</div>
+      </button>
+      <nav class="row" aria-label="会话分页"><button :disabled="sessionBusy || sessionCursors.length<2" @click="previousSessionPage">上一页</button><span>第 {{sessionCursors.length}} 页</span><button :disabled="sessionBusy || !sessionNext" @click="nextSessionPage">下一页</button></nav>
+      <p v-if="!sessions.length && !sessionBusy" class="small muted">没有匹配会话</p>
     </aside>
     <section v-if="cur" class="card chat-pane">
       <div class="row" style="margin-bottom:8px">
@@ -209,6 +229,8 @@ function rich(text) {
         <span v-if="!ctx.lore.active.length" class="muted">无</span>
         <template v-if="ctx.lore.skipped.length"> · 超出预算被跳过：<span v-for="l in ctx.lore.skipped" :key="l.entry_id" class="chip">{{ l.title }}</span></template>
       </div>
+      <p v-if="ctx.budget" class="notice">本次 {{ctx.budget.characters}} 字符（不是 token），省略 {{ctx.budget.dropped_messages}} 条消息：{{ctx.budget.dropped_turns}} 个完整问答轮次<span v-if="ctx.budget.dropped_introductions">，另 {{ctx.budget.dropped_introductions}} 个开场白单元</span>。仅影响请求，不删除历史。</p>
+      <details v-if="ctx.omitted_messages?.length"><summary>查看本次不发送的历史内容</summary><div v-for="m in ctx.omitted_messages" :key="m.position" class="card"><b>请求位置 {{m.position}} · {{m.role}}</b><p style="white-space:pre-wrap">{{m.content}}</p></div></details>
       <div v-for="(m, i) in ctx.messages" :key="i" class="card" style="background:var(--panel2);padding:8px 12px">
         <div class="small muted mono">{{ m.role }}</div><div class="small" style="white-space:pre-wrap">{{ m.content }}</div>
       </div>
@@ -219,7 +241,7 @@ function rich(text) {
 .chat-layout{grid-template-columns:250px minmax(0,1fr);align-items:start}.chat-pane{display:flex;flex-direction:column;min-width:0;height:calc(100vh - 170px);min-height:560px;overflow:auto}
 @media(max-width:800px){.chat-layout{grid-template-columns:minmax(0,1fr)}.chat-pane{height:auto;min-height:600px}.col{max-width:90%}}
 @media(prefers-reduced-motion:reduce){.caret{animation:none}}
-.sess { cursor: pointer; padding: 10px; overflow: hidden; min-width: 0; }
+.sess { text-align:left; width:100%; cursor: pointer; padding: 10px; overflow: hidden; min-width: 0; }
 .sess.on { border-color: var(--accent); }
 .ell { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .msgs { flex: 1; overflow: auto; display: grid; gap: 14px; align-content: start; padding-right: 4px; }

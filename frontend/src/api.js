@@ -122,7 +122,8 @@ export async function streamPost(url, body, onEvent, signal) {
   }
   const reader = res.body.getReader()
   const dec = new TextDecoder()
-  let buf = ''
+  let buf = '', terminal=false
+  try {
   for (;;) {
     const { value, done } = await reader.read()
     if (done) break
@@ -137,8 +138,10 @@ export async function streamPost(url, body, onEvent, signal) {
         if (line.startsWith('event:')) event = line.slice(6).trim()
         else if (line.startsWith('data:')) data.push(line.slice(5).trim())
       }
-      if (data.length) onEvent(event, JSON.parse(data.join('\n')))
+      if (data.length) { if(event==='done'||event==='error')terminal=true;onEvent(event, JSON.parse(data.join('\n'))) }
     }
   }
+  if(!terminal)throw new Error('连接在结束事件前中断；输入与服务器历史将保留，请显式重试')
+  } finally {try{await reader.cancel()}catch{}reader.releaseLock()}
 }
 

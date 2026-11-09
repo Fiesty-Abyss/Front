@@ -83,20 +83,6 @@ def resolve(session, chat, fallback):
     return provider, output(row)
 
 
-def bound_context(messages, limit):
-    """Preserve all instructions + latest turn; remove oldest turns, never stored text."""
-    result = list(messages)
-    last_turn = max((i for i, msg in enumerate(result) if msg['role'] != 'system'), default=-1)
-    mandatory = sum(len(msg['content']) for i, msg in enumerate(result) if msg['role'] == 'system' or i == last_turn)
-    if mandatory > limit:
-        raise HTTPException(422, '角色设定、世界书与最新消息超过上下文字数预算；请缩小内容或明确增加预算，不静默截断人设')
-    total = sum(len(msg['content']) for msg in result)
-    keep = []
-    dropped = 0
-    for i, msg in enumerate(result):
-        if total > limit and msg['role'] != 'system' and i != last_turn:
-            total -= len(msg['content'])
-            dropped += 1
-        else:
-            keep.append(msg)
-    return keep, {'characters': total, 'limit': limit, 'dropped_turns': dropped, 'unit': 'characters-not-tokens'}
+def bound_context(messages, limit=None):
+    from .chatcontext import trim
+    return trim(messages, limit=limit)

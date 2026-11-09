@@ -2,15 +2,15 @@
 
 ## 当前状态 · 2026-11-09
 
-整理基线 main **c351084d684219b838f821d8fea43ce5bd6a679a**。#72已经正常合并；#66/#71/#74保持Draft。#75等待最新head全部检查。旧接续全文保存在[历史快照](audits/soul/PRE_SPRINT_NEXT_20261109.md)，下述状态覆盖其中旧截面。
+本次接续提交前 main **cfce65110ce01ef5b9a6279e99f1dae3225d0ed8**。#72、#75已经正常合并；#66/#71/#74保持Draft。本接续只改文档，最终main以GitHub合并记录为准；每次继续先fetch并查询精确head。旧接续全文保存在[历史快照](audits/soul/PRE_SPRINT_NEXT_20261109.md)，下述状态覆盖其中旧截面。
 
 | PR | 实现、精确检查与门槛 |
 | --- | --- |
 | [#72](https://github.com/Fiesty-Abyss/Front/pull/72) | 已合并，head c500d05ad3fd01dd7d80553a1a371d9b60f52211。真实公开ISBN/作品查询、来源、人工保护、版本恢复、409、390px/Tab/导航通过；常规42631634326、Windows42631634311全成功；合并后主线42635489390成功。 |
 | [#66](https://github.com/Fiesty-Abyss/Front/pull/66) | Draft，head b56bd4209cdd55eef74ba7dc899696d561e23a28。完整轮次裁剪/省略预览、SSE所有权及会话分页已实现；常规42617831053、Windows42617831079成功。完整正向聊天GUI仍缺，不Ready或堆叠群聊。 |
 | [#71](https://github.com/Fiesty-Abyss/Front/pull/71) | Draft，head de84fc9cc2d167ce33da5e062e5856e0c709bd68，已正常合入主线保留两侧文档。常规42636851119与完整Windows42636851096全成功。真实目录取消/选择/保存/四文件扫描、生成模型文件选择/Escape保留路径、浅色与重启/关闭已验；完整入口、窄屏/DPI/键盘仍缺。 |
-| [#74](https://github.com/Fiesty-Abyss/Front/pull/74) | Draft，head b7b3ea7422dd9bff05924cb52f85b4f56a0d5ec2。常规42637088624与完整Windows42637089347均成功（Windows623通过/1跳过、前端26、冻结/迁移/ACL/测试签名/NSIS/便携/Hash完整性）。独立身份/七类审核记忆/分支证据/FTS召回/历史备份已实现，核心浏览器流程已验；新增页内草稿确认GUI未完成，不合并。聊天注入和AI提取未实现。 |
-| [#75](https://github.com/Fiesty-Abyss/Front/pull/75) | head 2c0445c4274a082fa9c83b30fe6a069192c672d8。CIM失败时Toolhelp元数据/限定权限创建时间回退；高精度UTC采样与专属子进程ready。真实Windows当前/专属子进程15项通过。无UI、依赖、数据库或启动路径变化；等待最新完整检查。 |
+| [#74](https://github.com/Fiesty-Abyss/Front/pull/74) | Draft，head a3214344f0fe48760173e91fe5629267f9211b9d。最新常规42640870732与完整Windows42640870984全部成功，26前端/构建通过；冻结/迁移/ACL/测试签名/NSIS/便携/Hash完整性通过。独立身份/七类审核记忆/分支证据/FTS召回/历史备份已实现，核心浏览器流程已验；新页内草稿确认及素材/世界书来源跳转GUI未完，不合并。聊天注入和AI提取未实现。 |
+| [#75](https://github.com/Fiesty-Abyss/Front/pull/75) | 已合并，head 2c0445c4274a082fa9c83b30fe6a069192c672d8，merge cfce65110ce01ef5b9a6279e99f1dae3225d0ed8。常规42638599541与完整Windows42638599469全成功（Windows612通过/1跳过、22前端、冻结/迁移/ACL/测试签名/NSIS/便携/Hash完整性）。CIM只读回退/高精度UTC/ready；15专项真实/生成测试通过。无UI、依赖、数据库或启动路径变化。 |
 
 ## Character Soul 的实现与验证边界
 
@@ -41,12 +41,17 @@
 - 最终独立集成树479ff532527f82759efbde8b61ff8e2208952093（Soul b7b3ea7 +已合并ISBN +遥测e14eb0a）：本机**629通过/1既有跳过202.25秒、26前端通过、构建6.92秒**。不是把未合并代码带进main；Soul精确b7b3ea7常规42637088624全部成功（Linux620通过/4跳过、前端26/构建7.45秒、Python310通过）。遥测精确e14常规42636513894全部成功（Linux608通过/5跳过、前端22、Python310通过）；Windows各自仍须核对。
 - 后续精确遥测2c：本机612通过/1跳过185.90秒、22前端/构建7.09秒，常规42638599541全成功（Linux608通过/5跳过，Python310通过）。再次集成树5ee4850caee148c147f33058d639045e713c37b4：**629通过/1跳过196.72秒、26前端/构建6.75秒**；没有复用旧629结果冒充新组合。
 - #71精确de84fc9cc2d167ce33da5e062e5856e0c709bd68常规42636851119及完整Windows42636851096均成功；Windows606通过/1跳过、前端32、冻结/迁移/ACL/测试签名/原生scope与租约/NSIS/便携/完整性全部通过，仍因GUI未全验保持Draft。
+- Soul前一b7b3ea7的常规42637088624/Windows42637089347全成功（Windows623通过/1跳过、前端26、冻结/测试签名/NSIS/便携/完整性）；a321另修素材open参数及世界书来源book身份，先失败后通过，后端未变。不能以b7成功代替新head检查。
+- 已合并#75后的主线cfce651常规42642345456成功；本接续独立主线树另实跑**612通过/1既有跳过185.11秒、22前端通过、构建6.79秒**。本接续只更新七份Markdown/历史归档，无UI/API/数据库/打包行为变化，适用CI为常规三项；完整Windows代码证据仍是#75精确2c。
+- 来源导航补修后的最终组合8bc6b36a4d6302fd0722e9ab93e50a9315fd3b5d（Soul a321 +主线遥测2c/ISBN）：**629通过/1既有跳过194.32秒、26前端通过、构建6.79秒**。静态API/后台/打包工具与前序后端树一致，仍完整重跑，未混用旧结果。最后只读复查关闭后的生成库仍integrity=ok、外键0、同一UID/第7修订/11个历史；测试端口均关闭。
 
 主要修改文件：#72为Metadata.vue、BookRecordSummary.vue、metadataDisplay.js及测试；#74为models.py、souls.py、routers/souls.py、版本/备份/启动注册、SoulStudio.vue、soulDisplay.js、懒加载路由/导航、版本面板、Soul测试和性能工具；#75为desktop/profiling.py与test_desktop_profiling.py。各PR保留完整文件清单和独立提交；本接续PR只改文档，不安装程序或迁移个人库。
 
 ## GUI 与审批阻塞
 
 IAB在原生window.confirm后输入/CDP超时；关闭/Escape/离开测试文档未恢复，后续连接仍超时。未强制操作宿主或其他用户窗口。Soul已改页内明确放弃/保留草稿并补Vue内存renderer回归，但新确认真实GUI仍待，不以CI替代。
+
+收尾为确认原生路径补验是否还能进行，又正常调用标准getState；20秒仍未返回窗口清单并重置运行时。没有获得可安全定位的窗口，未再启动测试壳或换技术控制用户窗口；#71剩余矩阵同样待工具恢复。这不是Front本身故障的证据。
 
 独立临时Chrome配置启动被自动审批拒绝，只给出blocked by policy；命令未执行，未换包装/工具重试。此前被拒绝的聊天helper创建/启动也未重试。无需立即提供Key/验证码或改变安全设置。
 
@@ -55,8 +60,8 @@ IAB在原生window.confirm后输入/CDP超时；关闭/Escape/离开测试文档
 ## 下一次准确操作
 
 1. Fetch main，查所有PR精确head/CI/Draft/冲突。根checkout仍旧3aaa9e1731185046bee1f26a7eef1119514f8e33且clean，不是最新GitHub软件；不得从旧树覆盖新代码。使用.cache/worktrees，各树pytest显式PYTHONPATH=该backend，TEMP/TMP独立缓存。
-2. 核对#75最新全部CI并按门槛正常合并；#74/#71再正常同步main，保留审计并重新检查精确head，禁止用旧CI代替。
-3. 在可批准且正常可操作的GUI环境补Soul新草稿切换/刷新确认、取消/放弃、错误后内容保留、控制台和分页JSON下载。不得重包装临时Chrome/聊天helper拒绝。完成才考虑#74 Ready。
+2. #75已合并。#74/#71/#66在下一次验收前正常同步最新main，保留审计、以主线最新接续为准，重新检查精确head；文档冲突不可用旧工作树覆盖。源代码与文档更新均不得拿旧CI代替。
+3. 在可批准且正常可操作的GUI环境补Soul新草稿切换/刷新确认、取消/放弃、错误后内容保留、素材/世界书来源跳转、控制台和分页JSON下载。不得重包装临时Chrome/聊天helper拒绝。完成才考虑#74 Ready。
 4. #71补完整入口/键盘/390px/DPI/主题/重启；#66独立补Provider/模型快照、发/停/异常草稿、重生/编辑/分支/Provider变更与重启GUI。未满足保持Draft。
 5. #66验收合并后，才将已确认记忆接入同一完整轮次预算和上下文预览；再独立实现稳定群聊参与者、角色版本、私有/公共记忆与手动下一位，有限自动调度另立增量。
 6. 恢复/迁移先完整备份及隔离验证，Web/Desktop不并写同一活动库。旧程序不应打开含Soul新表的升级库；未升级个人安装。

@@ -10,7 +10,7 @@
 | SOUL-REVIEWED-MEMORY | 七类记忆、人工审核、分支证据、历史与完整备份 | 高；复用EntityVersion/SQLite | 核心生成浏览器闭环及隔离恢复通过；最新页内草稿确认GUI受工具阻塞，仍Draft。停用不等于清除历史/备份 |
 | SOUL-RECALL | FTS关键词、角色/会话/分支、固定/重要度、来源引用 | 中；200候选/30结果/12000字符上限，无embedding | #74本地预览可用；sent_to_ai:false，实际聊天注入等待#66合法合并与统一预算 |
 | SOUL-AI / GROUP-MEMORY | 可选建议提取、上下文、公共场景/角色私有记忆 | 高；显式Provider/文本范围/轮次预算 | 未实现；不挖掘现实敏感信息，不给角色电脑控制权，不堆叠群聊/剧情Draft |
-| WINDOWS-INVENTORY-FALLBACK | 解决实际CIM失效造成测量/回归失败 | 低中；仅显式开发测量，Win32自带API | #75独立修复，15专项真实/生成验证；不修用户系统或伪造未知资源，CI门槛见NEXT_SESSION |
+| WINDOWS-INVENTORY-FALLBACK | 解决实际CIM失效造成测量/回归失败 | 低中；仅显式开发测量，Win32自带API | #75已合并，精确2c常规/完整Windows全成功，15专项及Windows612通过/1跳过；不修用户系统或伪造未知资源 |
 | DESKTOP-PICKERS | 复用已有六类导入/扫描流程 | 中；官方Dialog点击加载，无新数据库 | #71新增模型文件/Escape保留、浅色与重启真实证据，完整入口/窄屏/DPI/键盘仍待，不合并 |
 | META-EDITIONS-UI | 复用#69 ISBN及字段来源/版本 | 低中；文本与主动公网书目查询 | #72已合并；真实字段保护/冲突/恢复、作品与版次区分和390px/Tab通过 |
 

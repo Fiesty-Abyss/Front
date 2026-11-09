@@ -222,8 +222,9 @@ function rich(text) {
       </div>
     </div>
   </Modal>
-  <Modal v-if="showCtx && ctx" title="下一次发送给模型的上下文" @close="showCtx = false">
+  <Modal v-if="showCtx && ctx" title="已保存分支的上下文预览" @close="showCtx = false">
     <div class="grid" style="gap:10px;max-height:70vh;overflow:auto">
+      <p class="small muted">以下预览针对已保存消息，不含输入框草稿。发送新台词时会将新请求加入并重新计算预算。</p>
       <div class="small">激活的世界书条目（约 {{ ctx.lore.tokens }} token）：
         <span v-for="l in ctx.lore.active" :key="l.entry_id" class="chip" :title="l.content">{{ l.title }} · {{ l.reason }}</span>
         <span v-if="!ctx.lore.active.length" class="muted">无</span>

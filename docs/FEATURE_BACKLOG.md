@@ -1,5 +1,23 @@
 # Front 持续功能库 · 当前接续
 
+## Character Soul 冲刺最新截面 · 2026-11-09
+
+本节及[NEXT_SESSION](NEXT_SESSION.md)覆盖下方历史状态。#72已实际GUI验收并合并，不再是待验Draft。
+
+| 功能 | 价值/依赖 | 复杂度及资源 | 授权/风险与当前状态 |
+| --- | --- | --- | --- |
+| SOUL-IDENTITY | Encyclopedia/OC/Card/Voice/Live2D/Asset/Chat/Lore显式共享稳定身份 | 中高；三张元数据表，不加载推理 | #74 Draft已实现独立角色/世界观身份、来源指纹/失效诊断；不自动同名合并 |
+| SOUL-REVIEWED-MEMORY | 七类记忆、人工审核、分支证据、历史与完整备份 | 高；复用EntityVersion/SQLite | 核心生成浏览器闭环及隔离恢复通过；最新页内草稿确认GUI受工具阻塞，仍Draft。停用不等于清除历史/备份 |
+| SOUL-RECALL | FTS关键词、角色/会话/分支、固定/重要度、来源引用 | 中；200候选/30结果/12000字符上限，无embedding | #74本地预览可用；sent_to_ai:false，实际聊天注入等待#66合法合并与统一预算 |
+| SOUL-AI / GROUP-MEMORY | 可选建议提取、上下文、公共场景/角色私有记忆 | 高；显式Provider/文本范围/轮次预算 | 未实现；不挖掘现实敏感信息，不给角色电脑控制权，不堆叠群聊/剧情Draft |
+| WINDOWS-INVENTORY-FALLBACK | 解决实际CIM失效造成测量/回归失败 | 低中；仅显式开发测量，Win32自带API | #75独立修复，15专项真实/生成验证；不修用户系统或伪造未知资源，CI门槛见NEXT_SESSION |
+| DESKTOP-PICKERS | 复用已有六类导入/扫描流程 | 中；官方Dialog点击加载，无新数据库 | #71新增模型文件/Escape保留、浅色与重启真实证据，完整入口/窄屏/DPI/键盘仍待，不合并 |
+| META-EDITIONS-UI | 复用#69 ISBN及字段来源/版本 | 低中；文本与主动公网书目查询 | #72已合并；真实字段保护/冲突/恢复、作品与版次区分和390px/Tab通过 |
+
+Voice/TTS/数据集/训练/MP3、Live2D合法运行时/玄宝酱授权署名/动作面捕、绘画Krita/笔刷/数位板、OC/LoRA与真实生图、小说/世界观、3D/VRM、游戏/音声/特典、大库与正式桌面发布全部保留。Soul来源代码研究遵守GPL/MIT边界，无GPL实现复制、重型模型或常驻Agent。
+
+以下为保留的历史截面，不代表当前合并结果。
+
 ## 当前状态 · 2026-11-09（覆盖下方历史截面）
 
 本轮实际代码分别在#66/#71/#72，仍为Draft，未将GUI缺口当通过；精确head/CI/首次失败及测试边界见 [NEXT_SESSION](NEXT_SESSION.md)。不是main已安装能力，也没有群聊/剧情依赖链。

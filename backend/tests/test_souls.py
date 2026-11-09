@@ -296,3 +296,43 @@ def test_same_world_work_move_invalidates_existing_role_scope(client):
     links = client.get(f'/api/souls/{sid}').json()['links']
     assert all(x['diagnostic'] for x in links)
     assert client.post(f'/api/souls/{sid}/recall', json={'session_id': chat['id']}).status_code == 409
+
+
+@pytest.mark.parametrize('kind', ['asset', 'voice_profile'])
+def test_source_media_hash_or_voice_configuration_change_requires_review(client, kind):
+    sid = soul(client)['id']
+    with new_session() as db:
+        model = m.VoiceModel(title='Generated registered model', model_version='v1')
+        if kind == 'voice_profile':
+            db.add(model); db.flush()
+        obj = (m.Asset(title='Generated reference', kind='image', sha256='a'*64)
+               if kind == 'asset' else m.VoiceProfile(title='Generated voice', voice_key='generated-v1', model_id=model.id))
+        db.add(obj); db.commit(); target_id = obj.id
+    post(client, f'/api/souls/{sid}/links', {'kind': kind, 'target_id': target_id})
+    row = memory(client, sid, source={'kind': kind, 'id': target_id})
+    patch(client, sid, row, review='approved', allow_injection=True)
+    assert recall(client, sid)['items']
+    with new_session() as db:
+        obj = db.get(souls.TARGETS[kind], target_id)
+        if kind == 'asset':
+            obj.stars = 4
+        else:
+            obj.notes = 'Personal rating/notes are not source content'
+        db.commit()
+    assert recall(client, sid)['items']
+    with new_session() as db:
+        obj = db.get(souls.TARGETS[kind], target_id)
+        if kind == 'asset':
+            obj.sha256 = 'b'*64
+        else:
+            obj.voice_key = 'generated-v2'
+        db.commit()
+    assert not recall(client, sid)['items']
+    if kind == 'voice_profile':
+        with new_session() as db:
+            obj = db.get(m.VoiceProfile, target_id); obj.voice_key = 'generated-v1'; db.commit()
+        assert recall(client, sid)['items']
+        with new_session() as db:
+            obj = db.get(m.VoiceProfile, target_id)
+            db.get(m.VoiceModel, obj.model_id).model_version = 'v2'; db.commit()
+        assert not recall(client, sid)['items']

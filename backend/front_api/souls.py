@@ -62,6 +62,9 @@ def reference(session, kind, obj):
                 if char and oc_char and stamp(char) != stamp(oc_char):
                     raise HTTPException(409, '声线的 OC 和百科人物关联不一致')
                 char = oc_char or char
+        if kind == 'voice_profile' and obj.model_id:
+            model = session.get(m.VoiceModel, obj.model_id)
+            ref['model'] = {**stamp(model), 'version': model.model_version} if model else None
     elif kind == 'chat':
         card = target(session, 'card', obj.card_id)
         ref['card'] = reference(session, 'card', card)
@@ -224,7 +227,9 @@ def memory_scope(session, soul, scope, session_id=None, head_id=None):
 
 def source_text(obj):
     return {k: getattr(obj, k) for k in ('name', 'title', 'description', 'personality', 'scenario',
-            'system_prompt', 'summary', 'profile', 'content', 'fields') if hasattr(obj, k)}
+            'system_prompt', 'summary', 'profile', 'content', 'fields', 'alias', 'gender',
+            'first_mes', 'alternate_greetings', 'extensions', 'sha256', 'voice_key',
+            'language', 'model_id', 'binding', 'sample_ref', 'license') if hasattr(obj, k)}
 
 
 def make_source(session, soul, data, scope, scope_ref):

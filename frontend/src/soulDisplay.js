@@ -12,7 +12,8 @@ export function sourceLink(source) {
   const id = source?.ref?.id
   if (!Number.isInteger(id) || id < 1) return null
   if (source.kind === 'message' && Number.isInteger(source.session?.id) && source.session.id > 0) return `/chat?session=${source.session.id}`
-  const bases = { character: '/characters/', card: '/cards?id=', oc: '/oc?id=', asset: '/assets?id=',
+  if (source.kind === 'lore' && Number.isInteger(source.ref.book?.id) && source.ref.book.id > 0) return `/lorebooks?id=${source.ref.book.id}`
+  const bases = { character: '/characters/', card: '/cards?id=', oc: '/oc?id=', asset: '/assets?open=',
     voice_profile: '/voice', live2d: '/live2d', lore: '/lorebooks' }
   const base = bases[source.kind]
   return base ? base + (['/voice', '/live2d', '/lorebooks'].includes(base) ? '' : id) : null

@@ -100,6 +100,8 @@ test('late initial responses do not populate an unmounted workspace', async () =
 test('source navigation uses stable source IDs and never accepts an arbitrary URL', () => {
   assert.equal(sourceLink({ kind: 'message', ref: { id: 7 }, session: { id: 3 } }), '/chat?session=3')
   assert.equal(sourceLink({ kind: 'card', ref: { id: 5 } }), '/cards?id=5')
+  assert.equal(sourceLink({ kind: 'asset', ref: { id: 9 } }), '/assets?open=9')
+  assert.equal(sourceLink({ kind: 'lore', ref: { id: 9, book: { id: 4 } } }), '/lorebooks?id=4')
   assert.equal(sourceLink({ kind: 'https://invalid.example', ref: { id: 1 } }), null)
   assert.equal(sourceLink({ kind: 'card', ref: { id: '../bad' } }), null)
   assert.deepEqual(sourcePayload('card:5', '', '生成测试'), { kind: 'card', id: 5, note: '生成测试' })

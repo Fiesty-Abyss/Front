@@ -1,5 +1,11 @@
 # 最新接续 · 聊天收敛与ISBN版次
 
+## 2026-11-09 · 新增独立路径选择 Draft
+
+开发基线 origin/main `69cb89bf21468c8f501b74f3d4297be9867e991c`，独立 `codex/desktop-path-picker`；不依赖 #66，未改旧根工作树/个人库。六类入口、共享输入与官方 Rust Dialog 桥接已实现，无新表。28 项前端/构建8.18秒；后端605通过/1跳过/1既有CIM进程清单失败，单组8通过/1同失败，诊断为系统CIM返回0x80004005，未改断言或WMI配置。本机 MSVC link.exe 缺失，编译未完成，Windows CI/真实 GUI 尚待。检查当前 PR 精确 head 后继续，验收前 Draft；不要用伪造 bridge 或聊天服务绕过审批。
+
+#66 在 `codex/chat-model-snapshots` 单独修复完整轮次预算、SSE 生命周期、稳定分页和测量索引，合规 GUI 仍缺，不转 Ready、不提前开发依赖它的群聊/剧情。后续先核对两个分支最新 CI/测试记录，再按 [桌面验收](DESKTOP_PATH_PICKER.md) 使用隔离生成路径，不改个人 8000 或原始资料。下列 11-08 条目均为历史截面。
+
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。

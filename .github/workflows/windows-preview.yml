@@ -78,6 +78,8 @@ jobs:
         # Compile/run the bounded startup protocol and origin checks separately
         # from the real updater tests; neither launches an installer.
         run: cargo test --release --locked --manifest-path desktop/src-tauri/Cargo.toml startup_tests
+      - name: Test native path picker scope and modal ownership (no GUI)
+        run: cargo test --release --locked --manifest-path desktop/src-tauri/Cargo.toml path_picker_tests
       - name: Build Tauri x64 NSIS installer and bundle shared resources
         working-directory: desktop
         run: python bundle_retry.py

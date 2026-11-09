@@ -1,4 +1,5 @@
 <script setup>
+import LocalPathField from '../components/LocalPathField.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { api } from '../api'
 import { toast } from '../toast'
@@ -75,7 +76,7 @@ const missing = computed(() => scanInfo.value?.dependencies.filter(d => !d.exist
     </header>
     <form v-if="showImport" class="card grid" @submit.prevent="scan">
       <p class="small muted" style="margin:0">只读扫描文件夹或 ZIP；Windows 也可扫描 RAR。仅保存档案，不复制模型。请按作者授权使用素材。</p>
-      <label class="field">模型路径<input v-model="form.path" required placeholder="模型文件夹或压缩包的完整路径" /></label>
+      <LocalPathField v-model="form.path" label="模型路径" purpose="live2d_folder" alternate-purpose="live2d_archive" :disabled="busy" required placeholder="模型文件夹或压缩包的完整路径"/>
       <div class="grid cols-2">
         <label class="field">创作者<input v-model="form.creator" maxlength="300" /></label>
         <label class="field">来源链接<input v-model="form.source_url" maxlength="2000" /></label>

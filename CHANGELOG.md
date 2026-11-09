@@ -1,5 +1,11 @@
 # 更新日志
 
+## 2026-11-09 · 桌面路径选择（开发 Draft）
+
+- Discovery、素材、项目预览、Audio 归档、模型和 Live2D 增加统一原生选择入口，选择后仍需原有预览/确认，不自动扫描或修改原件。
+- 单主窗口/随机 origin 的窄 IPC、单对话框租约、取消与迟到结果保护；Web 手动路径及小说/OC 已有上传不变。官方 Dialog 锁依赖，不开放 FS 权限。
+- 28 项前端测试与生产构建通过；后端605通过/1跳过/1既有CIM查询失败（系统0x80004005，未改断言/系统）。Windows 编译和真实原生 GUI 以当前 PR head 记录为准，尚不能宣称交付验收。详见 [DESKTOP_PATH_PICKER](docs/DESKTOP_PATH_PICKER.md)。
+
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。

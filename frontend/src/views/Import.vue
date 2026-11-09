@@ -1,4 +1,5 @@
 <script setup>
+import LocalPathField from '../components/LocalPathField.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { api, LABELS, Works, Worlds } from '../api'
 import TagPicker from '../components/TagPicker.vue'
@@ -96,7 +97,7 @@ const pct = computed(() => (picked.value.length ? Math.round((progress.done / pi
     <div class="card grid">
       <div class="row"><span class="chip click" :class="{ on: mode === 'local' }" @click="mode = 'local'">本机文件夹路径</span><span class="chip click" :class="{ on: mode === 'browser' }" @click="mode = 'browser'">从浏览器选择文件夹</span></div>
       <template v-if="mode === 'local'">
-        <label class="field">文件夹路径（运行 Front 的这台电脑）<input v-model="form.path" class="mono" placeholder="D:\Games\樱色回廊\CG" @keydown.enter="scan" /></label>
+        <LocalPathField v-model="form.path" label="文件夹路径（运行 Front 的这台电脑）" purpose="asset_folder" :disabled="busy" mono placeholder="输入需要预览的素材目录" @enter="scan"/>
         <p class="small muted" style="margin:0">文件会被复制进数据目录，原文件不会被修改或删除。</p>
       </template>
       <template v-else>

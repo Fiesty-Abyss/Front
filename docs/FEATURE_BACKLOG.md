@@ -1,5 +1,9 @@
 # Front 持续功能库
 
+## 2026-11-09 · 原生路径选择增量（待验收）
+
+DESKTOP-PICKERS 已在独立 main 分支实现六类工作区的选择桥接与共享输入组件，复用原扫描/归档 API，无新表或文件库。依赖官方 Dialog，复杂度中、点击时才加载；风险为 IPC 范围与迟到覆盖，已加 origin/单实例租约/输入保护。当前 Draft，Windows 编译与真实原生 GUI 未验；见 [范围与证据](DESKTOP_PATH_PICKER.md)。CHAT-GUI/#66 仍独立 Draft，多角色/剧情不提前堆叠。其余长期任务保持原状态。
+
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。

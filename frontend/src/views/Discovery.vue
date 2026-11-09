@@ -1,4 +1,5 @@
 <script setup>
+import LocalPathField from '../components/LocalPathField.vue'
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { api } from '../api'
@@ -44,7 +45,7 @@ onMounted(()=>{reset();window.addEventListener('beforeunload',leave);perform(lis
       <section class="card grid"><h3>{{source?'管理扫描来源':'添加扫描来源'}}</h3>
         <form class="grid" @submit.prevent="perform(save)"><fieldset :disabled="busy||active" class="grid">
           <label class="field">来源名称<input v-model="form.name" required maxlength="120"/></label>
-          <label class="field">实际本地文件夹<input v-model="form.path" :disabled="Boolean(source)" required placeholder="输入具体目录路径"/></label>
+          <LocalPathField v-model="form.path" label="实际本地文件夹" purpose="discovery_root" :disabled="Boolean(source)||busy" required placeholder="输入具体目录路径"/>
           <div class="form-columns"><label class="field">资料类型<select v-model="form.config.kind"><option v-for="(name,key) in kinds" :key="key" :value="key">{{name}}</option></select></label><label class="field">最大子目录深度<input v-model.number="form.config.max_depth" type="number" min="0" max="32" required/></label></div>
           <label class="field">忽略规则（每行一个，支持 *、?；匹配相对路径或文件名）<textarea v-model="form.rules" rows="3" placeholder="缓存/*&#10;*.tmp" maxlength="8000"/></label>
           <details><summary>扫描预算</summary><div class="form-columns">

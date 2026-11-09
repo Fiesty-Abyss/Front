@@ -50,6 +50,10 @@ EXPLAIN：`SEARCH soul_memories USING COVERING INDEX ix_soul_memories_soul_id (s
 
 ## 未完成
 
+后续草稿刷新检查发现原生window.confirm使IAB测试页控制超时；getJsDialog未暴露该弹窗，关闭/Escape/退出测试文档也超时，最后工具重置。没有强制控制宿主或用户其他窗口。独立临时Chrome启动被自动审批拒绝，仅给出blocked by policy，未改命令重试；通过已有获准标签页的普通导航可读取界面，但输入未能继续，未当作通过。
+
+已将档案切换/刷新改为页面内明确确认，取消应保留草稿；Vue实际内存组件回归已覆盖，当前新增确认交互的真实GUI仍待补验。原先核心创建/关联/审核/召回/恢复/重启等真实GUI证据继续有效，不能据此宣称新增确认已验。未满足这一门槛时#74保留Draft，不以CI代替GUI。
+
 - 聊天自动记忆注入/提取、真实 AI 质量、群聊、自动调度、剧情/选项。
 - 语义矛盾分析、embedding、批量记忆建议、较大关联列表分页。
 - 原生 Soul 桌面交互、完整内存回收/长时 CPU/GPU、干净安装升级、真实硬件。

@@ -14,6 +14,7 @@ ENTITIES.update(voice_provider=m.VoiceProvider, voice_model=m.VoiceModel, voice_
 ENTITIES.update(voice_project=m.VoiceProject, voice_segment=m.VoiceSegment)
 ENTITIES.update(galgame=m.Galgame)
 ENTITIES.update(card=m.CharacterCard)
+ENTITIES.update(soul=m.SoulIdentity, soul_link=m.SoulLink, soul_memory=m.SoulMemory)
 KINDS = {v:k for k,v in ENTITIES.items()}
 SKIP = {'id','created_at','updated_at'}
 

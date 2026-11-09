@@ -56,6 +56,8 @@ def schema_findings(db,complete=False):
     """Shared structural inspection; names stay in private backup diagnostics."""
     names={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     allowed=set(Base.metadata.tables)|{'search_index','search_index_content','search_index_data','search_index_idx','search_index_docsize','search_index_config','sqlite_sequence','sqlite_stat1','sqlite_stat4'}
+    from .souls import FTS_NAMES
+    allowed |= FTS_NAMES
     result={'unknown_tables':sorted(names-allowed),'unknown_columns':[], 'missing_tables':[], 'missing_columns':[],
             'missing_core':sorted({'assets','worlds','characters'}-names)}
     for name,table in Base.metadata.tables.items():

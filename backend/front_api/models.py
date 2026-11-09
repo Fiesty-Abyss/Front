@@ -38,6 +38,49 @@ class TimestampMixin:
     )
 
 
+class SoulIdentity(TimestampMixin, Base):
+    """Explicit shared identity, not an owner of character/module data."""
+    __tablename__ = 'soul_identities'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uid: Mapped[str] = mapped_column(String(32), unique=True, default=lambda: uuid.uuid4().hex)
+    name: Mapped[str] = mapped_column(String(200))
+    world_ref: Mapped[dict] = mapped_column(JSON, default=dict)
+    notes: Mapped[str] = mapped_column(Text, default='')
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class SoulLink(TimestampMixin, Base):
+    __tablename__ = 'soul_links'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    soul_id: Mapped[int] = mapped_column(ForeignKey('soul_identities.id'), index=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    target_id: Mapped[int] = mapped_column(Integer)
+    target_ref: Mapped[dict] = mapped_column(JSON)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class SoulMemory(TimestampMixin, Base):
+    __tablename__ = 'soul_memories'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uid: Mapped[str] = mapped_column(String(32), unique=True, default=lambda: uuid.uuid4().hex)
+    soul_id: Mapped[int] = mapped_column(ForeignKey('soul_identities.id'), index=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    content: Mapped[str] = mapped_column(Text)
+    scope: Mapped[str] = mapped_column(String(20), default='character')
+    scope_ref: Mapped[dict] = mapped_column(JSON, default=dict)
+    source: Mapped[dict] = mapped_column(JSON, default=dict)
+    review: Mapped[str] = mapped_column(String(20), default='pending')
+    conflict: Mapped[bool] = mapped_column(Boolean, default=False)
+    conflict_note: Mapped[str] = mapped_column(String(1000), default='')
+    allow_injection: Mapped[bool] = mapped_column(Boolean, default=False)
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    importance: Mapped[int] = mapped_column(Integer, default=50)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+
+
 def _tag_link(name: str, owner: str) -> Table:
     return Table(
         name,

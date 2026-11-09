@@ -63,6 +63,12 @@ Voice真实TTS/授权声线/数据集/切片转写/独立训练/MP3续拼，Live
 
 # 最新接续 · 聊天收敛与ISBN版次
 
+## 2026-11-09 · 独立 ISBN UI 开发
+
+基线 main `69cb89bf21468c8f501b74f3d4297be9867e991c`；分支 `codex/metadata-edition-ui` 仅补已有API的版次核对与可选年份，无迁移/Provider。606后端通过/1权限跳过215.28秒，22前端通过/构建7.62秒。#66上下文/流式/分页在原分支收敛，仍缺聊天GUI；#71原生路径为独立Draft。此分支也须真实GUI和精确head CI后才Ready，不把SSR当浏览器验证。
+
+接续见 [EDITION_UI_20261109](audits/metadata/EDITION_UI_20261109.md)。不重试被拒绝的聊天服务，不操作个人8000/资料库。下面11-08记录均为历史截面，最新PR/CI必须重新获取。
+
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。
@@ -114,3 +120,7 @@ A/B与角色卡上轮生成实例已关闭；本轮没有重启它们或个人80
 ## 2026-11-09 · CIM失效时的只读遥测回退
 
 独立开发分支codex/windows-process-inventory：当前主机CIM空清单/0x80004005使既有进程身份测试失败；为desktop/profiling.py增加Toolhelp进程元数据和限定权限GetProcessTimes回退，保留PID创建时间核验、未知覆盖与CIM详细角色优先。专项15项含真实Windows当前/专属子进程通过；不修系统、不提权、不运行AI或用户软件。完整测试/精确head CI后才能合并，见[audit](audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md)。#66仍须真实聊天GUI；Soul与ISBN由各自独立分支推进，不复制未合并代码。
+
+## 2026-11-09 · #72 GUI补验
+
+#72已在隔离生成Work上真实完成Open Library ISBN具体版次/作品级区别、作者缺失、来源字段、人工内容保护、空字段应用、追加版本恢复、并发冲突、错误ISBN/年份、390px、Tab与浏览器返回；见[audit](audits/metadata/EDITION_UI_20261109.md)。原始用户资料未操作。正常合入6e8c95c后精确head重新CI，全门槛满足才合并；#66仍Draft，不启动群聊依赖。Character Soul独立#74由另一合法工作树开发，不把其未合并代码复制到本分支。

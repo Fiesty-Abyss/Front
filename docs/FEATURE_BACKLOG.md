@@ -21,6 +21,10 @@ Voice真实TTS/声库/数据集/切片/训练/MP3续拼、Live2D合法运行时/
 
 # Front 持续功能库
 
+## 2026-11-09 · 版次核对 UI（开发待验收）
+
+META-EDITIONS-UI 复用 #69 与现有 Metadata Center，增加 ISBN 搜索说明、可选年份、OL作品/版次标识、无目标档案的字段摘要和来源中文字段名；无新Provider/表/常驻服务。复杂度低中、文本按当前详情显示；风险为错误译本/人工覆盖，仍需字段确认且不推断缺失作者。生成Vue SSR/搜索体测试已补，实际GUI/Windows CI待核对。见 [范围](audits/metadata/EDITION_UI_20261109.md)。群聊/#66、桌面路径选择另为独立分支，长期 Voice/Live2D/绘画/硬件/正式发布任务不变。
+
 ## 本轮最终收敛 · 2026-11-08
 
 本次文档提交前main **7a8d4ed5ffab875c69d3daaca600cd761f335a01**。#69已正常合并：head88fe6fd1a39aae0df578af572ead33ac1221e52b，常规42480759918/Windows42480759995全成功（NSIS、便携、独立完整性与内部Artifact）；合并后主线42482442395亦成功。没有正式Release/签名信任根或个人安装更新。
@@ -330,3 +334,7 @@ E PR #33最新head11acdc9全部CI（backend/frontend/python310-compat/windows-x6
 ## 2026-11-09 · Windows进程测量可靠性
 
 增加CIM失效时的只读Toolhelp/创建时间回退开发增量，修复真实环境清单为空导致的验收失败；不改变系统配置，不将未知内存伪装为零，WebView2子角色不足明确标未知。只在显式测量时执行，不增加常驻依赖；见audits/v0.7/PROCESS_INVENTORY_FALLBACK_20261109.md。
+
+## 2026-11-09 · ISBN实际验收补充
+
+#72真实Open Library公开ISBN/作品查询、来源字段、人工保护/版本恢复、并发冲突、输入校验、390px/Tab/导航已验，详见audits/metadata/EDITION_UI_20261109.md；CI与合并状态以精确head为准。未读取个人库，无新服务/推理/封面抓取依赖。所有长期创作/Voice/Live2D/绘画/群聊/桌面目标保留。

@@ -197,7 +197,7 @@ def toggle(soul_id: int, link_id: int, body: ToggleLink, session: Session = Depe
         if issue := s.scope_issue(session, soul):
             raise HTTPException(409, issue)
         # Use the same canonical conflict checks as creating a link.
-        duplicate = s.add_link(session, soul, row.kind, row.target_id)
+        duplicate = s.add_link(session, soul, row.kind, row.target_id, activate=False)
         if duplicate.id != row.id:
             raise HTTPException(409, '请使用已存在的有效关联')
     row.active = body.active; row.revision += 1; session.commit()

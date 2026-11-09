@@ -298,6 +298,47 @@ def test_same_world_work_move_invalidates_existing_role_scope(client):
     assert client.post(f'/api/souls/{sid}/recall', json={'session_id': chat['id']}).status_code == 409
 
 
+def test_source_intermediate_reparenting_cannot_leak_another_branch(client):
+    sid = soul(client)['id']
+    _, _, chat, source_id, reply_id, _ = linked_chat(client, sid)
+    with new_session() as db:
+        middle = m.ChatMessage(session_id=chat['id'], parent_id=reply_id, role='user', content='原分支中间节点')
+        foreign = m.ChatMessage(session_id=chat['id'], role='user', content='另一条独立剧情')
+        db.add_all([middle, foreign]); db.flush()
+        head = m.ChatMessage(session_id=chat['id'], parent_id=middle.id, role='assistant', content='记忆锚点')
+        db.add(head); db.commit(); head_id, middle_id, foreign_id = head.id, middle.id, foreign.id
+    row = memory(client, sid, kind='episode', scope='branch', session_id=chat['id'],
+                 branch_head_id=head_id, source={'kind': 'message', 'id': source_id})
+    row = patch(client, sid, row, review='approved', allow_injection=True)
+    assert recall(client, sid, session_id=chat['id'], branch_head_id=head_id)['items']
+    # Neither evidence nor anchor changed. An intervening ancestor moved instead.
+    with new_session() as db:
+        db.get(m.ChatMessage, middle_id).parent_id = foreign_id; db.commit()
+    assert not recall(client, sid, session_id=chat['id'], branch_head_id=head_id)['items']
+    assert client.get(f'/api/souls/{sid}/memories/{row["id"]}').json()['diagnostic']
+
+
+def test_readding_disabled_link_advances_revision_and_blocks_stale_toggle(client):
+    sid = soul(client)['id']
+    char = post(client, '/api/characters', {'name': '生成稳定身份'})
+    url = f'/api/souls/{sid}/links'
+    link = post(client, url, {'kind': 'character', 'target_id': char['id']})
+    toggle_url = f'{url}/{link["id"]}'
+    disabled = client.patch(toggle_url, json={'expected_revision': link['revision'], 'active': False}).json()
+    again = post(client, url, {'kind': 'character', 'target_id': char['id']})
+    assert again['id'] == link['id'] and again['active']
+    assert again['revision'] == disabled['revision'] + 1
+    assert client.patch(toggle_url, json={'expected_revision': disabled['revision'], 'active': False}).status_code == 409
+    repeated = post(client, url, {'kind': 'character', 'target_id': char['id']})
+    assert repeated['revision'] == again['revision']  # An already-active repeat is idempotent.
+    history_url = f'/api/versions/soul_link/{link["id"]}'
+    history = client.get(history_url).json()['items']
+    restored = client.post(f'{history_url}/{history[-1]["id"]}/restore', json={'expected_latest': history[0]['id']})
+    assert restored.status_code == 200, restored.text
+    current = client.get(f'/api/souls/{sid}').json()['links'][0]
+    assert current['revision'] == again['revision'] + 1
+
+
 @pytest.mark.parametrize('kind', ['asset', 'voice_profile'])
 def test_source_media_hash_or_voice_configuration_change_requires_review(client, kind):
     sid = soul(client)['id']

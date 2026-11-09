@@ -132,7 +132,7 @@ def valid_link(session, soul, kind, target_id):
     raise HTTPException(409, '请先显式关联该资料到当前角色身份；失效关联不能自动复用')
 
 
-def add_link(session, soul, kind, target_id):
+def add_link(session, soul, kind, target_id, *, activate=True):
     if issue := scope_issue(session, soul):
         raise HTTPException(409, issue)
     obj = target(session, kind, target_id)
@@ -147,8 +147,6 @@ def add_link(session, soul, kind, target_id):
     for old in own_links:
         if old.kind == kind and old.target_id == target_id and old.target_ref == ref and old.active:
             return old
-    if len(own_links) >= 200:
-        raise HTTPException(422, '单个角色身份最多保存 200 条显式关联，请先整理档案')
     # A canonical character/card/OC may have only one active Soul. Deleted IDs
     # with a different creation identity are separate and may be linked anew.
     if kind in ('character', 'card', 'oc', 'voice_profile'):
@@ -169,8 +167,12 @@ def add_link(session, soul, kind, target_id):
                 raise HTTPException(409, '同一百科人物已由其他身份关联，请显式审核')
     for old in own_links:
         if old.kind == kind and old.target_id == target_id and old.target_ref == ref:
-            old.active = True
+            if activate:
+                old.active = True
+                old.revision += 1
             return old
+    if len(own_links) >= 200:
+        raise HTTPException(422, '单个角色身份最多保存 200 条显式关联，请先整理档案')
     row = m.SoulLink(soul_id=soul.id, kind=kind, target_id=target_id, target_ref=ref)
     session.add(row); session.flush(); v.enable(session, row, '显式关联资料')
     return row
@@ -269,6 +271,8 @@ def source_issue(session, soul, source):
                 return '来源消息已删除或修改'
             if message_ref(session, source['branch']['id']) != source['branch']:
                 return '来源分支节点已删除或修改'
+            if source['ref']['id'] not in branch_path(session, source['session']['id'], source['branch']['id']):
+                return '来源消息已不属于原分支；请重新审核'
         else:
             obj = target(session, source['kind'], source['ref']['id'])
             valid_link(session, soul, source['kind'], obj.id)
@@ -343,7 +347,7 @@ def validate_restore(session, obj, data):
             if issue := scope_issue(session, soul):
                 raise HTTPException(409, issue)
             # Reuse all identity/ownership checks; restoring cannot steal a link.
-            restored = add_link(session, soul, obj.kind, obj.target_id)
+            restored = add_link(session, soul, obj.kind, obj.target_id, activate=False)
             if restored.id != obj.id:
                 raise HTTPException(409, '已存在另一条有效关联')
     else:

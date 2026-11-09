@@ -16,12 +16,14 @@ const draft = ref({ kind: 'suggestion', content: '', scope: 'character', session
 const sourceRows = ref([]), recalled = ref(null), recallQuery = ref(''), recallSession = ref(''), recallHead = ref(''), budget = ref(4000)
 const exportPage = ref(null)
 const savedSoul = ref('')
+const pendingOpen = ref(null)
 let disposed = false, opening = 0
 const validLinks = computed(() => (cur.value?.links || []).filter(x => x.active && !x.diagnostic))
 const chats = computed(() => validLinks.value.filter(x => x.kind === 'chat'))
 const entitySources = computed(() => validLinks.value.filter(x => x.kind !== 'chat'))
 const soulText = () => cur.value ? JSON.stringify([cur.value.name, cur.value.notes]) : ''
-const dirty = computed(() => !!draft.value.content || (!!selected.value && edited.value !== selected.value.content) || soulText() !== savedSoul.value)
+const memoryDirty = computed(() => !!selected.value && (edited.value !== selected.value.content || conflictNote.value !== selected.value.conflict_note))
+const dirty = computed(() => !!draft.value.content || memoryDirty.value || soulText() !== savedSoul.value)
 onBeforeRouteLeave(() => !dirty.value || window.confirm('有未保存的记忆草稿，确定离开？'))
 function leaving(e) { if (dirty.value) { e.preventDefault(); e.returnValue = '' } }
 onBeforeUnmount(() => { disposed = true; opening++; window.removeEventListener('beforeunload', leaving) })
@@ -42,7 +44,8 @@ async function loadMemories() {
   if (!disposed && cur.value?.id === id) memories.value = data
 }
 async function open(id, force = false) {
-  if (!force && dirty.value && !window.confirm('切换角色会放弃未保存草稿，确定切换？')) return
+  if (!force && dirty.value) { pendingOpen.value = id; return }
+  pendingOpen.value = null
   const seq = ++opening
   const data = await api.get(`${base}/${id}`)
   if (disposed || seq !== opening) return
@@ -88,7 +91,7 @@ async function createMemory() {
   d.content = ''; memOffset.value = 0; await loadMemories(); notice.value = '已保存为待审记忆；尚未允许上下文引用。'
 }
 function inspect(row, force = false) {
-  if (!force && selected.value && edited.value !== selected.value.content && !window.confirm('有未保存的记忆修改，确定切换？')) return
+  if (!force && memoryDirty.value && !window.confirm('有未保存的记忆修改，确定切换？')) return
   selected.value = row; edited.value = row.content; conflictNote.value = row.conflict_note; showHistory.value = false
 }
 async function inspectRecall(id) {
@@ -129,8 +132,9 @@ onMounted(() => run(async () => {
 <template>
   <div class="soul-workspace grid">
     <p class="notice">Character Soul · 身份关联与可审核记忆。默认不提取私人聊天；召回仅在本地预览，尚不自动发送给 AI。</p>
-    <p v-if="error" role="alert" class="notice">{{ error }} <button :disabled="busy || !cur" @click="run(() => open(cur.id, true))">刷新当前档案</button></p>
+    <p v-if="error" role="alert" class="notice">{{ error }} <button :disabled="busy || !cur" @click="run(() => open(cur.id))">刷新当前档案</button></p>
     <p v-if="notice" role="status">{{ notice }}</p>
+    <div v-if="pendingOpen !== null" class="notice grid" role="alert"><p>加载档案会放弃未保存草稿。已保存的资料不会被删除。</p><div class="row"><button :disabled="busy" @click="run(() => open(pendingOpen, true))">确认放弃草稿并加载</button><button :disabled="busy" @click="pendingOpen = null">保留未保存草稿</button></div></div>
     <div class="soul-columns">
       <aside class="card grid soul-sidebar" aria-label="角色身份列表">
         <button class="primary" :disabled="busy" @click="newOpen = !newOpen">新建角色身份</button>

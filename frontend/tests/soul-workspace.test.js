@@ -77,6 +77,14 @@ test('failed save keeps fictional draft and blocks silent navigation loss', asyn
   assert.equal(content.value, '虚构待审草稿，不应丢失')
   globalThis.window.confirm = () => false
   assert.equal(globalThis.soulLeaveGuard(), false)
+  const callsBefore = f.calls.length
+  await f.find('button', '刷新当前档案').props.onClick(); await nextTick()
+  assert.equal(content.value, '虚构待审草稿，不应丢失')
+  assert.equal(f.calls.length, callsBefore)
+  assert.ok(f.find('button', '保留未保存草稿'))
+  f.find('button', '保留未保存草稿').props.onClick(); await nextTick()
+  assert.equal(f.find('button', '确认放弃草稿并加载'), undefined)
+  assert.equal(content.value, '虚构待审草稿，不应丢失')
   f.app.unmount()
 })
 

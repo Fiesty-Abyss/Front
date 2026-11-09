@@ -2,6 +2,8 @@
 
 ## Character Soul 冲刺最新截面 · 2026-11-09
 
+验收截止本地2026-11-10凌晨：三个功能Draft均正常合入已验main cfce651，新head完整CI成功；六份共用进度统一由本轮接续维护，专题审计/原提交保留。665后端/42前端组合回归通过；GUI门槛未满足的仍Draft，精确SHA/CI见NEXT_SESSION。
+
 本节及[NEXT_SESSION](NEXT_SESSION.md)覆盖下方历史状态。#72已实际GUI验收并合并，不再是待验Draft。
 
 | 功能 | 价值/依赖 | 复杂度及资源 | 授权/风险与当前状态 |
